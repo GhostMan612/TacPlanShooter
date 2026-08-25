@@ -1,0 +1,37 @@
+# ===== Godot 4+ =====
+.godot/
+*.translation
+export.cfg
+export_presets.cfg
+export_credentials.cfg
+
+# Godot Android gradle build template generated inside the project
+game/android/
+
+# ===== Signing / secrets (never commit) =====
+*.keystore
+*_release.keystore
+debug.keystore
+local.properties
+.env
+
+# ===== House rules =====
+blueprints/
+_archive/
+
+# ===== OS junk =====
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===== Editors / tools =====
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===== Logs / temp =====
+*.log
+tmp/
+*.tmp
