@@ -14,6 +14,7 @@ func _initialize() -> void:
 	failures += _test_queue_roundtrip()
 	failures += _test_world_snapshot_roundtrip()
 	failures += _test_determinism_same_seed()
+	failures += _test_route_pipeline()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -146,6 +147,34 @@ func _test_world_snapshot_roundtrip() -> int:
 		"PASS" if ok else "FAIL",
 		str(restore_ok),
 		str(continuation_ok),
+	])
+	return 0 if ok else 1
+
+
+func _test_route_pipeline() -> int:
+	var prng := RandomNumberGenerator.new()
+	prng.seed = 77
+	var raw := PackedVector2Array()
+	raw.append(Vector2(40, 40))
+	var cur := Vector2(40, 40)
+	for i in range(400):
+		cur += Vector2(prng.randf_range(-3.0, 9.0), prng.randf_range(-4.0, 4.0))
+		raw.append(cur)
+	var dec1 := RouteSanitizer.decimate(raw)
+	var dec2 := RouteSanitizer.decimate(raw)
+	var baked := RouteSanitizer.bake_smooth(dec1)
+	var reduced := dec1.size() < raw.size() and dec1.size() >= 2
+	var deterministic := dec1.size() == dec2.size()
+	var endpoints_kept := baked[0].distance_to(dec1[0]) < 0.01 and baked[baked.size() - 1].distance_to(dec1[dec1.size() - 1]) < 0.01
+	var cells := GridUtil.collapse_consecutive_cells(GridUtil.px_points_to_cell_waypoints(baked))
+	var cells_sane := cells.size() >= 2 and cells[0] == GridUtil.px_to_cell(dec1[0])
+	var ok := reduced and deterministic and endpoints_kept and cells_sane
+	print("[HARNESS] route_pipeline %s (raw=%d decimated=%d baked=%d waypoints=%d)" % [
+		"PASS" if ok else "FAIL",
+		raw.size(),
+		dec1.size(),
+		baked.size(),
+		cells.size(),
 	])
 	return 0 if ok else 1
 

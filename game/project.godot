@@ -3,8 +3,12 @@ config_version=5
 [application]
 
 config/name="TacPlan Shooter"
-run/main_scene="res://scenes/boot.tscn"
+run/main_scene="res://scenes/planning.tscn"
 config/features=PackedStringArray("4.0")
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
 
 [autoload]
 
