@@ -8,7 +8,6 @@ config/features=PackedStringArray("4.0")
 
 [autoload]
 
-Config="*res://scripts/autoload/config.gd"
 EventBus="*res://scripts/autoload/event_bus.gd"
 SimClock="*res://scripts/autoload/sim_clock.gd"
 

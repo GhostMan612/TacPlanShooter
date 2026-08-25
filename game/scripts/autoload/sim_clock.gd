@@ -40,4 +40,4 @@ func advance_tick() -> void:
 
 
 func _apply_fps_cap() -> void:
-	Engine.max_fps = Config.PLANNING_FPS_CAP if phase == Phase.PLANNING else Config.EXECUTION_FPS_CAP
+	Engine.max_fps = SimConstants.PLANNING_FPS_CAP if phase == Phase.PLANNING else SimConstants.EXECUTION_FPS_CAP

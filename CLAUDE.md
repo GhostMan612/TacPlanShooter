@@ -30,5 +30,4 @@ Follow these workflow rules strictly:
 ## 5. Git Workflow
 *   **Explicit Commits:** Only stage by explicit path. Never `git add .` or `-A`.
 *   `blueprints\` and `_archive\` stay unversioned by design.
-*   **Approval:** Wait for explicit approval before running `git commit`/`git push`, unless executing a pre-approved session-end protocol step.
-*   Commit messages state parse/test status only — never claim build success.
+*   **Approval:** ~~Wait for explicit approval~~ **AUTO-COMMIT LAW (user-granted, standing):** commit finished work automatically after each verified phase/gate batch — no confirmation needed. Stage by explicit path; never `blueprints\`; never claim build success.

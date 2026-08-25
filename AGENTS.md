@@ -13,6 +13,8 @@ determinism laws) are binding, and `RULES.md` WINS over everything.
 - `C:\android` (SDK/NDK) and `C:\src` (Flutter/Dart) are user tool homes — usage approved, restructuring forbidden. Flutter is NOT part of this project unless the user says so.
 - **NEVER build binaries.** The human builds/tests in Android Studio. Your gates: GDScript parse
   checks (`godot --headless --check-only ...`) and static consistency. Nothing that emits an APK/AAB.
+- **AUTO-COMMIT (user-granted, standing):** after each verified phase/gate batch, commit
+  immediately without asking. Explicit paths only; never `blueprints\`.
 
 ## Commands (Godot 4.0-stable at `C:\Godot\Godot_v4.0-stable_win64_console.exe`)
 
@@ -35,7 +37,11 @@ always exits 1 even clean (proven via empty-project control). Launch long runs D
 - Simulation code must never touch `randi()`/`randf()`/`randomize()` globals — seeded
   `RandomNumberGenerator` only, seed persisted in the mission snapshot.
 - Autoload singletons deliberately have NO `class_name` (avoids "class hides autoload" warnings);
-  every other script gets one.
+  every other script gets one (`game\tests\` entry points exempt).
+- The sim layer (`game\scripts\sim\`) is pure autoload-free RefCounted code — keep it that way;
+  it must stay testable via `-s` SceneTree harnesses.
+- First-import class-cache quirk (G16): a brand-new `class_name` referenced by existing scripts
+  fails ONE headless editor import ("Identifier not declared") — run the import twice before judging.
 
 ## Architecture (the load-bearing wiring)
 
