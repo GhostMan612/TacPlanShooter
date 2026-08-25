@@ -18,6 +18,7 @@ local.properties
 # ===== House rules =====
 blueprints/
 _archive/
+builds/
 
 # ===== OS junk =====
 Thumbs.db
