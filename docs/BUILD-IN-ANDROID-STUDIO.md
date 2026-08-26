@@ -17,7 +17,7 @@ After those three: back to **Project → Export…** → the **Export Project** 
 
 ## 1. One-time Godot editor setup
 
-Open `C:\TacPlan Shooter\game\project.godot` in Godot. Then **Editor → Editor Settings → Export → Android**:
+Open `C:\TacPlan Shooter\project.godot` in Godot. Then **Editor → Editor Settings → Export → Android**:
 
 | Setting | Value |
 |---|---|
@@ -33,15 +33,15 @@ Open `C:\TacPlan Shooter\game\project.godot` in Godot. Then **Editor → Editor 
 
 ### Route B — Android Studio standing workflow (later, optional)
 1. Re-tick **Use Gradle Build** in the preset options.
-2. Project menu → **Install Gradle Build Template** → accept (creates gitignored `game\android\`).
-3. Project → Export… → Export Project (this fills the gradle project).
-4. Android Studio → Open → `C:\TacPlan Shooter\game\android` → sync → **Build → Build APK(s)**.
+2. Project menu → **Install Gradle Build Template** → accept (creates gitignored `android\`).
+2. Project → Export… → Export Project (this fills that gradle project).
+3. Android Studio → Open → `C:\TacPlan Shooter\android` → sync → **Build → Build APK(s)**.
 
 ## 4. Install on the device
 
 Phone: Settings → About → tap Build Number ×7 → Developer Options → USB debugging ON. Then either:
 - Android Studio Run ▶ (Route B), or
-- `C:\android\sdk\platform-tools\adb.exe install -r builds\TacPlan-debug.apk`
+- `C:\android\sdk\platform-tools\adbinstall -r builds\TacPlan-debug.apk`
 
 Launch **TacPlan Shooter**: portrait, dark blueprint grid, grey circles labelled 0 and 1.
 
@@ -49,10 +49,10 @@ Launch **TacPlan Shooter**: portrait, dark blueprint grid, grey circles labelled
 
 1. Drag → map pans, clamped at edges
 2. Two-finger pinch → zoom
-3. Long-press (~½ s) on an operative circle → cyan highlight + log `[PLAN] routing op N`
-4. Drag a route → smooth cyan polyline (raw jitter decimated + Bezier-smoothed)
-5. Release → `[PLAN] op N route committed: …`
-6. Send me the `[PLAN]` lines + verdict sentences.
+2. Long-press (~½ s) on an operative circle → cyan highlight + log `[PLAN] routing op N`
+3. Drag a route → smooth cyan polyline (raw jitter decimated + Bezier-smoothed)
+4. Release → `[PLAN] op N route committed: …`
+5. Send me the `[PLAN]` lines + verdict sentences.
 
 ## Troubleshooting
 
@@ -60,5 +60,7 @@ Launch **TacPlan Shooter**: portrait, dark blueprint grid, grey circles labelled
 |---|---|
 | Export button STILL grey after templates | Check the message text again — each line maps to a row in the RESCUE table |
 | Install fails "signature/certificate" over old build | Uninstall previous TacPlan first: `adb.exe uninstall com.tacplan.game` |
-| Gradle sync fails: SDK location | `game\android\local.properties`: `sdk.dir=C:\\android\sdk` |
+| Gradle sync fails: SDK location | `android\local.properties`: `sdk.dir=C:\\android\sdk` |
+| Gradle sync fails: JDK mismatch | Use Studio's JBR path from step 1; File → Settings → Build tools → Gradle → Gradle JDK = Embedded JDK |
+| First sync very slow | Normal — dependency downloads; later syncs are fast (warm `%USERPROFILE%\.gradle` cache) |
 | APK boots then crashes | Send logcat filtered on `godot` + `TacPlan`; don't retry blind |
