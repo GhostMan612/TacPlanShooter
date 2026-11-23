@@ -78,6 +78,15 @@ Target files:
 - MODIFY: `scripts/sim/sim_world.gd` (integrate 3-layer deterministic AI coordinator, sensory blackboard, and FSM updates inside 60 Hz fixed tick)
 - MODIFY: `tests/determinism_harness.gd` (require all 6 headless AI verification gates: `_test_ai_no_wallhack_lkp`, `_test_ai_acoustic_wall_attenuation`, `_test_ai_threat_weighted_flank`, `_test_ai_flashbang_morale_stun`, `_test_ai_hostage_lof_safety`, `_test_ai_determinism_replay`)
 
+## PHASE H — Data-Driven Map Loader & 10-Mission Campaign Pack
+Spec: `blueprints/CAMPAIGN-MISSIONS-AND-MAPS-SPEC.md`
+Target files:
+- CREATE: `scripts/sim/map_loader.gd` (deterministic JSON map parser for 1–3 floor geometry, walls, doors, stair links, insertion/extraction/defender zones, objectives, AI/hostage spawns, and jammer nodes)
+- MODIFY: `scripts/sim/greybox_map.gd` (implement `GreyboxMap.load_from_json(path)` snapping to `SimConstants.GRID_CELL_SIZE_PX` with zero autoload dependencies)
+- CREATE: `scripts/sim/mission_grader.gd` (deterministic end-of-mission RP grading: objective completion, zero casualties, clean ROE/collateral penalty, and speed/stealth bonus)
+- CREATE: `data/maps/op01_glass_house.json` through `data/maps/op10_sovereign_citadel.json` (10-operation campaign pack supporting Solo, 2-Player Co-op, and 2-Player PvP)
+- CREATE: `tests/map_validation_harness.gd` (enforce all 4 headless map validation checks: schema/bounds parsing, walkable spawn/zone placement, `GridPathfinder` reachability, and `Visibility.compute_polygon()` safety)
+
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
