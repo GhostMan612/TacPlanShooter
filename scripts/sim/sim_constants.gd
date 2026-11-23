@@ -28,3 +28,6 @@ const LOS_VERTEX_EPSILON_RAD: float = 0.00001
 const ACTION_FUSE_TICKS: int = 45
 const ACTION_COOLDOWN_TICKS: int = 60
 const ACTION_MAX_RANGE_CELLS: int = 6
+const ACTION_ENTITY_LIFE_TICKS: int = 30
+const FRAG_DAMAGE: int = 25
+const FRAG_RADIUS_CELLS: int = 2

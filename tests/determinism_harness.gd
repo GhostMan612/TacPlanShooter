@@ -22,6 +22,7 @@ func _initialize() -> void:
 	failures += _test_execution_move_adherence()
 	failures += _test_collision_halt()
 	failures += _test_stance_table()
+	failures += _test_tactical_actions()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -359,6 +360,50 @@ func _test_collision_halt() -> int:
 	print("[HARNESS] collision_halt %s (op0_halted=%s op1_halted=%s op0_done=%s)" % [
 		"PASS" if ok else "FAIL",
 		str(halted0), str(halted1), str(w.operatives[0].done),
+	])
+	return 0 if ok else 1
+
+
+func _test_tactical_actions() -> int:
+	# CP-042: FRAG/FLASHBANG/TEAR_GAS spawn entities; FRAG damages operators within radius
+	# (owner excluded); cooldown lock visible while the entity is spawned.
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 7777)
+	w.add_operative(0, Vector2i(2, 2), [
+		_cmd_move(Vector2i(3, 2)),
+		_cmd_action(Vector2i(5, 5), AgentCommand.ActionKind.FRAG),
+		_cmd_action(Vector2i(6, 5), AgentCommand.ActionKind.FLASHBANG),
+		_cmd_action(Vector2i(7, 5), AgentCommand.ActionKind.TEAR_GAS),
+	])
+	w.add_operative(1, Vector2i(4, 4), [_cmd_wait(&"bravo")])
+	var cooldown_seen := false
+	var done := false
+	for i in range(500):
+		if w.tick == 60:
+			w.issue_go_code(&"alpha")
+		w.step()
+		if not cooldown_seen and w.entities.size() > 0 and w.operatives[0].cooldown_ticks == SimConstants.ACTION_COOLDOWN_TICKS:
+			cooldown_seen = true
+		if w.operatives[0].done and w.entities.size() == 0:
+			done = true
+			break
+	var spawned_kinds: Array[int] = []
+	var effect_count := 0
+	for e in w.journal:
+		var ev := StringName(e["ev"])
+		if ev == &"entity_spawned":
+			spawned_kinds.append(int(e["kind"]))
+		elif ev == &"entity_effect":
+			effect_count += 1
+	var frag_spawned := spawned_kinds.count(int(AgentCommand.ActionKind.FRAG)) == 1
+	var flashbang_spawned := spawned_kinds.count(int(AgentCommand.ActionKind.FLASHBANG)) == 1
+	var gas_spawned := spawned_kinds.count(int(AgentCommand.ActionKind.TEAR_GAS)) == 1
+	var hp_ok := w.operatives[1].hp == 100 - SimConstants.FRAG_DAMAGE
+	var owner_ok := w.operatives[0].hp == 100
+	var ok := done and frag_spawned and flashbang_spawned and gas_spawned and effect_count >= 3 and cooldown_seen and hp_ok and owner_ok
+	print("[HARNESS] tactical_actions %s (spawned=%d effects=%d cooldown_seen=%s hp_op0=%d hp_op1=%d)" % [
+		"PASS" if ok else "FAIL",
+		spawned_kinds.size(), effect_count, str(cooldown_seen), w.operatives[0].hp, w.operatives[1].hp,
 	])
 	return 0 if ok else 1
 

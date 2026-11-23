@@ -13,6 +13,8 @@ var tick := 0
 var go_codes_issued := {}
 var operatives: Array[SimOperative] = []
 var pending: Array[Dictionary] = []
+var entities: Array[SimEntity] = []
+var entity_seq := 0
 var journal: Array[Dictionary] = []
 
 
@@ -45,6 +47,7 @@ func issue_go_code(code: StringName) -> void:
 func step() -> void:
 	tick += 1
 	_process_pending()
+	_step_entities()
 	for o in operatives:
 		_step_operative(o)
 
@@ -71,6 +74,9 @@ func snapshot_data() -> Dictionary:
 			"cy": int(e["cy"]),
 			"op": int(e["op"]),
 		})
+	var entities_arr: Array = []
+	for e in entities:
+		entities_arr.append(e.to_dict())
 	return {
 		"tick": tick,
 		"rng_seed": rng.seed,
@@ -78,6 +84,7 @@ func snapshot_data() -> Dictionary:
 		"go_issued": issued_arr,
 		"map": map.to_dict(),
 		"pending": pending_arr,
+		"entities": entities_arr,
 		"operatives": ops_arr,
 		"journal": journal.duplicate(true),
 	}
@@ -99,6 +106,9 @@ func restore_from_data(d: Dictionary) -> void:
 			"cy": int(e["cy"]),
 			"op": int(e["op"]),
 		})
+	entities.clear()
+	for ed in d.get("entities", []):
+		entities.append(SimEntity.from_dict(ed))
 	operatives.clear()
 	for od in d.get("operatives", []):
 		operatives.append(SimOperative.from_dict(od))
@@ -144,6 +154,11 @@ func state_hash() -> String:
 	parts.append("G" + ";".join(gc))
 	for e in pending:
 		parts.append("P" + _canon(e))
+	var ent_parts := PackedStringArray()
+	for e in entities:
+		ent_parts.append("E%d|%.9f|%.9f|%d|%d|%d" % [e.id, e.pos.x, e.pos.y, e.spawned_tick, e.due_tick, e.kind])
+	ent_parts.sort()
+	parts.append("Q" + ";".join(ent_parts))
 	for e in journal:
 		parts.append("J" + _canon(e))
 	return "\n".join(parts).sha256_text()
@@ -324,7 +339,40 @@ func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
 			"cy": int(target.y),
 			"op": o.id,
 		})
+	elif cmd.action_kind != AgentCommand.ActionKind.NONE:
+		var e := SimEntity.new()
+		e.id = entity_seq
+		e.kind = int(cmd.action_kind)
+		e.op_id = o.id
+		e.pos = target_center
+		e.spawned_tick = tick
+		e.due_tick = tick + SimConstants.ACTION_ENTITY_LIFE_TICKS
+		entities.append(e)
+		entity_seq += 1
+		journal.append({"t": tick, "ev": &"entity_spawned", "id": e.id, "op": o.id, "kind": e.kind, "tx": int(target.x), "ty": int(target.y)})
 	o.queue.advance_cursor()
+
+
+func _step_entities() -> void:
+	var keep: Array[SimEntity] = []
+	for e in entities:
+		if e.done or e.due_tick > tick:
+			keep.append(e)
+			continue
+		e.done = true
+		_apply_entity_effect(e)
+		journal.append({"t": tick, "ev": &"entity_effect", "id": e.id, "op": e.op_id, "kind": e.kind, "tx": int(e.pos.x), "ty": int(e.pos.y)})
+	entities = keep
+
+
+func _apply_entity_effect(e: SimEntity) -> void:
+	if e.kind != int(AgentCommand.ActionKind.FRAG):
+		return
+	for op in operatives:
+		if op.id == e.op_id or op.done:
+			continue
+		if op.pos.distance_to(e.pos) <= float(SimConstants.FRAG_RADIUS_CELLS):
+			op.hp -= SimConstants.FRAG_DAMAGE
 
 
 func _check_collision(o: SimOperative) -> void:
