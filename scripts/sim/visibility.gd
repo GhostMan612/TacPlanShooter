@@ -6,11 +6,11 @@ class_name Visibility
 extends RefCounted
 
 
-static func compute_polygon(observer: Vector2, segments: Array[Array[Vector2]], eps: float = 0.00001) -> PackedVector2Array:
-	var rays: Array[float] = []
+static func compute_polygon(observer: Vector2, segments: Array, eps: float = 0.00001) -> PackedVector2Array:
+	var rays := []
 	for s in segments:
 		for v in s:
-			var d := v - observer
+			var d: Vector2 = v - observer
 			if d.length_squared() < 0.0001:
 				continue
 			var a := atan2(d.y, d.x)

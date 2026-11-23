@@ -12,6 +12,7 @@ var renderer: MapRenderer = null
 var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
+var fog: FogLayer = null
 
 var _hud := Control.new()
 var _execute_button: Button = null
@@ -32,6 +33,9 @@ func _ready() -> void:
 	renderer = MapRenderer.new()
 	renderer.setup(map)
 	add_child(renderer)
+	fog = FogLayer.new()
+	fog.setup(map)
+	add_child(fog)
 	for spec in [[0, Vector2i(2, 2)], [1, Vector2i(13, 2)]]:
 		var token := OperativeToken.new(int(spec[0]))
 		token.position = GridUtil.cell_center_px(Vector2i(spec[1]))
@@ -70,6 +74,7 @@ func _physics_process(_delta: float) -> void:
 	if world != null and SimClock.phase == SimClock.Phase.EXECUTION:
 		world.step()
 		_sync_tokens()
+		_update_fog()
 
 
 func _sync_tokens() -> void:
@@ -79,6 +84,20 @@ func _sync_tokens() -> void:
 		for token in controller.tokens:
 			if token.op_id == o.id:
 				token.position = GridUtil.cell_center_px(GridUtil.cell_of(o.pos))
+
+
+func _update_fog() -> void:
+	if fog == null or map == null or world == null:
+		return
+	var polys := []
+	for o in world.operatives:
+		var poly := Visibility.compute_polygon(o.pos, map.get_wall_segments(), 0.00001)
+		if poly.size() >= 3:
+			polys.append(poly)
+	var visited := {}
+	for c in fog.visible_cells(polys):
+		visited[c] = true
+	fog.rebuild(polys, visited)
 
 
 func _setup_hud() -> void:
