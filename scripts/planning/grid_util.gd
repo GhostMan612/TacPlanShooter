@@ -33,3 +33,8 @@ static func collapse_consecutive_cells(cells: Array[Vector2i]) -> Array[Vector2i
 		if out.size() == 0 or out[out.size() - 1] != c:
 			out.append(c)
 	return out
+
+
+static func cell_of(p: Vector2) -> Vector2i:
+	# Sim-layer position → containing cell (cell-unit space; D-017).
+	return Vector2i(int(floor(p.x)), int(floor(p.y)))

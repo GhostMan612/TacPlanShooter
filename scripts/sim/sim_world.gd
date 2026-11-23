@@ -29,7 +29,7 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand]) -> void:
 	var o := SimOperative.new()
 	o.id = id
-	o.pos = Vector2(spawn_cell)
+	o.pos = Vector2(spawn_cell) + Vector2(0.5, 0.5)
 	o.queue = CommandQueue.new(id)
 	o.queue.reset(commands)
 	operatives.append(o)
@@ -114,7 +114,7 @@ func state_hash() -> String:
 		for p in o.active_path:
 			var pv: Vector2 = p
 			path_parts.append("%.9f,%.9f" % [pv.x, pv.y])
-		parts.append("O%d|%.9f|%.9f|%d|%s|%d|%d|%d|%s|%d|%d|%d|%.9f|%s" % [
+		parts.append("O%d|%.9f|%.9f|%d|%s|%d|%d|%d|%s|%d|%d|%d|%.9f|%d|%d|%s" % [
 			o.id,
 			o.pos.x,
 			o.pos.y,
@@ -128,6 +128,8 @@ func state_hash() -> String:
 			o.path_index,
 			1 if o.done else 0,
 			o.move_carry,
+			1 if o.halted else 0,
+			int(o.move_blocked_from),
 			";".join(path_parts),
 		])
 	var door_parts := PackedStringArray()
@@ -172,7 +174,7 @@ func _process_pending() -> void:
 
 
 func _step_operative(o: SimOperative) -> void:
-	if o.done:
+	if o.done or o.halted:
 		return
 	if o.cooldown_ticks > 0:
 		o.cooldown_ticks -= 1
@@ -220,36 +222,90 @@ func _step_operative(o: SimOperative) -> void:
 
 func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 	if o.active_path.size() == 0:
-		o.active_path = PackedVector2Array([o.pos, Vector2(cmd.target_cell)])
+		var start := GridUtil.cell_of(o.pos)
+		var goal := cmd.target_cell
+		if not map.in_bounds(goal):
+			journal.append({"t": tick, "ev": &"move_rejected", "op": o.id, "tx": int(goal.x), "ty": int(goal.y)})
+			o.queue.advance_cursor()
+			return
+		var path := GridPathfinder.find_path(map, start, goal)
+		if path.size() <= 1:
+			o.queue.advance_cursor()
+			return
+		var centers := PackedVector2Array()
+		for c in path:
+			centers.append(Vector2(c) + Vector2(0.5, 0.5))
+		o.active_path = centers
 		o.path_index = 0
-		journal.append({"t": tick, "ev": &"move_start", "op": o.id, "tx": cmd.target_cell.x, "ty": cmd.target_cell.y})
-	var remaining := o.speed_cells_per_sec() * DT + o.move_carry
+		journal.append({"t": tick, "ev": &"move_start", "op": o.id, "tx": int(goal.x), "ty": int(goal.y)})
+	var speed := o.speed_cells_per_sec()
+	var remaining := speed * DT + o.move_carry
 	o.move_carry = 0.0
-	var heading := Vector2.ZERO
+	var committed := false
 	while remaining > 0.0 and o.path_index < o.active_path.size() - 1:
 		var target := o.active_path[o.path_index + 1]
 		var to_target := target - o.pos
 		var dist := to_target.length()
-		if dist <= remaining:
-			o.pos = target
+		if dist <= 0.0:
 			o.path_index += 1
-			remaining -= dist
-			heading = to_target
+			continue
+		var cand: Vector2
+		var next_idx: int
+		var rem_after: float
+		if dist <= remaining:
+			cand = target
+			next_idx = o.path_index + 1
+			rem_after = remaining - dist
 		else:
-			o.pos += to_target * (remaining / dist)
-			remaining = 0.0
-			heading = to_target
-	if heading != Vector2.ZERO and o.field_of_fire_deg < 0:
-		o.facing_deg = rad_to_deg(heading.angle())
-	if o.path_index >= o.active_path.size() - 1:
-		o.move_carry = remaining
+			cand = o.pos + to_target * (remaining / dist)
+			next_idx = o.path_index
+			rem_after = 0.0
+		var cell := GridUtil.cell_of(cand)
+		if not map.in_bounds(cell) or map.is_solid(cell):
+			if o.move_blocked_from == 0:
+				o.move_blocked_from = tick
+				journal.append({"t": tick, "ev": &"move_blocked", "op": o.id, "x": cand.x, "y": cand.y})
+			break
+		o.pos = cand
+		o.path_index = next_idx
+		remaining = rem_after
+		var heading := to_target.normalized()
+		committed = true
+		if o.move_blocked_from != 0:
+			journal.append({"t": tick, "ev": &"move_unblocked", "op": o.id, "x": cand.x, "y": cand.y})
+			o.move_blocked_from = 0
+		if o.field_of_fire_deg < 0:
+			o.facing_deg = rad_to_deg(heading.angle())
+	if committed and o.path_index >= o.active_path.size() - 1:
 		o.active_path = PackedVector2Array()
-		o.path_index = 0
+		o.move_carry = 0.0
 		journal.append({"t": tick, "ev": &"move_end", "op": o.id, "px": o.pos.x, "py": o.pos.y})
 		o.queue.advance_cursor()
+	if committed:
+		_check_collision(o)
 
 
 func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
+	var target := cmd.target_cell
+	var target_center := Vector2(target) + Vector2(0.5, 0.5)
+	var in_range := o.pos.distance_to(target_center) <= float(SimConstants.ACTION_MAX_RANGE_CELLS)
+	var is_door := map.door_cells.has(target)
+	var valid := map.in_bounds(target) and in_range
+	if cmd.action_kind == AgentCommand.ActionKind.BREACH_CHARGE:
+		valid = valid and is_door
+	else:
+		valid = valid and not map.is_solid(target)
+	if not valid:
+		journal.append({
+			"t": tick,
+			"ev": &"action_rejected",
+			"op": o.id,
+			"kind": int(cmd.action_kind),
+			"tx": int(target.x),
+			"ty": int(target.y),
+		})
+		o.queue.advance_cursor()
+		return
 	var fuse := SimConstants.ACTION_FUSE_TICKS
 	o.cooldown_ticks = SimConstants.ACTION_COOLDOWN_TICKS
 	journal.append({
@@ -257,15 +313,82 @@ func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
 		"ev": &"action",
 		"op": o.id,
 		"kind": int(cmd.action_kind),
-		"tx": cmd.target_cell.x,
-		"ty": cmd.target_cell.y,
+		"tx": int(target.x),
+		"ty": int(target.y),
 		"fuse": fuse,
 	})
 	if cmd.action_kind == AgentCommand.ActionKind.BREACH_CHARGE:
 		pending.append({
 			"due": tick + fuse,
-			"cx": cmd.target_cell.x,
-			"cy": cmd.target_cell.y,
+			"cx": int(target.x),
+			"cy": int(target.y),
 			"op": o.id,
 		})
 	o.queue.advance_cursor()
+
+
+func _check_collision(o: SimOperative) -> void:
+	# CP-051: strict path adherence — intersecting plans collide and halt.
+	var plan := _collision_plan(o)
+	for p in operatives:
+		if p == o or p.done:
+			continue
+		if _polyline_intersects(plan, _collision_plan(p)):
+			o.halted = true
+			p.halted = true
+			journal.append({"t": tick, "ev": &"collision_halt", "op": o.id})
+			journal.append({"t": tick, "ev": &"collision_halt", "op": p.id})
+
+
+static func _collision_plan(o: SimOperative) -> Array[Vector2]:
+	# Op's plan from current pos forward: pos + remaining active_path.
+	var out: Array[Vector2] = [o.pos]
+	for i in range(o.path_index + 1, o.active_path.size()):
+		out.append(o.active_path[i])
+	return out
+
+
+static func _polyline_intersects(a: Array[Vector2], b: Array[Vector2]) -> bool:
+	if a.size() == 0 or b.size() == 0:
+		return false
+	if a.size() == 1:
+		for i in range(b.size() - 1):
+			if _point_on_segment(a[0], b[i], b[i + 1]):
+				return true
+	if b.size() == 1:
+		for i in range(a.size() - 1):
+			if _point_on_segment(b[0], a[i], a[i + 1]):
+				return true
+	for i in range(a.size() - 1):
+		for j in range(b.size() - 1):
+			if _segments_intersect(a[i], a[i + 1], b[j], b[j + 1]):
+				return true
+	return false
+
+
+static func _point_on_segment(p: Vector2, a: Vector2, b: Vector2) -> bool:
+	if (b - a).length_squared() < 0.0001:
+		return p.distance_to(a) < 0.001
+	var cross := (p - a).cross(b - a)
+	if absf(cross) > 1e-4:
+		return false
+	var dot := (p - a).dot(b - a)
+	return dot >= -1e-4 and dot <= (b - a).length_squared() + 1e-4
+
+
+static func _segments_intersect(p1: Vector2, p2: Vector2, p3: Vector2, p4: Vector2) -> bool:
+	var d1 := (p2 - p1).cross(p3 - p1)
+	var d2 := (p2 - p1).cross(p4 - p1)
+	var d3 := (p4 - p3).cross(p1 - p3)
+	var d4 := (p4 - p3).cross(p2 - p3)
+	if ((d1 > 0.0 and d2 < 0.0) or (d1 < 0.0 and d2 > 0.0)) and ((d3 > 0.0 and d4 < 0.0) or (d3 < 0.0 and d4 > 0.0)):
+		return true
+	if absf(d1) <= 1e-9 and _point_on_segment(p3, p1, p2):
+		return true
+	if absf(d2) <= 1e-9 and _point_on_segment(p4, p1, p2):
+		return true
+	if absf(d3) <= 1e-9 and _point_on_segment(p1, p3, p4):
+		return true
+	if absf(d4) <= 1e-9 and _point_on_segment(p2, p3, p4):
+		return true
+	return false

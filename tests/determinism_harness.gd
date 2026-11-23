@@ -19,6 +19,8 @@ func _initialize() -> void:
 	failures += _test_go_code_same_tick()
 	failures += _test_route_pipeline()
 	failures += _test_camera_clamp()
+	failures += _test_execution_move_adherence()
+	failures += _test_collision_halt()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -63,11 +65,7 @@ func _plan_op0() -> Array[AgentCommand]:
 	var plan: Array[AgentCommand] = []
 	plan.append(_cmd_move(Vector2i(7, 2)))
 	plan.append(_cmd_stance(&"cautious"))
-	plan.append(_cmd_move(Vector2i(7, 9)))
-	plan.append(_cmd_wait(&"alpha"))
-	plan.append(_cmd_move(Vector2i(13, 9)))
-	plan.append(_cmd_fof(270))
-	plan.append(_cmd_move(Vector2i(13, 2)))
+	plan.append(_cmd_move(Vector2i(7, 4)))
 	return plan
 
 
@@ -76,7 +74,6 @@ func _plan_op1() -> Array[AgentCommand]:
 	plan.append(_cmd_move(Vector2i(13, 6)))
 	plan.append(_cmd_action(Vector2i(8, 6), AgentCommand.ActionKind.BREACH_CHARGE))
 	plan.append(_cmd_wait(&"alpha"))
-	plan.append(_cmd_move(Vector2i(9, 6)))
 	plan.append(_cmd_move(Vector2i(2, 6)))
 	return plan
 
@@ -296,6 +293,71 @@ func _test_route_pipeline() -> int:
 		cells.size(),
 		corner_dev,
 		str(tail_kept),
+	])
+	return 0 if ok else 1
+
+
+func _test_execution_move_adherence() -> int:
+	# CP-050: position-vs-plan diff harness — movement strictly along planned vectors at
+	# stance speed, no drift, no wall clipping; both ops end at their final targets,
+	# and the breaching door opens.
+	var w := _build_world(1337)
+	var prev: Dictionary = {}
+	for op in w.operatives:
+		prev[op.id] = op.pos
+	var drift_ok := true
+	var clip_ok := true
+	for i in range(TICK_BUDGET):
+		if w.tick >= TICK_BUDGET or w.all_done():
+			break
+		if w.tick == 300:
+			w.issue_go_code(&"alpha")
+		w.step()
+		for op in w.operatives:
+			if op.done or op.halted:
+				continue
+			if prev[op.id] == op.pos:
+				continue
+			var prev_pos: Vector2 = prev[op.id]
+			var d := (op.pos - prev_pos).length()
+			var max_d := op.speed_cells_per_sec() * SimWorld.DT + 0.001
+			if d > max_d:
+				drift_ok = false
+				print("[HARNESS] execution_move_adherence DRIFT op=%d d=%.4f max=%.4f t=%d" % [op.id, d, max_d, i + 1])
+			var c := GridUtil.cell_of(op.pos)
+			if w.map.is_solid(c) and not w.map.door_cells.has(c):
+				clip_ok = false
+				print("[HARNESS] execution_move_adherence CLIP op=%d cell=%s t=%d" % [op.id, str(c), i + 1])
+			prev[op.id] = op.pos
+	var fp := {}
+	for op in w.operatives:
+		fp[op.id] = op.pos
+	var final_ok := bool(w.all_done() and w.map.door_open[Vector2i(8, 6)])
+	var op0_pos := fp[0] as Vector2
+	var op1_pos := fp[1] as Vector2
+	var pos_ok := op0_pos == Vector2(7, 4) + Vector2(0.5, 0.5) and op1_pos == Vector2(2, 6) + Vector2(0.5, 0.5)
+	var ok := drift_ok and clip_ok and final_ok and pos_ok
+	print("[HARNESS] execution_move_adherence %s (drift_ok=%s clip_ok=%s final_ok=%s pos_ok=%s)" % [
+		"PASS" if ok else "FAIL",
+		str(drift_ok), str(clip_ok), str(final_ok), str(pos_ok),
+	])
+	return 0 if ok else 1
+
+
+func _test_collision_halt() -> int:
+	# CP-051: two crossing plans halt both agents (strict adherence, no avoidance).
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 99)
+	w.add_operative(0, Vector2i(2, 4), [_cmd_move(Vector2i(6, 4))])
+	w.add_operative(1, Vector2i(6, 6), [_cmd_move(Vector2i(6, 4))])
+	for i in range(40):
+		w.step()
+	var halted0 := w.operatives[0].halted
+	var halted1 := w.operatives[1].halted
+	var ok := halted0 and halted1
+	print("[HARNESS] collision_halt %s (op0_halted=%s op1_halted=%s op0_done=%s)" % [
+		"PASS" if ok else "FAIL",
+		str(halted0), str(halted1), str(w.operatives[0].done),
 	])
 	return 0 if ok else 1
 

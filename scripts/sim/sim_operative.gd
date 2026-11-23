@@ -18,6 +18,8 @@ var path_index := 0
 var wait_code := &""
 var done := false
 var move_carry := 0.0
+var halted := false
+var move_blocked_from := 0
 
 
 func speed_cells_per_sec() -> float:
@@ -42,6 +44,8 @@ func to_dict() -> Dictionary:
 		"wait": String(wait_code),
 		"done": done,
 		"carry": move_carry,
+		"halted": halted,
+		"blocked": move_blocked_from,
 		"queue": queue.to_dict() if queue != null else {},
 	}
 
@@ -64,5 +68,7 @@ static func from_dict(d: Dictionary) -> SimOperative:
 	o.wait_code = StringName(String(d.get("wait", "")))
 	o.done = bool(d.get("done", false))
 	o.move_carry = float(d.get("carry", 0.0))
+	o.halted = bool(d.get("halted", false))
+	o.move_blocked_from = int(d.get("blocked", 0))
 	o.queue = CommandQueue.from_dict(d.get("queue", {}))
 	return o
