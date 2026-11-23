@@ -21,6 +21,7 @@ func _initialize() -> void:
 	failures += _test_camera_clamp()
 	failures += _test_execution_move_adherence()
 	failures += _test_collision_halt()
+	failures += _test_stance_table()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -358,6 +359,37 @@ func _test_collision_halt() -> int:
 	print("[HARNESS] collision_halt %s (op0_halted=%s op1_halted=%s op0_done=%s)" % [
 		"PASS" if ok else "FAIL",
 		str(halted0), str(halted1), str(w.operatives[0].done),
+	])
+	return 0 if ok else 1
+
+
+func _test_stance_table() -> int:
+	# CP-040: Blitz/Normal/Cautious produce exact velocity multipliers + acoustic radii per BP-03 table.
+	var expected := {
+		"blitz": {&"speed": 6.4, &"acoustic": 1.5},
+		"normal": {&"speed": 4.0, &"acoustic": 1.0},
+		"cautious": {&"speed": 2.0, &"acoustic": 0.35},
+	}
+	var ok := true
+	for s in expected.keys():
+		var sn := StringName(s)
+		var o := SimOperative.new()
+		o.stance = sn
+		var got_speed := float(o.speed_cells_per_sec())
+		var got_acoustic := float(SimConstants.STANCE_ACOUSTIC_RADIUS_MULTIPLIERS[sn])
+		var exp: Dictionary = expected[s]
+		if absf(got_speed - float(exp[&"speed"])) > 0.01 or absf(got_acoustic - float(exp[&"acoustic"])) > 0.01:
+			ok = false
+			print("[HARNESS] stance_table MISMATCH stance=%s speed=%.4f acoustic=%.4f" % [s, got_speed, got_acoustic])
+	var b_op := SimOperative.new()
+	b_op.stance = &"blitz"
+	var n_op := SimOperative.new()
+	n_op.stance = &"normal"
+	var c_op := SimOperative.new()
+	c_op.stance = &"cautious"
+	print("[HARNESS] stance_table %s (blitz=%.4f normal=%.4f cautious=%.4f)" % [
+		"PASS" if ok else "FAIL",
+		float(b_op.speed_cells_per_sec()), float(n_op.speed_cells_per_sec()), float(c_op.speed_cells_per_sec()),
 	])
 	return 0 if ok else 1
 
