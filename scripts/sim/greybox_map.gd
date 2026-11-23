@@ -30,14 +30,21 @@ static func build_default() -> GreyboxMap:
 	return m
 
 
+func in_bounds(cell: Vector2i) -> bool:
+	return cell.x >= 0 and cell.y >= 0 and cell.x < width_cells and cell.y < height_cells
+
+
 func is_solid(cell: Vector2i) -> bool:
+	if not in_bounds(cell):
+		return true
 	if door_cells.has(cell):
-		return not bool(door_open[cell])
+		return not bool(door_open.get(cell, false))
 	return solid_cells.has(cell)
 
 
 func open_door(cell: Vector2i) -> void:
-	door_open[cell] = true
+	if door_cells.has(cell):
+		door_open[cell] = true
 
 
 func to_dict() -> Dictionary:

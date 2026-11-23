@@ -19,8 +19,8 @@ determinism laws) are binding, and `RULES.md` WINS over everything.
 ## Commands (Godot 4.0-stable at `C:\Godot\Godot_v4.0-stable_win64_console.exe`)
 
 ```bash
-godot --headless --path game --quit                          # AUTHORITATIVE gate: boot smoke (autoloads+scripts compile)
-godot --headless --path game --check-only --script <res://…>  # per-script parse (fails on autoload refs by design — see G15)
+godot --headless --path . --quit                             # AUTHORITATIVE gate: boot smoke (autoloads+scripts compile)
+godot --headless --path . --check-only --script <res://…>    # per-script parse (fails on autoload refs by design — see G15)
 ```
 Filter output for `ERROR|SCRIPT ERROR|Parse` only — **exit codes are NOT a signal**: Godot 4.0 `--quit`
 always exits 1 even clean (proven via empty-project control). Launch long runs DETACHED and poll logs.
@@ -37,15 +37,15 @@ always exits 1 even clean (proven via empty-project control). Launch long runs D
 - Simulation code must never touch `randi()`/`randf()`/`randomize()` globals — seeded
   `RandomNumberGenerator` only, seed persisted in the mission snapshot.
 - Autoload singletons deliberately have NO `class_name` (avoids "class hides autoload" warnings);
-  every other script gets one (`game\tests\` entry points exempt).
-- The sim layer (`game\scripts\sim\`) is pure autoload-free RefCounted code — keep it that way;
+  every other script gets one (`tests\` entry points exempt).
+- The sim layer (`scripts\sim\`) is pure autoload-free RefCounted code — keep it that way;
   it must stay testable via `-s` SceneTree harnesses.
 - First-import class-cache quirk (G16): a brand-new `class_name` referenced by existing scripts
   fails ONE headless editor import ("Identifier not declared") — run the import twice before judging.
 
 ## Architecture (the load-bearing wiring)
 
-- `game\` — Godot 4 project root (`project.godot`), Compatibility renderer forced desktop+mobile.
+- Repo root (`project.godot` at root, `android\` beside it) — Godot 4 project root, Compatibility renderer forced desktop+mobile.
 - Planning Phase (modal UI: Observation / Routing / radial node menu) constructs serialized
   `AgentCommand` objects in per-operative queues. Execution Phase consumes them in `_physics_process()`.
 - Replay = initial mission snapshot + timestamped command array; reset-and-feed reproduces outcomes exactly.

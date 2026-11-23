@@ -13,7 +13,9 @@ enum Mode { OBSERVATION, ROUTING }
 const LONG_PRESS_SEC := 0.45
 const TAP_MAX_SEC := 0.3
 const SLOP_PX := 10.0
-const SELECT_RADIUS_PX := 30.0
+const SELECT_RADIUS_SCREEN_PX := 72.0
+const PREVIEW_COLOR := Color(0.25, 0.85, 1.0, 0.9)
+const COMMITTED_COLOR := Color(0.25, 0.85, 1.0, 0.5)
 
 var camera: MissionCamera = null
 var tokens: Array[OperativeToken] = []
@@ -28,7 +30,9 @@ var _long_fired := {}
 var _routing_finger := -1
 var _routing_token: OperativeToken = null
 var _raw_route := PackedVector2Array()
+var _kept_route := PackedVector2Array()
 var _preview: Line2D = null
+var _route_lines := {}
 var _pinch_base_dist := 0.0
 var _pinch_base_zoom := 1.0
 
@@ -67,15 +71,14 @@ func _on_press(idx: int, pos: Vector2) -> void:
 	_press_origin[idx] = pos
 	_long_fired[idx] = false
 	if _touches.size() == 2 and mode == Mode.OBSERVATION:
-		var keys := _touches.keys()
-		_pinch_base_dist = (_touches[keys[0]] as Vector2).distance_to(_touches[keys[1]] as Vector2)
-		_pinch_base_zoom = camera.base_zoom() if camera != null else 1.0
+		_anchor_pinch()
 
 
 func _on_release(idx: int, pos: Vector2) -> void:
 	var dt: float = _press_time.get(idx, 999.0)
 	var origin: Vector2 = _press_origin.get(idx, pos)
 	var moved := origin.distance_to(pos) >= SLOP_PX
+	var long_fired: bool = bool(_long_fired.get(idx, false))
 	var was_routing := idx == _routing_finger
 	_touches.erase(idx)
 	_press_time.erase(idx)
@@ -84,9 +87,13 @@ func _on_release(idx: int, pos: Vector2) -> void:
 	if was_routing:
 		_commit_route()
 		return
-	if mode == Mode.OBSERVATION and _touches.size() == 1:
+	if mode != Mode.OBSERVATION:
+		return
+	if _touches.size() == 2:
+		_anchor_pinch()
+	else:
 		_pinch_base_dist = 0.0
-	if mode == Mode.OBSERVATION and dt <= TAP_MAX_SEC and not moved and not bool(_long_fired.get(idx, false)):
+	if dt <= TAP_MAX_SEC and not moved and not long_fired and _touches.size() == 0:
 		_handle_tap(pos)
 
 
@@ -95,24 +102,40 @@ func _on_drag(idx: int, pos: Vector2, relative: Vector2) -> void:
 		return
 	_touches[idx] = pos
 	if idx == _routing_finger and mode == Mode.ROUTING:
-		_raw_route.append(_to_world(pos))
-		var decimated := RouteSanitizer.decimate(_raw_route)
-		_preview.points = RouteSanitizer.bake_smooth(decimated)
+		_extend_route(_to_world(pos))
 		return
-	if mode != Mode.OBSERVATION:
+	if mode != Mode.OBSERVATION or camera == null:
 		return
 	if _touches.size() == 1:
 		camera.pan_by(relative)
-	elif _touches.size() == 2 and _pinch_base_dist > 0.0 and camera != null:
+	elif _touches.size() == 2 and _pinch_base_dist > 0.0:
 		var keys := _touches.keys()
-		var d := (_touches[keys[0]] as Vector2).distance_to(_touches[keys[1]] as Vector2)
-		camera.apply_uniform_zoom(_pinch_base_zoom * (d / _pinch_base_dist))
+		var a: Vector2 = _touches[keys[0]]
+		var b: Vector2 = _touches[keys[1]]
+		camera.zoom_about(_pinch_base_zoom * (a.distance_to(b) / _pinch_base_dist), (a + b) * 0.5)
+
+
+func _anchor_pinch() -> void:
+	var keys := _touches.keys()
+	var a: Vector2 = _touches[keys[0]]
+	var b: Vector2 = _touches[keys[1]]
+	_pinch_base_dist = a.distance_to(b)
+	_pinch_base_zoom = camera.base_zoom() if camera != null else 1.0
+
+
+func _extend_route(world: Vector2) -> void:
+	_raw_route.append(world)
+	if _kept_route[_kept_route.size() - 1].distance_to(world) < RouteSanitizer.MIN_POINT_DIST_PX:
+		return
+	_kept_route.append(world)
+	_preview.points = RouteSanitizer.bake_smooth(_kept_route)
 
 
 func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 	var world := _to_world(vp_pos)
+	var zoom_x: float = camera.zoom.x if camera != null else 1.0
 	var best: OperativeToken = null
-	var best_d := SELECT_RADIUS_PX
+	var best_d := SELECT_RADIUS_SCREEN_PX / zoom_x
 	for t in tokens:
 		var d := t.position.distance_to(world)
 		if d < best_d:
@@ -125,6 +148,7 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 	best.set_selected(true)
 	mode = Mode.ROUTING
 	_raw_route = PackedVector2Array([best.position])
+	_kept_route = PackedVector2Array([best.position])
 	_ensure_preview()
 	_preview.points = PackedVector2Array([best.position])
 	mode_changed.emit(mode)
@@ -132,12 +156,18 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 
 
 func _commit_route() -> void:
+	var op_id := _routing_token.op_id
+	_preview.points = PackedVector2Array()
+	if _kept_route.size() < 2:
+		print("[PLAN] op %d route cancelled (too short)" % op_id)
+		_exit_routing()
+		return
 	var pts := RouteSanitizer.bake_smooth(RouteSanitizer.decimate(_raw_route))
-	_preview.points = pts
 	var cells := GridUtil.collapse_consecutive_cells(GridUtil.px_points_to_cell_waypoints(pts))
-	board.set_route(_routing_token.op_id, cells)
-	route_committed.emit(_routing_token.op_id, cells)
-	print("[PLAN] op %d route committed: %d waypoints, %d px baked" % [_routing_token.op_id, cells.size(), pts.size()])
+	_line_for(op_id).points = pts
+	board.set_route(op_id, cells)
+	route_committed.emit(op_id, cells)
+	print("[PLAN] op %d route committed: %d waypoints, %d px baked" % [op_id, cells.size(), pts.size()])
 	_exit_routing()
 
 
@@ -148,6 +178,7 @@ func _exit_routing() -> void:
 	_routing_finger = -1
 	_routing_token = null
 	_raw_route = PackedVector2Array()
+	_kept_route = PackedVector2Array()
 	mode_changed.emit(mode)
 
 
@@ -157,14 +188,27 @@ func _handle_tap(pos: Vector2) -> void:
 
 func _ensure_preview() -> void:
 	if _preview == null and line_container != null:
-		_preview = Line2D.new()
-		_preview.width = 3.0
-		_preview.antialiased = false
-		_preview.default_color = Color(0.25, 0.85, 1.0, 0.85)
-		_preview.joint_mode = Line2D.LINE_JOINT_ROUND
-		_preview.begin_cap_mode = Line2D.LINE_CAP_ROUND
-		_preview.end_cap_mode = Line2D.LINE_CAP_ROUND
-		line_container.add_child(_preview)
+		_preview = _make_line(3.0, PREVIEW_COLOR)
+
+
+func _line_for(op_id: int) -> Line2D:
+	if _route_lines.has(op_id):
+		return _route_lines[op_id]
+	var line := _make_line(2.0, COMMITTED_COLOR)
+	_route_lines[op_id] = line
+	return line
+
+
+func _make_line(width: float, color: Color) -> Line2D:
+	var line := Line2D.new()
+	line.width = width
+	line.antialiased = false
+	line.default_color = color
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	line_container.add_child(line)
+	return line
 
 
 func _to_world(vp_pos: Vector2) -> Vector2:

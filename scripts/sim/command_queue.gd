@@ -15,7 +15,12 @@ func _init(p_operative_id: int = -1) -> void:
 
 
 func reset(p_commands: Array[AgentCommand]) -> void:
-	commands = p_commands.duplicate()
+	commands.clear()
+	for c in p_commands:
+		var copy := AgentCommand.from_dict(c.to_dict())
+		copy.operative_id = operative_id
+		copy.sequence_index = commands.size()
+		commands.append(copy)
 	cursor = 0
 
 

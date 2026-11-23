@@ -6,9 +6,6 @@ class_name SimWorld
 extends RefCounted
 
 const DT := 1.0 / 60.0
-const FUSE_MIN_TICKS := 30
-const FUSE_MAX_TICKS := 90
-const ACTION_COOLDOWN_TICKS := 60
 
 var map: GreyboxMap = null
 var rng := RandomNumberGenerator.new()
@@ -24,6 +21,7 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	rng.seed = seed_value
 	tick = 0
 	go_codes_issued.clear()
+	operatives.clear()
 	pending.clear()
 	journal.clear()
 
@@ -110,9 +108,13 @@ func restore_from_data(d: Dictionary) -> void:
 func state_hash() -> String:
 	var parts := PackedStringArray()
 	parts.append("T%d" % tick)
-	parts.append("R%d" % int(rng.seed))
+	parts.append("R%d|%d" % [int(rng.seed), int(rng.state)])
 	for o in operatives:
-		parts.append("O%d|%.9f|%.9f|%d|%s|%d|%d|%d|%s|%d|%d" % [
+		var path_parts := PackedStringArray()
+		for p in o.active_path:
+			var pv: Vector2 = p
+			path_parts.append("%.9f,%.9f" % [pv.x, pv.y])
+		parts.append("O%d|%.9f|%.9f|%d|%s|%d|%d|%d|%s|%d|%d|%d|%.9f|%s" % [
 			o.id,
 			o.pos.x,
 			o.pos.y,
@@ -123,11 +125,15 @@ func state_hash() -> String:
 			o.field_of_fire_deg,
 			String(o.wait_code),
 			o.queue.cursor,
-			o.active_path.size(),
+			o.path_index,
+			1 if o.done else 0,
+			o.move_carry,
+			";".join(path_parts),
 		])
 	var door_parts := PackedStringArray()
 	for k in map.door_open.keys():
 		door_parts.append("%d,%d=%s" % [int(k.x), int(k.y), "1" if bool(map.door_open[k]) else "0"])
+	door_parts.sort()
 	parts.append("D" + ";".join(door_parts))
 	var gc := PackedStringArray()
 	for k in go_codes_issued.keys():
@@ -135,10 +141,23 @@ func state_hash() -> String:
 	gc.sort()
 	parts.append("G" + ";".join(gc))
 	for e in pending:
-		parts.append("P%s" % str(e))
+		parts.append("P" + _canon(e))
 	for e in journal:
-		parts.append("J%s" % str(e))
+		parts.append("J" + _canon(e))
 	return "\n".join(parts).sha256_text()
+
+
+static func _canon(d: Dictionary) -> String:
+	var keys := d.keys()
+	keys.sort()
+	var out := PackedStringArray()
+	for k in keys:
+		var v: Variant = d[k]
+		if typeof(v) == TYPE_FLOAT:
+			out.append("%s=%.9f" % [str(k), v])
+		else:
+			out.append("%s=%s" % [str(k), str(v)])
+	return "{" + ",".join(out) + "}"
 
 
 func _process_pending() -> void:
@@ -159,36 +178,44 @@ func _step_operative(o: SimOperative) -> void:
 		o.cooldown_ticks -= 1
 		return
 	if o.wait_code != &"":
-		if go_codes_issued.has(o.wait_code):
-			o.wait_code = &""
-			o.queue.advance_cursor()
-			journal.append({"t": tick, "ev": &"go_released", "op": o.id})
-		else:
+		if not go_codes_issued.has(o.wait_code):
 			return
-	var cmd := o.queue.peek_next()
-	if cmd == null:
-		o.done = true
-		journal.append({"t": tick, "ev": &"op_done", "op": o.id})
-		return
-	match cmd.command_type:
-		AgentCommand.CommandType.MOVE_TO_CELL:
-			_step_move(o, cmd)
-		AgentCommand.CommandType.SET_STANCE:
-			o.stance = cmd.stance_name
-			journal.append({"t": tick, "ev": &"stance_set", "op": o.id, "stance": String(cmd.stance_name)})
-			o.queue.advance_cursor()
-		AgentCommand.CommandType.WAIT_GO_CODE:
-			if go_codes_issued.has(cmd.go_code):
+		o.wait_code = &""
+		o.queue.advance_cursor()
+		journal.append({"t": tick, "ev": &"go_released", "op": o.id})
+	while true:
+		var cmd := o.queue.peek_next()
+		if cmd == null:
+			o.done = true
+			o.move_carry = 0.0
+			journal.append({"t": tick, "ev": &"op_done", "op": o.id})
+			return
+		match cmd.command_type:
+			AgentCommand.CommandType.SET_STANCE:
+				o.stance = cmd.stance_name
+				journal.append({"t": tick, "ev": &"stance_set", "op": o.id, "stance": String(cmd.stance_name)})
 				o.queue.advance_cursor()
-			else:
-				o.wait_code = cmd.go_code
-				journal.append({"t": tick, "ev": &"go_wait", "op": o.id, "code": String(cmd.go_code)})
-		AgentCommand.CommandType.PERFORM_ACTION:
-			_step_action(o, cmd)
-		AgentCommand.CommandType.SET_FIELD_OF_FIRE:
-			o.field_of_fire_deg = cmd.bearing_deg
-			journal.append({"t": tick, "ev": &"fof_set", "op": o.id, "bearing": cmd.bearing_deg})
-			o.queue.advance_cursor()
+			AgentCommand.CommandType.SET_FIELD_OF_FIRE:
+				o.field_of_fire_deg = cmd.bearing_deg
+				journal.append({"t": tick, "ev": &"fof_set", "op": o.id, "bearing": cmd.bearing_deg})
+				o.queue.advance_cursor()
+			AgentCommand.CommandType.WAIT_GO_CODE:
+				if go_codes_issued.has(cmd.go_code):
+					o.queue.advance_cursor()
+				else:
+					o.wait_code = cmd.go_code
+					o.move_carry = 0.0
+					journal.append({"t": tick, "ev": &"go_wait", "op": o.id, "code": String(cmd.go_code)})
+					return
+			AgentCommand.CommandType.MOVE_TO_CELL:
+				_step_move(o, cmd)
+				return
+			AgentCommand.CommandType.PERFORM_ACTION:
+				o.move_carry = 0.0
+				_step_action(o, cmd)
+				return
+			_:
+				o.queue.advance_cursor()
 
 
 func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
@@ -196,7 +223,8 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 		o.active_path = PackedVector2Array([o.pos, Vector2(cmd.target_cell)])
 		o.path_index = 0
 		journal.append({"t": tick, "ev": &"move_start", "op": o.id, "tx": cmd.target_cell.x, "ty": cmd.target_cell.y})
-	var remaining := o.speed_cells_per_sec() * DT
+	var remaining := o.speed_cells_per_sec() * DT + o.move_carry
+	o.move_carry = 0.0
 	var heading := Vector2.ZERO
 	while remaining > 0.0 and o.path_index < o.active_path.size() - 1:
 		var target := o.active_path[o.path_index + 1]
@@ -214,6 +242,7 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 	if heading != Vector2.ZERO and o.field_of_fire_deg < 0:
 		o.facing_deg = rad_to_deg(heading.angle())
 	if o.path_index >= o.active_path.size() - 1:
+		o.move_carry = remaining
 		o.active_path = PackedVector2Array()
 		o.path_index = 0
 		journal.append({"t": tick, "ev": &"move_end", "op": o.id, "px": o.pos.x, "py": o.pos.y})
@@ -221,8 +250,8 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 
 
 func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
-	var fuse := rng.randi_range(FUSE_MIN_TICKS, FUSE_MAX_TICKS)
-	o.cooldown_ticks = ACTION_COOLDOWN_TICKS
+	var fuse := SimConstants.ACTION_FUSE_TICKS
+	o.cooldown_ticks = SimConstants.ACTION_COOLDOWN_TICKS
 	journal.append({
 		"t": tick,
 		"ev": &"action",

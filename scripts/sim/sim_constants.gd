@@ -25,3 +25,5 @@ const STANCE_ACOUSTIC_RADIUS_MULTIPLIERS: Dictionary = {
 const GO_CODES: Array[StringName] = [&"alpha", &"bravo", &"charlie"]
 
 const LOS_VERTEX_EPSILON_RAD: float = 0.00001
+const ACTION_FUSE_TICKS: int = 45
+const ACTION_COOLDOWN_TICKS: int = 60

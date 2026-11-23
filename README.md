@@ -30,21 +30,26 @@ replay scrubbing to iterate.
 ├── RULES.md              ← CANONICAL OPERATING LAW (read first)
 ├── CLAUDE.md             ← agent guidelines
 ├── AGENTS.md             ← agent quick reference
+├── project.godot         ← Godot 4 project root (portrait primary, gl_compatibility locked)
+├── scenes\               ← Godot scenes (planning.tscn)
+├── scripts\              ← autoload\, sim\, planning\
+├── tests\                ← SceneTree harnesses & probes
+├── android\              ← gitignored Gradle template (Route B currently blocked)
+├── docs\                 ← BUILD-IN-ANDROID-STUDIO.md + supporting documentation
 ├── blueprints\           ← governance + engineering canon (gitignored by design)
 │   ├── SESSION_HANDOFF.md          ← cold start entry point
 │   ├── Tactical Android Game Development.rtf   ← THE source document
 │   └── blueprint-sections\         ← BP-01 … BP-10 engineering specs
-├── game\                 ← Godot 4 project root (created in M1)
-├── docs\                 ← supporting documentation
 └── _archive\             ← retired material
 ```
 
 ## Build & test (human-owned)
 
-Godot 4.x (Compatibility renderer) authors the project; Android debug/release builds are produced
-by the human in **Android Studio** against the SDK at `C:\android\sdk`. Agents code and verify
+Godot 4.x (Compatibility renderer) authors the project; Android debug APKs are exported via
+Route A (direct Godot export) per `docs\BUILD-IN-ANDROID-STUDIO.md` (Route B Android Studio
+Gradle builds are currently blocked on JDK/SDK template version alignment). Agents code and verify
 parse-cleanliness only — see `RULES.md` §2.
 
 ## Status
 
-Foundation day. See `blueprints\SESSION_HANDOFF.md`.
+M2 sim core + M3 planning v1; audit remediation S3. See `blueprints\SESSION_HANDOFF.md`.

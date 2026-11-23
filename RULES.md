@@ -70,7 +70,7 @@ Do not install software, modify system settings, or write to new locations outsi
    # ============================================================
    ```
 3. **The blueprint is canon** for all gameplay/architecture numbers: `blueprints\architecture-blueprint-source.txt` (plain-text extraction of `Tactical Android Game Development.rtf`). Where implementation deviates, the deviation must be logged as a Decision in the BP's footer + CHANGELOG.
-4. **Typed GDScript everywhere** (`class_name` + static typing); autoload singletons only for SimClock/EventBus. The simulation layer (`game\scripts\sim\`) is pure autoload-free code (D-018). Test entry points under `game\tests\` are exempt from `class_name`.
+4. **Typed GDScript everywhere** (`class_name` + static typing); autoload singletons only for SimClock/EventBus. The simulation layer (`scripts\sim\`) is pure autoload-free code (D-018). Test entry points under `tests\` are exempt from `class_name`.
 5. **Scene names are string-coupled**: any scene referenced by path in code or export presets must be updated in both places on rename.
 
 ---

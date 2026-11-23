@@ -17,10 +17,11 @@ var active_path := PackedVector2Array()
 var path_index := 0
 var wait_code := &""
 var done := false
+var move_carry := 0.0
 
 
 func speed_cells_per_sec() -> float:
-	return SimConstants.BASE_SPEED_CELLS_PER_SEC * float(SimConstants.STANCE_SPEED_MULTIPLIERS[stance])
+	return SimConstants.BASE_SPEED_CELLS_PER_SEC * float(SimConstants.STANCE_SPEED_MULTIPLIERS.get(stance, 1.0))
 
 
 func to_dict() -> Dictionary:
@@ -40,7 +41,8 @@ func to_dict() -> Dictionary:
 		"path_index": path_index,
 		"wait": String(wait_code),
 		"done": done,
-		"queue": queue.to_dict(),
+		"carry": move_carry,
+		"queue": queue.to_dict() if queue != null else {},
 	}
 
 
@@ -61,5 +63,6 @@ static func from_dict(d: Dictionary) -> SimOperative:
 	o.path_index = int(d.get("path_index", 0))
 	o.wait_code = StringName(String(d.get("wait", "")))
 	o.done = bool(d.get("done", false))
+	o.move_carry = float(d.get("carry", 0.0))
 	o.queue = CommandQueue.from_dict(d.get("queue", {}))
 	return o
