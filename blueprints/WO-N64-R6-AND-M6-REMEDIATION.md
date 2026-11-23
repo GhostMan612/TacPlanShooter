@@ -66,6 +66,18 @@ Target files:
 - CREATE: `scripts/ui/roster_roles_screen.gd` (operative roster management, CQB billet assignment, and XP/trait progression UI)
 - CREATE: `tests/meta_progression_harness.gd` (verify persistent HQ save/load, operative XP/roles, armory unlock tree, mission RP grading, and PvP equal-budget loadout validation)
 
+## PHASE G — Advanced Deterministic CQB AI
+Spec: `blueprints/AI-BEHAVIOR-SPEC.md`
+Target files:
+- CREATE: `scripts/sim/ai/threat_blackboard.gd` (dual-cone vision, wall-attenuated acoustic perception, LKP memory & discovery escalation)
+- CREATE: `scripts/sim/ai/ai_archetypes.gd` (data-driven enemy archetypes: `PATROL_SENTRY`, `ROOM_ANCHOR`, `TACTICAL_FLANKER`, `HEAVY_GUNNER`, `TECH_JAMMER`, `HOSTAGE_GUARD`)
+- CREATE: `scripts/sim/ai/squad_coordinator.gd` (`SquadBlackboard`, `ANCHOR`/`SUPPRESSOR`/`FLANKER`/`RUNNER` role assignment, threat-weighted `AStarGrid2D` overlay, friendly squad micro-cohesion)
+- CREATE: `scripts/sim/ai/enemy_ai.gd` (11-state tactical FSM, target utility scoring, suppression/morale & surrender, PvP Defender reflex integration)
+- CREATE: `scripts/sim/ai/friendly_reflex_ai.gd` (`Engage`/`Advance`/`Escort` ROE modes alongside `CommandQueue`, hostage line-of-fire safety gate)
+- CREATE: `scripts/sim/ai/hostage_ai.gd` (`CAPTIVE` -> `FOLLOW_ESCORT` -> `EXTRACTED` state machine)
+- MODIFY: `scripts/sim/sim_world.gd` (integrate 3-layer deterministic AI coordinator, sensory blackboard, and FSM updates inside 60 Hz fixed tick)
+- MODIFY: `tests/determinism_harness.gd` (require all 6 headless AI verification gates: `_test_ai_no_wallhack_lkp`, `_test_ai_acoustic_wall_attenuation`, `_test_ai_threat_weighted_flank`, `_test_ai_flashbang_morale_stun`, `_test_ai_hostage_lof_safety`, `_test_ai_determinism_replay`)
+
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
