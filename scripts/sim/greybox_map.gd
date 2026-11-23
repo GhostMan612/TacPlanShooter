@@ -47,6 +47,24 @@ func open_door(cell: Vector2i) -> void:
 		door_open[cell] = true
 
 
+func get_wall_segments() -> Array:
+	var segs := []
+	var faces := [
+		[Vector2i(0, -1), Vector2(0.0, 0.0), Vector2(1.0, 0.0)],
+		[Vector2i(0, 1), Vector2(0.0, 1.0), Vector2(1.0, 1.0)],
+		[Vector2i(-1, 0), Vector2(0.0, 0.0), Vector2(0.0, 1.0)],
+		[Vector2i(1, 0), Vector2(1.0, 0.0), Vector2(1.0, 1.0)],
+	]
+	for c in solid_cells.keys():
+		if door_cells.has(c) and bool(door_open.get(c, false)):
+			continue
+		for f in faces:
+			var nb: Vector2i = c + f[0]
+			if not in_bounds(nb) or is_solid(nb):
+				segs.append([f[1], f[2]])
+	return segs
+
+
 func to_dict() -> Dictionary:
 	var solids: Array = []
 	for k in solid_cells.keys():

@@ -2,13 +2,13 @@
 # As Above, So Below. As Within, So Without.
 # The Future Dictates the Past and the Past is Always Present.
 # ============================================================
-class_name DeterminismHarness
 extends SceneTree
 
 const TICK_BUDGET := 7200
 
 
 func _initialize() -> void:
+	print("PROBE_H_INIT")
 	var failures := 0
 	failures += _test_command_serialization()
 	failures += _test_queue_roundtrip()
@@ -24,6 +24,7 @@ func _initialize() -> void:
 	failures += _test_stance_table()
 	failures += _test_tactical_actions()
 	failures += _test_fof_override()
+	failures += _test_visibility_sweepline_ioi()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -432,6 +433,43 @@ func _test_tactical_actions() -> int:
 	print("[HARNESS] tactical_actions %s (spawned=%d effects=%d cooldown_seen=%s hp_op0=%d hp_op1=%d)" % [
 		"PASS" if ok else "FAIL",
 		spawned_kinds.size(), effect_count, str(cooldown_seen), w.operatives[0].hp, w.operatives[1].hp,
+	])
+	return 0 if ok else 1
+
+
+func _test_visibility_sweepline_ioi() -> int:
+	var map := GreyboxMap.build_default()
+	var segs := map.get_wall_segments()
+	var observer := Vector2(2.5 * 16.0, 2.5 * 16.0)
+	var poly := Visibility.compute_polygon(observer, segs, 0.00001)
+	var ok := poly.size() >= 3
+	var n_rays := 1440
+	var match := 0
+	var total := 0
+	for i in range(n_rays):
+		var ang := TAU * i / n_rays
+		var dir := Vector2(cos(ang), sin(ang))
+		var d_ref := -1.0
+		for s in segs:
+			var t := Visibility._ray_hit_t(observer, dir, s[0], s[1])
+			if t > 0 and (d_ref < 0 or t < d_ref):
+				d_ref = t
+		if d_ref < 0:
+			continue
+		total += 1
+		var d_poly := -1.0
+		for j in range(poly.size()):
+			var t := Visibility._ray_hit_t(observer, dir, poly[j], poly[(j + 1) % poly.size()])
+			if t > 0 and (d_poly < 0 or t < d_poly):
+				d_poly = t
+		if d_poly < 0:
+			ok = false
+		elif absf(d_poly - d_ref) <= 0.5:
+			match += 1
+	var ioi := float(match) / float(max(total, 1))
+	ok = ok and ioi >= 0.99
+	print("[HARNESS] visibility_sweepline_ioi %s (poly=%d rays=%d ioi=%.4f)" % [
+		"PASS" if ok else "FAIL", poly.size(), total, ioi,
 	])
 	return 0 if ok else 1
 
