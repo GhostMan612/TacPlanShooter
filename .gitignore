@@ -16,7 +16,6 @@ local.properties
 .env
 
 # ===== House rules =====
-blueprints/
 _archive/
 builds/
 
