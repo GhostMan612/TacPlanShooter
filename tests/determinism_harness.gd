@@ -23,6 +23,7 @@ func _initialize() -> void:
 	failures += _test_collision_halt()
 	failures += _test_stance_table()
 	failures += _test_tactical_actions()
+	failures += _test_fof_override()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -360,6 +361,40 @@ func _test_collision_halt() -> int:
 	print("[HARNESS] collision_halt %s (op0_halted=%s op1_halted=%s op0_done=%s)" % [
 		"PASS" if ok else "FAIL",
 		str(halted0), str(halted1), str(w.operatives[0].done),
+	])
+	return 0 if ok else 1
+
+
+func _test_fof_override() -> int:
+	# CP-043: facing overrides movement-facing while FoF is active.
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 8888)
+	w.add_operative(0, Vector2i(2, 2), [
+		_cmd_move(Vector2i(5, 2)),
+		_cmd_fof(90),
+		_cmd_move(Vector2i(7, 2)),
+	])
+	var done := false
+	var override_seen := false
+	for i in range(300):
+		w.step()
+		var o := w.operatives[0]
+		if o.active_path.size() > 0 and o.field_of_fire_deg == 90 and o.facing_deg == 90:
+			override_seen = true
+		if o.done:
+			done = true
+			break
+	var ok := done and override_seen and w.operatives[0].field_of_fire_deg == 90
+	print("[HARNESS] fof_override %s (done=%s override_seen=%s)" % [
+		"PASS" if ok else "FAIL", str(done), str(override_seen),
+	])
+	return 0 if ok else 1
+	print("[HARNESS] fof_override %s (done=%s override_seen=%s)" % [
+		"PASS" if ok else "FAIL", str(done), str(override_seen),
+	])
+	return 0 if ok else 1
+	print("[HARNESS] fof_override %s (done=%s override_seen=%s)" % [
+		"PASS" if ok else "FAIL", str(done), str(override_seen),
 	])
 	return 0 if ok else 1
 

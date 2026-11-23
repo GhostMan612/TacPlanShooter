@@ -214,6 +214,7 @@ func _step_operative(o: SimOperative) -> void:
 				o.queue.advance_cursor()
 			AgentCommand.CommandType.SET_FIELD_OF_FIRE:
 				o.field_of_fire_deg = cmd.bearing_deg
+				o.facing_deg = cmd.bearing_deg
 				journal.append({"t": tick, "ev": &"fof_set", "op": o.id, "bearing": cmd.bearing_deg})
 				o.queue.advance_cursor()
 			AgentCommand.CommandType.WAIT_GO_CODE:
