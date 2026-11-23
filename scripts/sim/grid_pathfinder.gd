@@ -5,14 +5,10 @@
 class_name GridPathfinder
 extends RefCounted
 
-# Deterministic orthogonal neighbor order: +x, -x, +y, -y.
 const ORTHO: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 
 static func find_path(map: GreyboxMap, start: Vector2i, goal: Vector2i) -> Array[Vector2i]:
-	# Integer-grid A* (the sim-layer equivalent of AStarGrid2D; see BP-04 + D-023).
-	# Returns the cells from start to goal inclusive, or an empty array if unreachable.
-	# Door cells pass the A* search; the movement executor enforces the closed-door rule.
 	var g: Dictionary = {}
 	var closed: Dictionary = {}
 	var parent: Dictionary = {}

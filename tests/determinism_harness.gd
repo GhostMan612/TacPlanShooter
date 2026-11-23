@@ -301,9 +301,6 @@ func _test_route_pipeline() -> int:
 
 
 func _test_execution_move_adherence() -> int:
-	# CP-050: position-vs-plan diff harness — movement strictly along planned vectors at
-	# stance speed, no drift, no wall clipping; both ops end at their final targets,
-	# and the breaching door opens.
 	var w := _build_world(1337)
 	var prev: Dictionary = {}
 	for op in w.operatives:
@@ -348,7 +345,6 @@ func _test_execution_move_adherence() -> int:
 
 
 func _test_collision_halt() -> int:
-	# CP-051: two crossing plans halt both agents (strict adherence, no avoidance).
 	var w := SimWorld.new()
 	w.setup(GreyboxMap.build_default(), 99)
 	w.add_operative(0, Vector2i(2, 4), [_cmd_move(Vector2i(6, 4))])
@@ -366,7 +362,6 @@ func _test_collision_halt() -> int:
 
 
 func _test_fof_override() -> int:
-	# CP-043: facing overrides movement-facing while FoF is active.
 	var w := SimWorld.new()
 	w.setup(GreyboxMap.build_default(), 8888)
 	w.add_operative(0, Vector2i(2, 2), [
@@ -400,8 +395,6 @@ func _test_fof_override() -> int:
 
 
 func _test_tactical_actions() -> int:
-	# CP-042: FRAG/FLASHBANG/TEAR_GAS spawn entities; FRAG damages operators within radius
-	# (owner excluded); cooldown lock visible while the entity is spawned.
 	var w := SimWorld.new()
 	w.setup(GreyboxMap.build_default(), 7777)
 	w.add_operative(0, Vector2i(2, 2), [
@@ -444,7 +437,6 @@ func _test_tactical_actions() -> int:
 
 
 func _test_stance_table() -> int:
-	# CP-040: Blitz/Normal/Cautious produce exact velocity multipliers + acoustic radii per BP-03 table.
 	var expected := {
 		"blitz": {&"speed": 6.4, &"acoustic": 1.5},
 		"normal": {&"speed": 4.0, &"acoustic": 1.0},

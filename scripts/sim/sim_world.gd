@@ -377,7 +377,6 @@ func _apply_entity_effect(e: SimEntity) -> void:
 
 
 func _check_collision(o: SimOperative) -> void:
-	# CP-051: strict path adherence — intersecting plans collide and halt.
 	var plan := _collision_plan(o)
 	for p in operatives:
 		if p == o or p.done:
@@ -390,7 +389,6 @@ func _check_collision(o: SimOperative) -> void:
 
 
 static func _collision_plan(o: SimOperative) -> Array[Vector2]:
-	# Op's plan from current pos forward: pos + remaining active_path.
 	var out: Array[Vector2] = [o.pos]
 	for i in range(o.path_index + 1, o.active_path.size()):
 		out.append(o.active_path[i])
