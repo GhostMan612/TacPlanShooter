@@ -30,7 +30,7 @@ C:\sovereign_tagger*        (wildcard: covers sovereign_tagger, sovereign_tagger
 ### 1.3 Git discipline
 - **Stage by explicit path only.** `git add -A` / `git add .` are FORBIDDEN — they pull in unrelated work.
 - Commits happen as part of an approved session workflow; never force-push, rebase public history, or delete branches unless explicitly asked.
-- `blueprints\` and `_archive\` are intentionally gitignored — do not "fix" this.
+- `_archive\` is intentionally gitignored — do not "fix" this. `blueprints\` is tracked in the remote repo so specs and work orders sync via `git pull`.
 
 ### 1.4 No real-world sensitive data
 No real person names, unit designations tied to real operations, or personal data in committed source, tests, or fixtures. Synthetic placeholders only (e.g., `OPR_SAMPLE_01`).
@@ -80,7 +80,7 @@ Do not install software, modify system settings, or write to new locations outsi
 | Law | Rule |
 |-----|------|
 | Renderer | `gl_compatibility` (OpenGL ES 3.0) ONLY — set for BOTH desktop and mobile in `project.godot`. Never Forward+, never Mobile-Vulkan. Prevents Vulkan init attempts on old chipsets. |
-| Determinism | ALL simulation logic runs in `_physics_process()` at fixed 60 Hz. NOTHING gameplay-mutating in `_process()`. Rendering/UI read state, never mutate it (Command Query Separation). |
+| Determinism | ALL simulation logic runs in `_physics_process()` at fixed 60 Hz. NOTHING gameplay-mutating in `_process()`. Rendering/UI read state, never mutate it (Command Query Separation). Live Tap-In Direct Control (Decision D-TAPIN-01) is permitted only by recording quantized per-tick `OverrideCommand` records into the 60 Hz simulation command stream so replays remain deterministic.  
 | RNG | Seeded `RandomNumberGenerator` instances only; seed saved in the mission snapshot. NEVER global `randi()`/`randf()`/`randomize()` inside simulation code. |
 | Pathfinding | `AStarGrid2D` ONLY. `NavigationAgent2D`/`NavigationRegion2D` are BANNED (float nondeterminism + mobile perf). Grid cells integer-based (default 16×16 px). |
 | Avoidance | NO RVO/local avoidance. Strict path adherence: intersecting plans collide and HALT. Poor temporal planning is penalized, not papered over. |
@@ -112,7 +112,7 @@ Do not install software, modify system settings, or write to new locations outsi
 1. Update `blueprints\CHANGELOG.md` (top entry, dated)
 2. Tick `blueprints\CHECKLIST.md`; flip gates in `blueprints\CHECKPOINTS.md`
 3. Refresh `blueprints\CURRENT_STATE.md`; rewrite handoff "Where we are" + "Next actions"
-4. **AUTO-COMMIT LAW (user-granted, standing):** commit completed phases WITHOUT asking. Stage by explicit path only, descriptive message citing gate status. Never commit `blueprints\`. Never claim build success.
+4. **AUTO-COMMIT LAW (user-granted, standing):** commit completed phases WITHOUT asking. Stage by explicit path only, descriptive message citing gate status. Tracked specs/work orders in `blueprints\` may be pulled and committed by explicit path. Never claim build success.
 
 ### 5.3 Verification law
 No checklist item is done until its checkpoint gate passes (see `blueprints\CHECKPOINTS.md`). Evidence before status flips. New work → define its gate first.
