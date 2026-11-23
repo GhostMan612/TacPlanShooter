@@ -1,0 +1,41 @@
+# CHECKPOINTS.md — Verification Gate System
+A checkpoint = a verifiable state. **No checklist item may be marked ✅ without passing its gate.**
+Statuses: ⬜ pending · ✅ PASSED (date) · ❌ FAILED (reason, reopen)
+
+| ID | Gate | Pass criteria | How to verify | Status |
+|----|------|---------------|---------------|--------|
+| CP-001 | Workspace shape | Root has RULES/CLAUDE/AGENTS/README/.gitignore + blueprints\ + Godot root & docs\ | Directory listing | ✅ PASSED 2026-08-25 (flattened 2026-08-26, cleaned 2026-11-23) |
+| CP-002 | Governance cross-linked | Every doc references RULES.md as winner; handoff is cold-start entry; gotchas G1–G16 consistent across files | Manual read | ✅ PASSED 2026-08-25 |
+| CP-003 | Repo initialized | git branch = main, status clean, blueprints ignored | `git status` / `git check-ignore blueprints` | ✅ PASSED 2026-08-25 |
+| CP-010 | Godot installed | Godot 4.x exe exists; version recorded in CURRENT_STATE tooling table | Run `godot --version` | ✅ PASSED 2026-08-25 (`C:\Godot\Godot_v4.0-stable_win64_console.exe`, 4.0.stable.official.92bee43ad) |
+| CP-011 | Renderer locked | project.godot sets gl_compatibility for BOTH desktop+mobile rendering methods | Inspect project.godot keys | ✅ PASSED 2026-08-25 |
+| CP-012 | Import smoke clean | Headless import exits without ERROR/SCRIPT ERROR lines | Detached run + poll log, filter errors (G-laws) | ✅ PASSED 2026-08-25 · re-verified 2026-11-23 (`--path .` after 2× `--editor --quit`, ZERO error lines, `[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60`) |
+| CP-013 | Autoloads wired | EventBus/SimClock register; SimClock applies planning cap on boot; EventBus reachable from siblings | Boot log shows fps_cap=30; sim_clock references resolve at runtime | ✅ PASSED 2026-08-25 (Config dissolved into SimConstants S2; `--check-only --script` cannot see autoload globals — project-level smoke is authority) |
+| CP-020 | Fixed-tick authority | SimClock owns phase machine; Engine.max_fps flips 30→60 on EXECUTION enter, restores on exit; no sim mutation in any `_process` | Code audit + runtime log probe | ✅ PASSED 2026-08-25 · re-verified 2026-11-23 (`planning_cap=30 → execution_cap=60 phase=1 → back_to_planning_cap=30 phase=0`) |
+| CP-021 | Command serialization | AgentCommand → serialized form → back yields field-identical object incl. type enum, cell coords, params | Round-trip unit check | ✅ PASSED 2026-08-25 · re-verified 2026-11-23 (`command_serialization PASS`, `queue_roundtrip PASS`) |
+| CP-022 | Replay determinism | Same snapshot+plan executed twice produces identical final state hash; RNG state + all fields hashed | Hash comparison harness | ✅ PASSED 2026-08-25 · **re-PASSED 2026-11-23** (strengthened `state_hash()` incl. `rng.state`, sorted doors, `done`/`path_index`/`active_path`/`move_carry`, canonical `_canon()`; `determinism_same_seed PASS`, `rng_state_coverage PASS`, `setup_resets PASS`) |
+| CP-023 | Go-code / zero-tick instants | Instant commands (`SET_STANCE`, `SET_FIELD_OF_FIRE`, already-issued `WAIT_GO_CODE`) consume 0 ticks; two teams release on exact same tick | Tick-journal assertion | ✅ PASSED 2026-11-23 (`go_code_same_tick PASS: pre0=1 pre1=1 late0=11 late1=11`) |
+| CP-030 | Modal camera | Observation pan/pinch works while plan edits are rejected; Routing long-press selects operative + smooth multi-route lines | Manual device/desktop test | ⬜ **USER** |
+| CP-031 | Route pipeline | Drawn route renders smooth (Catmull-Rom Bezier-baked), decimated below threshold, final endpoint preserved; raw noisy input never reaches Line2D/pathfinding | Inject synthetic jitter + 90° corner test | ⚠️ 2026-08-25 pass INVALID (zero-handle Curve2D was linear) · **re-PASSED 2026-11-23** (`route_pipeline PASS: raw=401 decimated=88 baked=218 waypoints=89 corner_dev=7.39 tail_kept=true`) |
+| CP-032 | Camera clamp | Panning past map limits clamps `MissionCamera.position` with no dead zone | Harness assertion | ✅ PASSED 2026-11-23 (`camera_clamp PASS: right_ok=true left_ok=true`) |
+| CP-040 | Stance table | Blitz/Normal/Cautious produce exact velocity multipliers + acoustic radii per BP-03 table | Parameterized assertion | ✅ PASSED 2026-11-23 (`stance_table PASS: blitz=6.4 normal=4.0 cautious=2.0`; acoustic 1.5/1.0/0.35) |
+| CP-041 | Go-code sync | Two operatives at separate go-code nodes halt; single global issue releases both SAME tick | Tick-log assertion | ✅ PASSED 2026-11-23 (`go_code_same_tick PASS: pre0=1 pre1=1 late0=11 late1=11`) |
+| CP-042 | Tactical actions | Flashbang/frag/gas/breach spawn entity at node; operative locked for cooldown frames | Runtime observation + tick log | ✅ PASSED 2026-11-23 (`tactical_actions PASS: spawned=3 effects=3 cooldown_seen=true hp_op0=100 hp_op1=75`) |
+| CP-043 | Fields of fire | Facing overrides movement-facing while active; LOS arc snaps to set bearing | Visual + state assert | ✅ PASSED 2026-11-23 (`fof_override PASS: done=true override_seen=true`; FoF stored on operative, facing = FoF while active) |
+| CP-050 | Path adherence | Operative position sequence matches planned vector + AStarGrid2D strictly (no wall clipping), no drift | Position-vs-plan diff harness | ✅ PASSED 2026-11-23 (`execution_move_adherence PASS: drift_ok=true clip_ok=true final_ok=true pos_ok=true`) |
+| CP-051 | Collision halts | Intersecting plans cause both agents to halt; event logged; no avoidance swerve | Authored collision scenario | ✅ PASSED 2026-11-23 (`collision_halt PASS: op0_halted=true op1_halted=true`) |
+| CP-052 | CQS audit | Zero game-state writes outside `_physics_process` during EXECUTION | Static grep + code review gate | ✅ PASSED 2026-11-23 (`planning_root.gd:71 world.step()` inside `PlanningRoot._physics_process`; token sync same process; no other writes outside physics during EXECUTION) |
+| CP-060 | Sweep-line correct | Visibility polygon matches brute-force dense-raycast reference ≥99% IoU on test map; ±0.00001 rad grazing verified at corners | Reference-comparison script | ✅ PASSED 2026-11-23 (probe: segments=180, inline copy of `Visibility.compute_polygon`=720-pt polygon at observer (40,40); Phase A (WO): FogLayer SubViewport masks — fog2 probe PASS, WCW PASS, boot/editor clean; harness `-s` silent in this env) |
+| CP-061 | Fog masked render | FogLayer v2 (SubViewport `live_vp`/`memory_vp` + `fog_mask.gdshader` composite; fog driven by operative sight; `reset_fog()`); HUD Execute/Alpha/Bravo/Charlie/Delta/Reset in `CanvasLayer` (portrait 1080) | fog2 probe (deleted) | ✅ PASSED 2026-11-23 (Phase A: SubViewport masks, WCW PASS, fog2 probe PASS) |
+| CP-070 | Detection model | Cautious operative passes patrol inside alert radius without detection; Blitz triggers it — per BP-09 numbers | Authored stealth scenario | ⬜ |
+| CP-071 | Mission loop closes | Success/fail resolves; report screen lists timeline events; replay scrubs to any recorded tick | Manual run-through | ⬜ |
+| CP-080 | Loupe ergonomics | PiP loupe shows exact under-finger pixel; radial menu reachable one-handed bottom arc | On-device feel check | ⬜ **USER** |
+| CP-090 | Audio feedback | Breach ducks ambient audibly; heartbeat low-pass engages on damage; squelch blips randomized on UI ops | On-device listen | ⬜ **USER** |
+| CP-100 | Export hygiene | Export presets valid; `android/` ignored & untracked; NO keystore/signing tracked (`git ls-files *.keystore` empty) | git checks + preset review | 🔄 (Route A preset + `android/` gitignored; final verification w/ APK export) |
+| CP-101 | Device boot | USER-built debug APK installs and boots to planning screen on physical device | USER report + screenshot | ⬜ **USER** |
+
+## Gate rules
+1. Evidence before status flip (paste output into CHANGELOG entry)
+2. A failed gate reopens every checklist item it gated
+3. New work → new gate ID first, then implementation
+4. Gates marked **USER** are human-in-the-loop (device feel, builds, installs) — agent records the report verbatim

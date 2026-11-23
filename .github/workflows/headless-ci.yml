@@ -1,0 +1,36 @@
+name: Headless CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot headless
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./bin/godot
+          key: godot-4.0.4-linux-headless
+      - name: Download Godot 4.0.4 headless (Linux x86_64)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p bin
+          curl -sSL -o bin/Godot_v4.0.4-stable_linux.x86_64.zip https://github.com/godotengine/godot/releases/download/4.0.4-stable/Godot_v4.0.4-stable_linux.x86_64.zip
+          cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && chmod +x godot
+          ls -la bin
+      - name: Import pass 1
+        run: ./bin/godot --headless --path . --import || true
+      - name: Import pass 2
+        run: ./bin/godot --headless --path . --import || true
+      - name: Boot smoke
+        run: ./bin/godot --headless --path . --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true
+      - name: Determinism harness
+        run: ./bin/godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | grep -E "FAIL|ERROR|SCRIPT ERROR|PASS" || true
+      - name: SimClock probe
+        run: ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true

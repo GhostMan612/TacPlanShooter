@@ -6,62 +6,70 @@ class_name FogLayer
 extends Node2D
 
 
-const FOG_COLOR := Color(0.10, 0.11, 0.14, 0.62)
-const MEMORY_COLOR := Color(0.55, 0.45, 0.24, 0.50)
-
-
 var map: GreyboxMap = null
-var fog_cells: Array[Vector2i] = []
-var memory_cells: Array[Vector2i] = []
+var live_vp: SubViewport = null
+var memory_vp: SubViewport = null
+var _comp: ColorRect = null
+var _memory_shapes: Dictionary = {}
 
 
 func setup(m: GreyboxMap) -> void:
 	map = m
+	var w := int(float(map.width_cells) * float(SimConstants.GRID_CELL_SIZE_PX))
+	var h := int(float(map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX))
+	live_vp = SubViewport.new()
+	live_vp.size = Vector2i(w, h)
+	live_vp.msaa_2d = Viewport.MSAA_DISABLED
+	live_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	live_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(live_vp)
+	memory_vp = SubViewport.new()
+	memory_vp.size = Vector2i(w, h)
+	memory_vp.msaa_2d = Viewport.MSAA_DISABLED
+	memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_NEVER
+	memory_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(memory_vp)
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://scripts/planning/fog_mask.gdshader")
+	_comp = ColorRect.new()
+	_comp.size = Vector2(w, h)
+	_comp.material = mat
+	_comp.material.set_shader_parameter("live_tex", live_vp.get_texture())
+	_comp.material.set_shader_parameter("memory_tex", memory_vp.get_texture())
+	add_child(_comp)
 
 
-func visible_cells(visible_polys: Array) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	if map == null:
-		return out
-	for c in _map_cells():
-		if _in_any_poly(GridUtil.cell_center_px(c), visible_polys):
-			out.append(c)
-	return out
+func rebuild(visible_polys: Array) -> void:
+	var kids := live_vp.get_children()
+	for k in kids:
+		k.free()
+	for poly in visible_polys:
+		var shape := Polygon2D.new()
+		shape.set_polygon(poly)
+		shape.color = Color.WHITE
+		live_vp.add_child(shape)
 
 
-func rebuild(visible_polys: Array, visited: Dictionary) -> void:
-	var new_fog: Array[Vector2i] = []
-	var new_memory: Array[Vector2i] = []
-	if map != null:
-		for c in _map_cells():
-			if not _in_any_poly(GridUtil.cell_center_px(c), visible_polys):
-				new_fog.append(c)
-			if visited.has(c):
-				new_memory.append(c)
-	if new_fog == fog_cells and new_memory == memory_cells:
+func mark_memory(cell: Vector2i) -> void:
+	if _memory_shapes.has(cell):
 		return
-	fog_cells = new_fog
-	memory_cells = new_memory
-	var kids := get_children()
-	for s in kids:
-		s.free()
-	_rebuild_shapes()
-
-
-func _rebuild_shapes() -> void:
-	if map == null:
-		return
-	for c in fog_cells:
-		add_child(_make_shape(c, FOG_COLOR))
-	for c in memory_cells:
-		add_child(_make_shape(c, MEMORY_COLOR))
-
-
-func _make_shape(c: Vector2i, color: Color) -> Polygon2D:
 	var shape := Polygon2D.new()
-	shape.set_polygon(_cell_rect_points(c))
-	shape.color = color
-	return shape
+	shape.set_polygon(_cell_rect_points(cell))
+	shape.color = Color.WHITE
+	memory_vp.add_child(shape)
+	_memory_shapes[cell] = shape
+
+
+func reset_fog() -> void:
+	var kids := memory_vp.get_children()
+	for k in kids:
+		k.free()
+	_memory_shapes.clear()
+	memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+
+
+func poly_contains(p: Vector2, poly: PackedVector2Array) -> bool:
+	return Geometry2D.is_point_in_polygon(p, poly)
 
 
 func _cell_rect_points(c: Vector2i) -> PackedVector2Array:
@@ -73,18 +81,3 @@ func _cell_rect_points(c: Vector2i) -> PackedVector2Array:
 	p.append(e)
 	p.append(Vector2(rect.position.x, e.y))
 	return p
-
-
-func _in_any_poly(p: Vector2, polys: Array) -> bool:
-	for poly in polys:
-		if Geometry2D.is_point_in_polygon(p, poly):
-			return true
-	return false
-
-
-func _map_cells() -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for y in range(map.height_cells):
-		for x in range(map.width_cells):
-			out.append(Vector2i(x, y))
-	return out

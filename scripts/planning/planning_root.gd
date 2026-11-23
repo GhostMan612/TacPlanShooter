@@ -16,8 +16,12 @@ var fog: FogLayer = null
 
 var _hud := Control.new()
 var _execute_button: Button = null
-var _go_code_button: Button = null
+var _alpha_button: Button = null
+var _bravo_button: Button = null
+var _charlie_button: Button = null
+var _delta_button: Button = null
 var _reset_button: Button = null
+var _hud_canvas: CanvasLayer = null
 
 
 func _ready() -> void:
@@ -36,6 +40,7 @@ func _ready() -> void:
 	fog = FogLayer.new()
 	fog.setup(map)
 	add_child(fog)
+	fog.visible = false
 	for spec in [[0, Vector2i(2, 2)], [1, Vector2i(13, 2)]]:
 		var token := OperativeToken.new(int(spec[0]))
 		token.position = GridUtil.cell_center_px(Vector2i(spec[1]))
@@ -89,31 +94,42 @@ func _sync_tokens() -> void:
 func _update_fog() -> void:
 	if fog == null or map == null or world == null:
 		return
+	fog.visible = true
+	var segs := map.get_wall_segments()
 	var polys := []
 	for o in world.operatives:
-		var poly := Visibility.compute_polygon(o.pos, map.get_wall_segments(), 0.00001)
+		var poly := Visibility.compute_polygon(o.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
 		if poly.size() >= 3:
 			polys.append(poly)
-	var visited := {}
-	for c in fog.visible_cells(polys):
-		visited[c] = true
-	fog.rebuild(polys, visited)
+			if fog.poly_contains(o.pos, poly):
+				fog.mark_memory(GridUtil.cell_of(o.pos))
+	fog.rebuild(polys)
 
 
 func _setup_hud() -> void:
 	_execute_button = Button.new()
 	_execute_button.text = "Execute"
 	_execute_button.pressed.connect(_on_execute_pressed)
-	_go_code_button = Button.new()
-	_go_code_button.text = "Go-Code: Alpha"
-	_go_code_button.pressed.connect(_on_go_code_pressed)
+	_alpha_button = Button.new()
+	_alpha_button.text = "Alpha"
+	_alpha_button.pressed.connect(_on_alpha_pressed)
+	_bravo_button = Button.new()
+	_bravo_button.text = "Bravo"
+	_bravo_button.pressed.connect(_on_bravo_pressed)
+	_charlie_button = Button.new()
+	_charlie_button.text = "Charlie"
+	_charlie_button.pressed.connect(_on_charlie_pressed)
+	_delta_button = Button.new()
+	_delta_button.text = "Delta"
+	_delta_button.pressed.connect(_on_delta_pressed)
 	_reset_button = Button.new()
 	_reset_button.text = "Reset"
 	_reset_button.pressed.connect(_on_reset_pressed)
-	_hud.add_child(_execute_button)
-	_hud.add_child(_go_code_button)
-	_hud.add_child(_reset_button)
-	add_child(_hud)
+	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
+		_hud.add_child(b)
+	_hud_canvas = CanvasLayer.new()
+	_hud_canvas.add_child(_hud)
+	add_child(_hud_canvas)
 	_place_hud()
 
 
@@ -121,10 +137,10 @@ func _place_hud() -> void:
 	var vp: Vector2 = get_viewport_rect().size
 	_hud.size = Vector2(vp.x, 80)
 	_hud.position = Vector2(0, vp.y - 80)
-	var bw: float = 200.0
+	var bw: float = (1080.0 - 5.0 * 16.0) / 6.0
 	var gap: float = 16.0
 	var x: float = 16.0
-	for b in [_execute_button, _go_code_button, _reset_button]:
+	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		b.position = Vector2(x, 8.0)
 		b.size = Vector2(bw, 64.0)
 		x += bw + gap
@@ -137,10 +153,28 @@ func _on_execute_pressed() -> void:
 	_execute_button.disabled = true
 
 
-func _on_go_code_pressed() -> void:
+func _on_alpha_pressed() -> void:
 	if world != null:
 		world.issue_go_code(&"alpha")
 		print("[TacPlan] go_code issued: alpha")
+
+
+func _on_bravo_pressed() -> void:
+	if world != null:
+		world.issue_go_code(&"bravo")
+		print("[TacPlan] go_code issued: bravo")
+
+
+func _on_charlie_pressed() -> void:
+	if world != null:
+		world.issue_go_code(&"charlie")
+		print("[TacPlan] go_code issued: charlie")
+
+
+func _on_delta_pressed() -> void:
+	if world != null:
+		world.issue_go_code(&"delta")
+		print("[TacPlan] go_code issued: delta")
 
 
 func _on_reset_pressed() -> void:
@@ -151,6 +185,7 @@ func _on_reset_pressed() -> void:
 	world.add_operative(1, Vector2i(13, 2), _demo_plan_op1())
 	SimClock.reset_to_planning()
 	_execute_button.disabled = false
+	fog.reset_fog()
 	_sync_tokens()
 
 

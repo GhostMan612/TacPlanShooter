@@ -15,8 +15,8 @@ static func compute_polygon(observer: Vector2, segments: Array, eps: float = 0.0
 				continue
 			var a := atan2(d.y, d.x)
 			rays.append(a)
-			rays.append(a + eps)
-			rays.append(a - eps)
+			rays.append(wrapf(a + eps, -PI, PI))
+			rays.append(wrapf(a - eps, -PI, PI))
 	rays.sort()
 	var pts := PackedVector2Array()
 	for ang in rays:
@@ -39,6 +39,6 @@ static func _ray_hit_t(o: Vector2, d: Vector2, a: Vector2, b: Vector2) -> float:
 	var w := a - o
 	var t := w.cross(ba) / det
 	var u := w.cross(d) / det
-	if t > 0.0 and u > 0.0 and u < 1.0:
+	if t > 0.0 and u >= -0.000001 and u <= 1.000001:
 		return t
 	return -1.0

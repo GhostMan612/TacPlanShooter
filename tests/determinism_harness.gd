@@ -25,6 +25,7 @@ func _initialize() -> void:
 	failures += _test_tactical_actions()
 	failures += _test_fof_override()
 	failures += _test_visibility_sweepline_ioi()
+	failures += _test_visibility_west_corner_wrap()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 

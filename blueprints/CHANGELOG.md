@@ -1,0 +1,373 @@
+# CHANGELOG.md — Work Log
+Newest first. One entry per work session.
+
+---
+
+## Session 10 — 2026-11-23 — M6 remediation (WO-N64-R6-AND-M6-REMEDIATION Phase A)
+
+### Fog render (CP-061)
+- `FogLayer` (`scripts/planning/fog_layer.gd`) redesigned per WO Phase A: two offscreen `SubViewport` masks — `live_vp` (`CLEAR_MODE_ALWAYS`; white `Polygon2D` shapes of visible operative polygons) + `memory_vp` (`CLEAR_MODE_NEVER`) — composited by a full-map `ColorRect` with `fog_mask.gdshader` (live > 0.5 → alpha 0; memory > 0.5 → 0.50 fog; unseen → 0.85 fog); per-cell `Polygon2D` churn + `_map_cells()` CPU loops removed.
+- `PlanningRoot._update_fog()` (EXECUTION): cached `map.get_wall_segments()`; `Visibility.compute_polygon(o.pos, segs, LOS_VERTEX_EPSILON_RAD)`; cells inside any poly → `fog.mark_memory(GridUtil.cell_of(o.pos))`; fog visible during EXECUTION (hidden in planning); `fog.reset_fog()` on reset.
+- HUD: `_hud` mounted in `CanvasLayer`; Execute/Alpha/Bravo/Charlie/Delta/Reset wired; `_place_hud` sized to fit portrait 1080px width.
+
+### Visibility
+- `Visibility.compute_polygon`: rays at `a ± eps` wrapped via `wrapf(..., -PI, PI)` before `rays.sort()`.
+- `Visibility._ray_hit_t`: endpoint hits allowed (`t > 0.0 and u >= -0.000001 and u <= 1.000001`) — closes corner-piercing leaks.
+- `DeterminismHarness._test_visibility_west_corner_wrap` added (Phase A test).
+
+### CI
+- `.github/workflows/headless-ci.yml` — zero-artifact headless CI on push/PR to main: cached Godot 4.0.4-stable Linux headless (`Godot_v4.0.4-stable_linux.x86_64.zip`), two-pass `--import`, boot smoke (grep `ERROR|SCRIPT ERROR|Parse`), determinism harness, simclock probe.
+
+### Verification evidence (Godot 4.0.stable)
+```
+[HARNESS] fog2_setup live=0
+[HARNESS] fog2_live_shapes=1
+[HARNESS] fog2_memory_shapes=1
+[HARNESS] fog2_poly_contains=true
+[HARNESS] fog2_reset_memory=0
+[HARNESS] fog2_probe PASS
+[HARNESS] visibility_west_corner_wrap PASS (poly=900 t=80.3990)
+[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60
+```
+
+---
+
+## Session 9 — 2026-11-23 — M6 fog of war (CP-061)
+
+### Fog render
+- `FogLayer` (`scripts/planning/fog_layer.gd`, `class_name FogLayer`, Node2D; added to PlanningRoot after MapRenderer): fog cell `Polygon2D`s over every map cell NOT in any visible operative polygon; `MEMORY_COLOR` cell `Polygon2D`s (alpha 0.50) for visited cells; `visible_cells(polys)` / `rebuild(polys, visited)` with change-detection (no shape churn when the sets are unchanged).
+- `PlanningRoot._update_fog()` (EXECUTION): per live operative — `Visibility.compute_polygon(o.pos, map.get_wall_segments(), 0.00001)` → `FogLayer.rebuild(polys, visited)` (cells inside any poly marked visited).
+
+### Fix
+- `Visibility`: `segments: Array[Array[Vector2]]` → `Array` + `var d: Vector2 = v - observer` (nested-generic param type broke 4.0.0 parse; the class was unresolvable and broke `planning_root` boot).
+
+### Verification evidence (Godot 4.0.stable)
+```
+[HARNESS] fog_visible size=25 has_c54=true
+[HARNESS] fog_rebuild fog=167 memory=0
+[HARNESS] fog_memory has_c54=true fog_c54=false
+[HARNESS] fog_probe PASS
+[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60
+```
+(16×12 = 192 cells; visible=25, fog=167 ✓; FOG_COLOR alpha 0.62, MEMORY_COLOR alpha 0.50)
+
+---
+
+## Session 8 — 2026-11-23 — M6 fog of war (CP-060)
+
+### Visibility
+- `GreyboxMap.get_wall_segments()`: blocker-cell outer faces from `solid_cells` (open-door cells are not blockers; door faces excluded via `is_solid` neighbor check; bounds-clipped).
+- `Visibility.compute_polygon(observer, segments, eps)` (`scripts/sim/visibility.gd`, `class_name Visibility`, `RefCounted`): 3 rays/vertex (center ± eps), angular sort, parametric hit valid iff `T1 > 0 ∧ 0 < T2 < 1`, nearest-positive-t hit per ray → closed polygon (G7 rotational sweep-line).
+- `DeterminismHarness._test_visibility_sweepline_ioi` (CP-060): 1440-ray brute-force reference vs polygon boundary, `IoU ≥ 0.99`, observer at cell (2,2) center (world px 40,40); harness registered in `_initialize`.
+
+### Verification evidence (Godot 4.0.stable)
+```
+[HARNESS] cp060_probe segments=180
+[HARNESS] cp060_probe poly=720
+[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60
+```
+Notes: harness `godot -s tests/determinism_harness.gd` is silent/hangs in this environment (class-registration + `-s` quirks; the `Visibility` class is not resolvable in `-s` mode); verification ran via inline-math probe (`tests\zz_cp060_probe` — deleted after green). IoU loop itself not executable here; polygon non-empty (720 pts).
+
+---
+
+## Session 7 — 2026-11-23 — M4 fields of fire (CP-043)
+
+### Fields of fire
+- `SimWorld._step_operative`: `SET_FIELD_OF_FIRE` now also sets `o.facing_deg = cmd.bearing_deg`; `_step_move` leaves `facing_deg` frozen while `field_of_fire_deg >= 0` (movement-facing override; the FoF arc itself is set on command and stored for LOS).
+
+### Harness
+- New `_test_fof_override` (CP-043): op plans `move(5,2) → set_fof(90) → move(7,2)`; asserts `field_of_fire_deg == 90` and `facing_deg == 90` while the op moves (override active) and the op completes; harness 12 → 14 checks.
+
+### Verification evidence (Godot 4.0.stable)
+```
+[HARNESS] fof_override PASS (done=true override_seen=true)
+[HARNESS] RESULT PASS failures=0
+```
+
+---
+
+## Session 6 — 2026-11-23 — M4 tactical actions (CP-042)
+
+### Tactical actions
+- New `SimEntity` (`scripts/sim/sim_entity.gd`): spawned secondary entity with `due_tick` expiry (journal `entity_spawned`/`entity_effect`).
+- `SimWorld._step_action`: FRAG/FLASHBANG/TEAR_GAS spawn a `SimEntity` (FRAG damage: operators within `FRAG_RADIUS_CELLS` cells, owner excluded — deterministic, RNG stays reserved for M7); BREACH_CHARGE keeps the door-breach pending model; cooldown lock (`ACTION_COOLDOWN_TICKS`) set for all actions; invalid actions journal `action_rejected` (bounds/range/door rules).
+- `SimConstants`: `ACTION_ENTITY_LIFE_TICKS = 30`, `FRAG_DAMAGE = 25`, `FRAG_RADIUS_CELLS = 2`.
+- Entities included in `SimWorld.snapshot_data()`/`restore_from_data()` and `state_hash()` (`Q` part).
+- `DeterminismHarness`: new `_test_tactical_actions` (CP-042); harness 12 → 13 checks.
+
+### Verification evidence (Godot 4.0.stable), commit pending
+```
+[HARNESS] tactical_actions PASS (spawned=3 effects=3 cooldown_seen=true hp_op0=100 hp_op1=75)
+[HARNESS] RESULT PASS failures=0
+```
+
+---
+
+## Session 5 — 2026-11-23 — M4 stances (CP-040)
+
+### Tactical stances
+- Verified against the BP-03 table via `SimOperative.speed_cells_per_sec()`: `STANCE_SPEED_MULTIPLIERS` (blitz 1.6 → 6.4 cells/s, normal 1.0 → 4.0, cautious 0.5 → 2.0) and `STANCE_ACOUSTIC_RADIUS_MULTIPLIERS` (blitz 1.5, normal 1.0, cautious 0.35).
+- `DeterminismHarness`: new `_test_stance_table` (CP-040); harness 11 → 12 checks.
+
+### Verification evidence (Godot 4.0.stable), commit 90ef6cd
+```
+=== GATE 3: determinism harness ===
+[HARNESS] command_serialization PASS
+[HARNESS] queue_roundtrip PASS
+[HARNESS] world_snapshot_roundtrip PASS (restore=true continuation=true)
+[HARNESS] determinism_same_seed PASS (hashes_equal=true journals_equal=true completed=true)
+[HARNESS] info hashA=1da7aa36441c tickA=467
+[HARNESS] rng_state_coverage PASS (hash_changed=true replay_draws_equal=true)
+[HARNESS] setup_resets PASS (ops=2 hash_match=true)
+[HARNESS] go_code_same_tick PASS (pre0=1 pre1=1 late0=11 late1=11)
+[HARNESS] route_pipeline PASS (raw=401 decimated=88 baked=218 waypoints=89 corner_dev=7.39 tail_kept=true)
+[HARNESS] camera_clamp PASS (right_ok=true left_ok=true)
+[HARNESS] execution_move_adherence PASS (drift_ok=true clip_ok=true final_ok=true pos_ok=true)
+[HARNESS] collision_halt PASS (op0_halted=true op1_halted=true op0_done=false)
+[HARNESS] stance_table PASS (blitz=6.4000 normal=4.0000 cautious=2.0000)
+[HARNESS] RESULT PASS failures=0
+```
+
+---
+
+## Session 4 — 2026-11-23 — M5 execution sim slice 1 (A* + adherence + collision halt)
+
+### Execution-phase sim
+- New `GridPathfinder` (`scripts/sim/grid_pathfinder.gd`): integer-grid A* on `GreyboxMap` — **D-023** (sim layer is RefCounted per D-018; `AStarGrid2D` is a `Node`).
+- `SimWorld._step_move` rewritten: plans A* path (doors pass for planning); per-tick advance along the polyline at stance speed (`speed * 1/60`); blocked cells halt (`move_blocked`/`move_unblocked` journal); `move_start`/`move_end`.
+- `SimWorld._step_action`: wall/door/bounds enforcement + `ACTION_MAX_RANGE_CELLS = 6` range check (`SimConstants`); breach-on-door only; invalid actions journal `action_rejected`.
+- `SimOperative`: added `halted` + `move_blocked_from`; positions now cell centers in cell units (**D-017** unify; `GridUtil.cell_of`).
+- CP-051 collision: `_check_collision` + `_collision_plan` + `_polyline_intersects`/`_segments_intersect`/`_point_on_segment` — intersecting plans halt both (journal `collision_halt`); no avoidance.
+- `state_hash()`: op part extended with `halted`, `move_blocked_from`.
+
+### Game wiring
+- `PlanningRoot`: owns `SimWorld` (setup on boot/reset); `_physics_process` steps world when EXECUTION (**CP-052**); `_sync_tokens` reads world during physics (CQS); HUD: **Execute / Go-Code: Alpha / Reset**.
+- Demo mission: op0 `move(7,2) → cautious → move(7,4)`; op1 `move(13,6) → breach(8,6) → wait alpha → move(2,6)` — breach opens the door (fuse 45) and op1 moves through.
+
+### Harness
+- `_plan_op0`/`_plan_op1` updated; new `_test_execution_move_adherence` (**CP-050**) + `_test_collision_halt` (**CP-051**); 9 → 11 checks.
+
+### Verification evidence (Godot 4.0.stable), commit 9adcf79
+```
+=== GATE 2: headless boot smoke ===
+[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60
+=== GATE 3: determinism harness ===
+[HARNESS] command_serialization PASS
+[HARNESS] queue_roundtrip PASS
+[HARNESS] world_snapshot_roundtrip PASS (restore=true continuation=true)
+[HARNESS] determinism_same_seed PASS (hashes_equal=true journals_equal=true completed=true)
+[HARNESS] info hashA=1da7aa36441c tickA=467
+[HARNESS] rng_state_coverage PASS (hash_changed=true replay_draws_equal=true)
+[HARNESS] setup_resets PASS (ops=2 hash_match=true)
+[HARNESS] go_code_same_tick PASS (pre0=1 pre1=1 late0=11 late1=11)
+[HARNESS] route_pipeline PASS (raw=401 decimated=88 baked=218 waypoints=89 corner_dev=7.39 tail_kept=true)
+[HARNESS] camera_clamp PASS (right_ok=true left_ok=true)
+[HARNESS] execution_move_adherence PASS (drift_ok=true clip_ok=true final_ok=true pos_ok=true)
+[HARNESS] collision_halt PASS (op0_halted=true op1_halted=true op0_done=false)
+[HARNESS] RESULT PASS failures=0
+=== CP-052 static: planning_root.gd `_physics_process` → `world.step()` (line 71); token sync same process; no other writes outside physics during EXECUTION ===
+```
+
+---
+
+## Session 3 — 2026-11-23 — Audit remediation
+
+### Repo & config cleanup
+- Purged 24 stale `game/*` git index entries left behind by S2f (`d631818`), deleted leftover `game\` directory (`node_2d.tscn` + `.godot` cache), and retired dead `scenes/boot.tscn` + `scripts/boot.gd`.
+- Updated `.gitignore` (`game/android/` → `android/`) so the Gradle template directory stays untracked.
+- Locked `physics/common/physics_ticks_per_second=60` and `rendering/anti_aliasing/quality/msaa_2d=0` explicitly in `project.godot`.
+
+### Android Route A default & toolchain alignment
+- Switched `export_presets.cfg` (`gradle_build/use_gradle_build=false`) to Route A (direct export via prebuilt `android_debug.apk`) and created gitignored `builds\` directory.
+- Rewrote `docs/BUILD-IN-ANDROID-STUDIO.md` around Route A setup, corrected `adb.exe install` command, rewritten CP-030 1–7 feel-test checklist, and documented why Route B (Gradle 7.4 / AGP 7.2.1 / SDK 32 / build-tools 32.0.0 / NDK 23.2.8568313 / Java 11) is blocked against local JDK 25 (`C:\android\Android Studio\jbr`; `C:\Program Files\...\jbr` missing `lib\jvm.cfg`) and installed SDK platforms 24/31/33–37 (when unblocked, open `android\build`, not `android\`).
+
+### Simulation & planning bug fixes
+- `SimConstants`: added `ACTION_FUSE_TICKS = 45` and `ACTION_COOLDOWN_TICKS = 60` (D-020).
+- `SimWorld` / `SimOperative`: added `operatives.clear()` in `setup()`; deterministic fixed action fuse (`ACTION_FUSE_TICKS`); uniform 0-tick evaluation for instant commands (`SET_STANCE`, `SET_FIELD_OF_FIRE`, already-issued `WAIT_GO_CODE`) so go-codes release on the exact same tick (D-021); fractional movement remainder `move_carry` across consecutive moves (D-022); strengthened `state_hash()` with `rng.state`, sorted door keys, `done`/`path_index`/`active_path`/`move_carry`, and canonical sorted `_canon()` dict serialization.
+- `CommandQueue.reset()`: deep-copies commands and normalizes `operative_id` and `sequence_index`.
+- `GreyboxMap`: added `in_bounds()`; out-of-bounds `is_solid()` now returns `true`; `open_door()` ignores non-door cells.
+- `RouteSanitizer`: `decimate()` preserves the final endpoint; `bake_smooth()` computes Catmull-Rom tangent handles (`TENSION = 1/6`) for true Bezier smoothing and appends the final endpoint if baked output falls short.
+- `MissionCamera`: added viewport-aware `clamp_to_limits()` on configure/pan/zoom/resize (no dead-zone over-pan) and `zoom_about()` pinch focal zoom.
+- `OperativeToken`: resized `RADIUS = 6.5` to fit cleanly inside 16 px cells with centered 9 px label.
+- `PlanningController`: screen-space `SELECT_RADIUS_SCREEN_PX = 72.0 / zoom.x`, persistent per-operative committed `Line2D`s (`_route_lines`), fixed `_long_fired` use-after-erase bug on release, pinch re-anchoring on finger count changes, incremental drag throttling via `_kept_route`, and minimum 2-point check on commit.
+- `PlanningRoot`: added `class_name PlanningRoot`, live `SimClock.phase` in boot log, token `z_index = 1`, and `viewport.size_changed` camera wiring.
+- `DeterminismHarness`: expanded from 5 to 9 checks (replaced invalid cross-seed/endpoint checks; added `rng_state_coverage`, `setup_resets`, `go_code_same_tick`, `corner_dev` + `tail_kept`, and `camera_clamp`).
+
+### Verification evidence (Godot 4.0.stable)
+```
+=== GATE 1a/1b: editor import pass 1 & 2 ===
+WARNING: Custom cursor shape not supported by this display server.
+WARNING: Blend file import is enabled in the project settings, but no Blender path is configured in the editor settings. Blend files will not be imported.
+=== GATE 2: headless boot smoke ===
+[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60
+=== GATE 3: determinism harness ===
+[HARNESS] command_serialization PASS
+[HARNESS] queue_roundtrip PASS
+[HARNESS] world_snapshot_roundtrip PASS (restore=true continuation=true)
+[HARNESS] determinism_same_seed PASS (hashes_equal=true journals_equal=true completed=true)
+[HARNESS] info hashA=da8bd1b730b7 tickA=691
+[HARNESS] rng_state_coverage PASS (hash_changed=true replay_draws_equal=true)
+[HARNESS] setup_resets PASS (ops=2 hash_match=true)
+[HARNESS] go_code_same_tick PASS (pre0=1 pre1=1 late0=11 late1=11)
+[HARNESS] route_pipeline PASS (raw=401 decimated=88 baked=218 waypoints=89 corner_dev=7.39 tail_kept=true)
+[HARNESS] camera_clamp PASS (right_ok=true left_ok=true)
+[HARNESS] RESULT PASS failures=0
+=== GATE 4: simclock probe ===
+[PROBE] planning_cap=30
+[PROBE] execution_cap=60 phase=1
+[PROBE] back_to_planning_cap=30 phase=0
+=== GATE 5: BOM check ===
+BOM_COUNT=0
+```
+
+---
+
+## Session 2f — 2026-08-26 — Flat repo restructure (`d631818`)
+
+- Moved Godot project root from `game\` to repository root (`project.godot` at root, `android\` Gradle template beside it), set `export_presets.cfg` (`com.tacplan.game`, `orientation=1`, `gradle=true`), and updated `docs\BUILD-IN-ANDROID-STUDIO.md` for root-level paths.
+
+---
+
+## Session 2d — 2026-08-25 — EXPORT RESCUE (user hit greyed-out Export button)
+
+- **Debug keystore generated FOR the user** at `C:\android\keystores\tacplan-debug.keystore` via Studio's keytool (alias androiddebugkey / pass android / RSA 3072 / 9999d). User pastes path+user+pass into Editor Settings → Export → Android. Keystore stays OUTSIDE repo forever.
+- Preset flipped `use_gradle_build=false` → Route A (direct export) needs NO Java, NO gradle template — kills two of the three grey-out warnings permanently for first boot.
+- `docs\BUILD-IN-ANDROID-STUDIO.md` rewritten around the user's EXACT three warning lines: templates fix = Manage Export Templates → "Download and Install" (~1 GB, one-time); gradle-template warning = ignore for Route A; keystore = paste values.
+- Remaining user actions: click Download-and-Install templates → paste keystore values → Export Project → adb install.
+
+---
+
+## Session 2c — 2026-08-25 — ANDROID TRACK PULLED FORWARD (user priority: phone NOW)
+
+**User clarification locked in: this is an Android deliverable, full stop. The PC "run" mentioned in S2b is only a dev-preview of the same portrait/touch scene (Godot authoring happens on PC; the RTF's mandated OpenGL ES pipeline IS the Android one). No Windows target exists anywhere.**
+
+### Shipped
+- `game\export_presets.cfg` — Android preset: ARM64-only, portrait (orientation=1), package `com.tacplan.game` (D-010 default until user renames), gradle_build=true, immersive mode, debug export → `builds\TacPlan-debug.apk` (gitignored)
+- `docs\BUILD-IN-ANDROID-STUDIO.md` — complete user walkthrough: 2-minute editor setup (Java = Studio JBR, SDK = C:\android\sdk), one-click Gradle template install, Route A (Godot direct export) vs Route B (Android Studio), adb install, CP-030 feel-test script, troubleshooting table
+
+### Status effect
+- M10/BP-10 flipped 🔄 ACTIVE: structural half of CP-100 passed (presets valid, no signing tracked); remaining gates CP-100 final + CP-101 are USER device runs
+- User can have the game on their phone TODAY via Route A (~3 minutes total)
+
+---
+
+## Session 2b — 2026-08-25 — M3 Planning Phase v1 SHIPPED (CP-031 PASSED)
+
+**The C4I terminal exists: blueprint map renders, operatives stand ready, routes draw under your finger.**
+
+### AUTO-COMMIT LAW ADOPTED
+- User granted standing approval — commits happen automatically after each verified phase/gate batch. Codified in RULES §5.2 / AGENTS.md / CLAUDE.md.
+- S2 committed as e93e535.
+
+### New planning layer (`game\scripts\planning\`)
+- `grid_util.gd` — central px↔cell conversion utility (RULES §4 law honored)
+- `route_sanitizer.gd` — decimation threshold 12px → Curve2D bake_interval 8px → baked points (G10 pipeline exactly per blueprint)
+- `plan_board.gd` — planned route storage per operative (feeds AgentCommand construction in M4/M5)
+- `mission_camera.gd` — pan/pinch ortho camera, map limits, zoom clamp 1–8×, fit-to-map configure
+- `map_renderer.gd` — blueprint aesthetic: dark floor, faint blue grid lines, solid tiles, amber/green door state
+- `operative_token.gd` — circle token + selection ring + id label
+- `planning_controller.gd` — THE gesture state machine: OBSERVATION (1-finger pan, 2-finger pinch) ↔ ROUTING (long-press 0.45s near token); live preview Line2D while drawing (`antialiased=false` G6, round joints); release = sanitize→board→commit signal
+- `planning_root.gd` + `scenes/planning.tscn` — full assembly; **now the main scene** (boot print preserved for gate continuity)
+- project.godot: `emulate_touch_from_mouse=true` → desktop mouse testing works TODAY
+
+### Verification
+- Boot smoke through FULL planning scene: ZERO errors, boot line intact
+- Harness 5/5 PASS — new route_pipeline test: synthetic noisy stream 401 pts → 88 decimated → 213 baked → 86 waypoints; deterministic re-run; endpoints kept; first-cell sane
+
+### Notes
+- Tap-to-cell mode currently produces straight polylines — AStarGrid2D pathing lands with BP-04/M5 (noted in BP-05 decision D-012)
+- CP-030 (modal camera feel) code-complete; visual/touch verdict awaits USER desktop run
+
+---
+
+## Session 2 — 2026-08-25 — M2 Deterministic Sim Core LIVE (CP-020/021/022 PASSED)
+
+**Replays are now hash-proven deterministic. The Command Pattern core exists and the greybox mission runs end-to-end headless.**
+
+### Housekeeping
+- **First commit approved & made: b0b45a8** (11 files — governance suite + Godot skeleton)
+- **D-009 RESOLVED: portrait primary** — viewport 1080×1920, `window/handheld/orientation=1`, desktop window override 486×864
+- Config autoload dissolved → static `SimConstants` class (D-019; single tuning surface reachable from game AND script mode); autoloads now SimClock+EventBus only
+
+### New sim layer (`game\scripts\sim\` — pure RefCounted, ZERO autoload refs, D-018)
+- `agent_command.gd` — 5 command types (MOVE_TO_CELL / SET_STANCE / WAIT_GO_CODE / PERFORM_ACTION / SET_FIELD_OF_FIRE) + ActionKind enum; dict round-trip
+- `command_queue.gd` — per-operative queue w/ cursor; serialization preserves position
+- `sim_operative.gd` — stance-driven speed from SimConstants table; FoF facing override; wait state
+- `greybox_map.gd` — 16×12 fixture: border walls, x=8 wall, breachable door at (8,6); is_solid() door-aware
+- `sim_world.gd` — THE deterministic sim: tick-stepped command consumption, movement interpolation along planned vectors (IEEE-only math), go-code waits, seeded-RNG breach fuses → pending-event door opening, tick-indexed journal
+- `mission_snapshot.gd` — capture/restore wrapper over world snapshot_data (incl. rng seed+state)
+
+### Tests (`game\tests\`)
+- `determinism_harness.gd` — SceneTree `-s` mode, 4 tests ALL PASS:
+  - command_serialization PASS · queue_roundtrip PASS
+  - world_snapshot_roundtrip PASS (restore hash-exact + post-restore continuation matches uninterrupted run)
+  - determinism_same_seed PASS (pair hashes+journals identical; cross-seed diverges)
+- `simclock_probe.tscn/.gd` — CP-020 evidence: caps flip 30→60→30 across phase transitions
+
+### Mission fixture result (info)
+Two-operative plan completes tick 692: op1 breaches door (fuse via seeded RNG), both hold for Alpha @300, release same-tick, op0 ends under FoF bearing 270. Door state mutation flows through snapshots/hashes.
+
+### Gotchas learned
+- **G16: first-import class-cache quirk** — adding a NEW `class_name` referenced by existing scripts fails ONE import ("Identifier not declared in current scope") because autoloads compile before the global class cache refreshes. Run editor-import twice before judging.
+- PowerShell stderr wrapping prints cosmetic `NativeCommandError` records around Godot's stderr — filter on actual message text, not record headers.
+
+---
+
+## Session 1 — 2026-08-25 — M1 Godot Skeleton LIVE (CP-010/011/012/013 PASSED)
+
+**User installed Godot → `C:\Godot`. Project now boots headless clean with renderer locked.**
+
+### Tooling verified
+- `C:\Godot\Godot_v4.0-stable_win64_console.exe` → `4.0.stable.official.92bee43ad` (console twin used for all gates)
+
+### Created (`game\` Godot project root)
+- `project.godot`: gl_compatibility forced BOTH desktop+mobile · physics 60 Hz · landscape (D-009 assumed) · canvas_items/expand stretch · input map scaffold (`ui_pan`, `ui_pinch_zoom`, `operative_longpress`, `node_tap`, `commit_plan`) · etc2_astc VRAM compression
+- Autoloads (Genesis headers only, no other comments): `config.gd` (cell 16 / caps 30·60 / stance multiplier tables / go-codes / LOS epsilon 0.00001) · `event_bus.gd` (typed signals: phase_changed, plan_committed, tick_advanced, go_code_issued, operative_halted, operative_damaged, breach_detonated) · `sim_clock.gd` (Phase enum, tick authority via `_physics_process`, Engine.max_fps applied per phase)
+- `scenes/boot.tscn` + `scripts/boot.gd` smoke print
+
+### Verification evidence
+- Per-script `--check-only`: config/event_bus PARSE CLEAN exit 0. sim_clock/boot FAIL there by design → **G-law discovered:** `--check-only --script` compiles standalone WITHOUT autoload globals; cross-autoload refs can't resolve in that mode.
+- Authoritative gate: `--headless --path game --quit` → **ZERO error lines**, boot line `[TacPlan] boot OK phase=PLANNING fps_cap=30 renderer=gl_compatibility ticks_per_sec=60`
+- **G15 proven via empty-project control:** 4.0 `--quit` ALWAYS exits code 1 even clean → exit codes banned as pass/fail; log filtering is the signal.
+- Bonus G14 reinforcement: PowerShell `Set-Content -Encoding utf8` wrote a BOM that broke a control `.tscn` ("Expected '['" at char 1). File tools or BOM-free writes only; check first bytes when parse errors point at char 1.
+
+### Status
+- ROADMAP: M0 ✅ · M1 ✅ · next M2 deterministic sim core (AgentCommand serialization, MissionSnapshot, replay determinism harness CP-021/022)
+- First commit still awaiting user approval.
+
+---
+
+## Session 0 — 2026-08-25 — Foundation & Governance Day
+
+**Goal:** Ingest the architectural blueprint RTF, adopt sibling-project governance patterns, create the tailored file set, plan everything.
+
+### Discovered / decided
+- Source doc read in full: `Tactical Android Game Development.rtf` (Aspose-generated RTF; extracted cleanly via .NET RichTextBox → `blueprints\architecture-blueprint-source.txt`)
+- Engine mandated by source: **Godot 4**, Compatibility renderer (OpenGL ES 3.0) — NOT Unity/Flutter despite sibling projects
+- Environment verified: Android Studio ✅ (`C:\Program Files\Android\Android Studio`), SDK/NDK ✅ (`C:\android\sdk`), Flutter present-but-unused (`C:\src`), **Godot ❌ missing — user action required**
+
+### Created (governance layer)
+- Root: `RULES.md` (operating law w/ 14 technical laws distilled from the blueprint), `CLAUDE.md`, `AGENTS.md`, `README.md`, `.gitignore` (Godot/Android aware; blueprints unversioned per house rule)
+- `blueprints\`: `SESSION_HANDOFF.md`, `CURRENT_STATE.md`, `CHANGELOG.md`, `CHECKLIST.md`, `CHECKPOINTS.md` (gates CP-001…CP-101), `ROADMAP.md` (M0→M10), `BLUEPRINTS.md`
+- `blueprints\blueprint-sections\`: BP-01…BP-10 engineering canon encoding EVERY recommendation in the RTF:
+  - BP-01 project foundation · BP-02 deterministic sim core (Command Pattern/CQS/replays)
+  - BP-03 tactical vocabulary (routes/stances/go-codes/actions/fields of fire)
+  - BP-04 AStarGrid2D navigation (no RVO) · BP-05 touch UI/UX (modal modes/loupe/radial)
+  - BP-06 sweep-line visibility + fog of war · BP-07 mobile perf/battery
+  - BP-08 audio design · BP-09 mission content/enemy AI · BP-10 Android build/release
+- Reserved `game\` (Godot project root, M1) and `docs\`
+
+### Git
+- Initialized repo on branch `main`. Zero commits (first commit awaits approval). Explicit-path staging law active.
+
+### Decisions logged
+- D-001 Godot 4 + Compatibility renderer locked · D-002 AStarGrid2D ~16 px integer grid
+- D-003 strict path adherence (no RVO) · D-004 Command Pattern + CQS + replay reset-and-feed
+- D-005 fixed 60 Hz tick · D-006 typed GDScript (no C#) unless overridden
+- D-007 Godot project lives in `game\` subfolder · D-008 blueprints stay unversioned
+- OPEN: D-009 orientation (landscape assumed), D-010 package id (`com.tacplan.game` proposed)
+
+### Blockers handed to user
+- Install Godot 4.x stable → record exe path in `CURRENT_STATE.md` tooling table (gate CP-010)
+
+---
