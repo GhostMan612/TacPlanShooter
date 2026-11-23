@@ -45,6 +45,27 @@ Target files:
 - MODIFY: `scripts/planning/planning_root.gd` (filter `_update_fog()` by `o.faction_id == local_faction_id` for per-faction Fog of War and acoustic/sensor blips)
 - MODIFY: `tests/determinism_harness.gd` (add headless 2-faction determinism, tap-in cooldown, and CP budget harness tests)
   
+## PHASE E — Playable Drones, Vehicles & Real CQB Depth
+Spec: `blueprints/META-PROGRESSION-AND-CQB-SPEC.md`
+Target files:
+- CREATE: `scripts/sim/door_system.gd` (door states `OPEN`/`CLOSED_UNLOCKED`/`LOCKED`/`BARRICADED`/`BREACHED_DESTROYED`, fatal funnel penalties, silent lockpick/ram/shotgun/C4 breach methods)
+- CREATE: `scripts/sim/ballistics_suppression.gd` (caliber vs. Light/Medium/Heavy armor & directional shield cone, suppression meter pressuring `self_control`, medical states `HEALTHY`/`WOUNDED`/`INCAPACITATED`/`KIA`)
+- CREATE: `scripts/sim/sim_drone.gd` (playable ground recon bot, indoor micro-UAV, utility drone via tick-indexed `OverrideCommand`, battery/signal limits, RF jammer interference)
+- CREATE: `scripts/sim/sim_vehicle.gd` (insertion/breach/mobile cover/extraction vehicles registering dynamic solid wall segments and scripted Go-Code arrival/ram paths)
+- MODIFY: `scripts/sim/sim_world.gd` (integrate door, ballistics/suppression, drone, and vehicle simulation inside 60 Hz deterministic `step()`)
+- MODIFY: `scripts/planning/fog_layer.gd` (feed drone live vision polygons into faction `SubViewport` `live_vp` + `memory_vp`, remove live sightline on drone loss)
+- MODIFY: `tests/determinism_harness.gd` (add determinism tests for door breach, ballistics/suppression, playable drones via `OverrideCommand`, and vehicle dynamic wall segments)
+
+## PHASE F — Meta-Progression, Roster Positions & Armory Economy
+Spec: `blueprints/META-PROGRESSION-AND-CQB-SPEC.md`
+Target files:
+- CREATE: `scripts/meta/unit_profile.gd` (persistent `UnitProfile`/`CampaignState` operative pool, XP, mission ribbons, and CQB roles: Squad Leader, Pointman, Breacher, Shield/Heavy, Tech/Drone Operator, Marksman/Overwatch, Medic/Rescue)
+- CREATE: `scripts/meta/armory_catalog.gd` (unlockable primary/secondary weapons, attachments, armor tiers, tactical tools, drones, vehicles, and PvP Standardized Loadout Points vs. Open Unit Roster rules)
+- CREATE: `scripts/meta/progression_save.gd` (versioned local JSON persistence separate from deterministic `MissionSnapshot`, mission grading for Requisition Points and Unit XP)
+- CREATE: `scripts/ui/hq_armory_screen.gd` (armory unlock tree, gear equipping, and PvP equal-budget loadout validation UI)
+- CREATE: `scripts/ui/roster_roles_screen.gd` (operative roster management, CQB billet assignment, and XP/trait progression UI)
+- CREATE: `tests/meta_progression_harness.gd` (verify persistent HQ save/load, operative XP/roles, armory unlock tree, mission RP grading, and PvP equal-budget loadout validation)
+
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
