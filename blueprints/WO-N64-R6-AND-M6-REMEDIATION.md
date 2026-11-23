@@ -34,6 +34,17 @@ Target files:
 - CREATE: `scripts/ui/mission_prep_flow.gd` (`Briefing` -> `Intel` -> `Roster` -> `Kit` -> `Team` -> `Planning` state machine)
 - MODIFY: `tests/determinism_harness.gd` (add tests for `DELTA` go-code, `Engage`/`Advance`/`Escort` modes, and `OverrideCommand` replay determinism)
 
+## PHASE D — Simultaneous 2-Player Co-op & PvP Lockstep
+Spec: `blueprints/TWO-PLAYER-COOP-PVP-SPEC.md`
+Target files:
+- MODIFY: `scripts/sim/sim_constants.gd` (add `TAPIN_HANDOFF_TICKS`, `TAPIN_MAX_BURST_TICKS`, `TAPIN_COOLDOWN_TICKS`, `TAPIN_UNIT_COOLDOWN_TICKS`, `TAPIN_COMMAND_POINTS_MAX`, `LOCKSTEP_INPUT_DELAY_TICKS`)
+- MODIFY: `scripts/sim/sim_operative.gd` (add `faction_id` and `owner_peer_id` for per-faction isolation)
+- MODIFY: `scripts/sim/sim_world.gd` (enforce deterministic tap-in cooldowns, CP budget, leadership scaling, and `state_hash()` checksums inside `step()`)
+- CREATE: `scripts/net/commit_reveal.gd` (`SHA-256(plan_json + salt)` commitment, reveal exchange, and hash verification for blind PvP planning)
+- CREATE: `scripts/net/lockstep_session.gd` (`ENetMultiplayerPeer` 60 Hz deterministic lockstep transport, input delay buffer, and periodic state-hash sync)
+- MODIFY: `scripts/planning/planning_root.gd` (filter `_update_fog()` by `o.faction_id == local_faction_id` for per-faction Fog of War and acoustic/sensor blips)
+- MODIFY: `tests/determinism_harness.gd` (add headless 2-faction determinism, tap-in cooldown, and CP budget harness tests)
+  
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
@@ -46,4 +57,4 @@ Target files:
 - DO NOT enable MSAA on any SubViewport or Line2D (`RULES.md` §4).
 - DO NOT reference autoloads inside `scripts/sim/` (`RULES.md` §3.4).
 - DO NOT use `git add -A` or `git add .` — stage by explicit path only.
-- DO NOT implement 2-Player networking/split-screen yet (deferred to separate spec).
+- DO NOT put networking/ENet calls inside scripts/sim/ — keep scripts/net/ strictly decoupled from pure simulation.
