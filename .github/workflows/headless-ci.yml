@@ -28,8 +28,8 @@ jobs:
         run: |
           hung=0
           for f in $(git ls-files '*.gd'); do
-            timeout 20 ./bin/godot --headless --check-only --script "$f" > /dev/null 2>&1
-            rc=$?
+            rc=0
+            timeout 20 ./bin/godot --headless --check-only --script "$f" > /dev/null 2>&1 || rc=$?
             if [ "$rc" -eq 124 ]; then
               echo "::error::parser hang: $f"
               hung=1
