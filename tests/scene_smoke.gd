@@ -178,6 +178,52 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 		var title := pr._result_view.find_child("ResultTitle", true, false) as Label
 		_check(title != null and title.text == "OPERATION COMPLETE", "successful operation renders a result screen")
 	_inspect_contacts(pr)
+	_inspect_enemy_fire(pr)
+
+
+func _inspect_enemy_fire(pr: PlanningRoot) -> void:
+	pr._on_reset_pressed()
+	for i in range(pr.spawn_cells.size()):
+		var hold := AgentCommand.new()
+		hold.command_type = AgentCommand.CommandType.WAIT_GO_CODE
+		hold.go_code = &"delta"
+		var plan: Array[AgentCommand] = [hold]
+		var cells: Array[Vector2i] = [pr.spawn_cells[i]]
+		pr.plans[i] = plan
+		pr.route_cells[i] = cells
+	pr._rebuild_world()
+	var gunner_cell := Vector2i(1, 6)
+	var aim := CombatSystem.angle_to(Vector2(gunner_cell) + Vector2(0.5, 0.5), Vector2(2.5, 3.0))
+	var gunner := pr.world.add_enemy(50, gunner_cell, &"heavy_gunner", aim)
+	pr._on_execute_pressed()
+	_check(SimClock.phase == SimClock.Phase.EXECUTION, "execute starts with holding routes")
+	for i in range(900):
+		pr._physics_process(SimWorld.DT)
+		if pr._result_view != null:
+			break
+	var gunner_shots := 0
+	var friendly_shots := 0
+	for e in pr.world.journal:
+		if StringName(e["ev"]) == &"shot":
+			if int(e["op"]) == 50:
+				gunner_shots += 1
+			else:
+				friendly_shots += 1
+	_check(gunner_shots > 0 and friendly_shots == 0, "enemy behind the squad fires and the squad cannot return fire (%d shots)" % gunner_shots)
+	var all_kia := true
+	for o in pr.world.operatives:
+		all_kia = all_kia and not o.is_alive() and o.health == &"kia"
+	_check(all_kia and gunner.is_alive(), "enemy fire kills every operative")
+	_check(pr._result_view != null and not bool(pr._result_view.result["completed"]) and String(pr._result_view.result["reason"]) == "No operatives remaining.", "losing the squad to enemy fire fails the operation")
+	var tok: OperativeToken = pr.controller.tokens[0]
+	_check(tok.status == &"kia", "dead operative token shows KIA")
+	_check(pr.world.ai.acoustic_rings().size() == gunner_shots, "gunfire is recorded as acoustic events for the overlay rings")
+	if pr._result_view != null:
+		pr._result_view.retry_requested.emit()
+	pr.plans.clear()
+	pr.route_cells.clear()
+	pr._on_reset_pressed()
+	_check(pr.world.operatives.size() == pr.spawn_cells.size() and pr.world.operatives[0].is_alive(), "replan after defeat restores a living squad")
 
 
 func _inspect_contacts(pr: PlanningRoot) -> void:

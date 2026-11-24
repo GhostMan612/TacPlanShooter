@@ -28,6 +28,7 @@ var ballistics := BallisticsSuppression.new()
 var drones: Array[SimDrone] = []
 var vehicles: Array[SimVehicle] = []
 var ai := AiCoordinator.new()
+var combat := CombatSystem.new()
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -50,6 +51,7 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	vehicles.clear()
 	enemy_actors.clear()
 	ai = AiCoordinator.new()
+	combat = CombatSystem.new()
 	door_system = DoorSystem.new()
 	ballistics = BallisticsSuppression.new()
 
@@ -73,6 +75,7 @@ func add_enemy(id: int, spawn_cell: Vector2i, archetype: StringName, facing_deg:
 	o.faction_id = 1
 	enemy_actors[id] = o
 	ai.add_enemy(id, archetype)
+	combat.register_enemy(id, archetype)
 	return o
 
 
@@ -152,6 +155,7 @@ func step() -> void:
 	_step_entities()
 	for o in operatives:
 		_step_operative(o)
+	combat.resolve(self)
 
 
 func _tick_drones() -> void:
@@ -240,6 +244,7 @@ func snapshot_data() -> Dictionary:
 		"operatives": ops_arr,
 		"enemy_actors": enemies_arr,
 		"ai": ai.to_dict(),
+		"combat": combat.to_dict(),
 		"drones": drones_arr,
 		"vehicles": vehicles_arr,
 		"door_system": door_system.to_array(),
@@ -316,6 +321,7 @@ func restore_from_data(d: Dictionary) -> void:
 		var enemy := SimOperative.from_dict(ed)
 		enemy_actors[enemy.id] = enemy
 	ai = AiCoordinator.from_dict(d.get("ai", {}))
+	combat = CombatSystem.from_dict(d.get("combat", {}))
 	door_system = DoorSystem.from_array(d.get("door_system", []))
 	ballistics = BallisticsSuppression.new()
 	ballistics.suppression = _pairs_to_int_dict(d.get("suppression", []))
@@ -522,11 +528,16 @@ func _step_entities() -> void:
 func _apply_entity_effect(e: SimEntity) -> void:
 	if e.kind != int(AgentCommand.ActionKind.FRAG):
 		return
-	for op in operatives:
-		if op.id == e.op_id or op.done:
+	for op in combat.actors(self):
+		if op.id == e.op_id or op.done or not op.is_alive():
 			continue
 		if op.pos.distance_to(e.pos) <= float(SimConstants.FRAG_RADIUS_CELLS):
-			op.hp -= SimConstants.FRAG_DAMAGE
+			op.hp = maxi(op.hp - SimConstants.FRAG_DAMAGE, 0)
+			if op.hp == 0:
+				op.health = &"kia"
+				journal.append({"t": tick, "ev": &"kia", "op": op.id, "by": e.op_id})
+			elif op.hp <= CombatSystem.WOUNDED_HP:
+				op.health = &"wounded"
 
 
 func _check_collision(o: SimOperative) -> void:

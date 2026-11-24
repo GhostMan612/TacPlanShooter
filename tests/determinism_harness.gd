@@ -34,6 +34,10 @@ func _initialize() -> void:
 	failures += _test_route_plan_corner_rule()
 	failures += _test_move_carry_continuity()
 	failures += _test_go_code_stream_replay()
+	failures += _test_combat_duel_deterministic()
+	failures += _test_combat_walls_and_cone_block()
+	failures += _test_combat_armor_and_kia()
+	failures += _test_combat_snapshot_replay()
 	failures += _test_delta_go_code()
 	failures += _test_team_modes()
 	failures += _test_override_replay()
@@ -1065,4 +1069,121 @@ func _test_go_code_stream_replay() -> int:
 			released = int(e["t"])
 	ok = ok and released == 21 and pending_hash_differs
 	print("[HARNESS] go_code_stream_replay %s (issued_tick=%d)" % ["PASS" if ok else "FAIL", released])
+	return 0 if ok else 1
+
+
+func _duel_world(seed_value: int) -> SimWorld:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), seed_value)
+	var none: Array[AgentCommand] = []
+	var op := w.add_operative(0, Vector2i(2, 5), none)
+	op.facing_deg = 0.0
+	w.add_enemy(10, Vector2i(6, 5), &"room_anchor", 180.0)
+	return w
+
+
+func _shots(w: SimWorld) -> Array:
+	var out := []
+	for e in w.journal:
+		if StringName(e["ev"]) == &"shot":
+			out.append(e)
+	return out
+
+
+func _test_combat_duel_deterministic() -> int:
+	var a := _duel_world(4242)
+	var b := _duel_world(4242)
+	for i in range(600):
+		a.step()
+		b.step()
+	var shots := _shots(a)
+	var ok := shots.size() > 0 and a.state_hash() == b.state_hash() and JSON.stringify(a.journal) == JSON.stringify(b.journal)
+	var first_friendly := -1
+	var first_enemy := -1
+	var hits := 0
+	for e in shots:
+		if bool(e["hit"]):
+			hits += 1
+		if int(e["op"]) == 0 and first_friendly < 0:
+			first_friendly = int(e["t"])
+		if int(e["op"]) == 10 and first_enemy < 0:
+			first_enemy = int(e["t"])
+	ok = ok and hits > 0
+	ok = ok and first_friendly >= 1 + CombatSystem.FRIENDLY_REACTION_TICKS
+	ok = ok and first_enemy >= 1 + int(AiArchetypes.by_name(&"room_anchor")["reaction_ticks"])
+	var op_dead := not a.operatives[0].is_alive()
+	var enemy_dead := not (a.enemy_actors[10] as SimOperative).is_alive()
+	ok = ok and (op_dead or enemy_dead)
+	var acoustic := 0
+	for ring in a.ai.acoustic_rings():
+		acoustic += 1
+	ok = ok and acoustic == shots.size()
+	print("[HARNESS] combat_duel_deterministic %s (shots=%d hits=%d first_op=%d first_enemy=%d op_dead=%s enemy_dead=%s)" % [
+		"PASS" if ok else "FAIL", shots.size(), hits, first_friendly, first_enemy, str(op_dead), str(enemy_dead),
+	])
+	return 0 if ok else 1
+
+
+func _test_combat_walls_and_cone_block() -> int:
+	var none: Array[AgentCommand] = []
+	var walled := SimWorld.new()
+	walled.setup(GreyboxMap.build_default(), 5)
+	var walled_op := walled.add_operative(0, Vector2i(6, 3), none)
+	walled_op.facing_deg = 0.0
+	walled.add_enemy(10, Vector2i(10, 3), &"heavy_gunner", 180.0)
+	var behind := SimWorld.new()
+	behind.setup(GreyboxMap.build_default(), 5)
+	var behind_op := behind.add_operative(0, Vector2i(5, 5), none)
+	behind_op.facing_deg = 0.0
+	behind.add_enemy(10, Vector2i(2, 5), &"heavy_gunner", 180.0)
+	for i in range(300):
+		walled.step()
+		behind.step()
+	var ok := _shots(walled).is_empty() and _shots(behind).is_empty()
+	ok = ok and walled.operatives[0].hp == 100 and behind.operatives[0].hp == 100
+	print("[HARNESS] combat_walls_and_cone_block %s (walled=%d behind=%d)" % ["PASS" if ok else "FAIL", _shots(walled).size(), _shots(behind).size()])
+	return 0 if ok else 1
+
+
+func _test_combat_armor_and_kia() -> int:
+	var ok := CombatSystem.hit_damage(&"5.56", &"light") == 40 and CombatSystem.hit_damage(&"5.56", &"heavy") == 10
+	ok = ok and CombatSystem.hit_damage(&"7.62", &"light") == 70 and CombatSystem.hit_damage(&"9mm", &"medium") == 10
+	ok = ok and CombatSystem.hit_damage(&"5.56", &"heavy") < CombatSystem.hit_damage(&"5.56", &"medium")
+	var w := _duel_world(99)
+	var kia_tick := -1
+	var kia_id := -1
+	for i in range(1200):
+		w.step()
+		if kia_tick < 0:
+			for e in w.journal:
+				if StringName(e["ev"]) == &"kia":
+					kia_tick = int(e["t"])
+					kia_id = int(e["op"])
+		if kia_tick >= 0 and i > kia_tick + 120:
+			break
+	ok = ok and kia_tick > 0
+	var late_shots := 0
+	for e in _shots(w):
+		if int(e["op"]) == kia_id and int(e["t"]) > kia_tick:
+			late_shots += 1
+	ok = ok and late_shots == 0
+	var dead: SimOperative = w.operatives[0] if kia_id == 0 else w.enemy_actors[10]
+	ok = ok and dead.hp == 0 and dead.health == &"kia" and not dead.is_alive()
+	print("[HARNESS] combat_armor_and_kia %s (kia_id=%d kia_tick=%d late_shots=%d)" % ["PASS" if ok else "FAIL", kia_id, kia_tick, late_shots])
+	return 0 if ok else 1
+
+
+func _test_combat_snapshot_replay() -> int:
+	var a := _duel_world(31337)
+	for i in range(30):
+		a.step()
+	var snap := a.snapshot_data()
+	var c := SimWorld.new()
+	c.restore_from_data(snap)
+	var restored_equal := c.state_hash() == a.state_hash()
+	for i in range(400):
+		a.step()
+		c.step()
+	var ok := restored_equal and a.state_hash() == c.state_hash() and _shots(a).size() == _shots(c).size() and _shots(a).size() > 0
+	print("[HARNESS] combat_snapshot_replay %s (shots=%d)" % ["PASS" if ok else "FAIL", _shots(a).size()])
 	return 0 if ok else 1
