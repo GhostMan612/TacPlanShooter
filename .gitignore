@@ -18,6 +18,9 @@ local.properties
 # ===== House rules =====
 _archive/
 builds/
+*.apk
+*.apk.idsig
+*.aab
 
 # ===== OS junk =====
 Thumbs.db

@@ -1,14 +1,14 @@
 # CURRENT_STATE.md — Component Inventory Snapshot
-**Snapshot date:** 2026-11-23 (end of Session 3 — audit remediation) · **Commits:** `b0b45a8` (S0+S1), `e93e535` (M2), `706eecf` (M3), `1edbe2e` (S2c), `c474c0e` (S2d), `d631818` (S2f), `7a4f8ae` (S3)
+**Snapshot date:** 2026-11-24 (code audit remediation)
 
 ## Repo layout (`C:\TacPlan Shooter\`)
 
 ```
-├── .gitignore                        ← Godot+Android aware (android/, builds/, blueprints/, export_presets.cfg ignored)
+├── .gitignore                        ← ignores temporary exports and signing settings
 ├── RULES.md                          ← canonical operating law
 ├── CLAUDE.md / AGENTS.md / README.md ← agent & repo guidance
 ├── project.godot                     ← GODOT 4 PROJECT ROOT — portrait primary (D-009), gl_compatibility, 60Hz, msaa_2d=0
-├── export_presets.cfg                ← gitignored local Android preset: ARM64, portrait, com.tacplan.game, Route A (gradle=false)
+├── export_presets.cfg.example        ← credential-free ARM64 direct export preset
 ├── android\                          ← gitignored Gradle template (Route B blocked — open android\build when unblocked)
 ├── scenes\
 │   └── planning.tscn                 ← MAIN SCENE: C4I planning terminal (boot.tscn retired S3)
@@ -53,17 +53,17 @@
 |-----------|--------|--------------|
 | Governance docs | 🟢 synced S3 | none |
 | Godot project skeleton | 🟢 flat root clean; renderer/60Hz/MSAA=0 locked | none |
-| **Deterministic sim core** | 🟢 14/14 harness PASS; zero-tick instants, move carry, strengthened hash, CP-050/051 execution adherence, CP-040 stances, CP-042 tactical actions, CP-043 FoF override | CP-044 (radial menu); M6 fog (CP-060/061) |
+| **Deterministic sim core** | 🟢 43-case harness passes, including live replay state, pending commands, and reset isolation | Replay scrub UI |
 | **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + per-op lines + clamped camera + resize wired | CP-030 feel verdict = USER device test |
 | **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 slice 1: `GridPathfinder` A* movement + adherence + collision-halt + wall/door/bounds + action range; `PlanningRoot` Execute/Go-Code Alpha/Reset HUD + live token sync | CP-050/051/052 ✅ PASS; next: M5 remainder, then M4 stances/actions/FoF |
-| Visibility/fog (M6/BP-06) | 🟢 CP-060 ✅ + CP-061 ✅ (FogLayer v2: SubViewport live/memory masks; Phase A2: UPDATE_ONCE + fog_mask.gdshader; WCW PASS) + Phase J (ThemeManager v2, MapRenderer coords+zones, SquadHud Control, PlanBoard palette) | Phase A–J complete — M7 mission loop (CP-070/071) |
-| Enemy AI / mission loop (M7/BP-09) | ⬜ not started | execution sim wiring |
+| Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware GPU masks with live and last-seen map contacts | Handset rendering and frame time |
+| Enemy AI / mission loop (M7/BP-09) | 🟡 Registered enemy actors and playable ground-floor checkpoint-and-exit missions | Upper floors, dedicated objective rules, timeline, and scrubbing |
 | Audio pass (M9/BP-08) | ⬜ not started | content |
-| **Android export track (M10/BP-10)** | 🟡 Route A READY · Route B BLOCKED | USER Route A APK export + CP-101 boot; Route B blocked by Godot 4.0 template (Gradle 7.4/AGP 7.2.1/API 32/Java 11) vs local JDK 25 & SDK 24/31/33–37 |
+| **Android export track (M10/BP-10)** | 🟡 Route A verified from a clean checkout with Godot 4.0.4 | Handset boot and touch. Route B requires the JDK and SDK versions pinned by its template. |
 
 ## Known unknowns / open decisions
 
-- Godot version pin = 4.0-stable (upgrade decision to 4.x pending; unblocks Route B Android Studio Gradle builds).
+- Headless CI and the verified Route A setup use Godot 4.0.4 with matching templates.
 - Package id: `com.tacplan.game` set in `export_presets.cfg` — DECISION D-010 formally open.
 - Art style: blueprint-schematic aesthetic assumed; no assets yet.
-- Facing uses `atan2` (libm variance risk) — mitigated: quantized to int degrees for hashing (D-017).
+- Facing is included in snapshot-based hashes. Cross-platform float behavior remains a verification concern.

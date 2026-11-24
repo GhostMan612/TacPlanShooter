@@ -20,6 +20,7 @@ const LABEL_SIZE := 7
 
 var op_id := -1
 var selected := false
+var routing_highlight := false
 var sprite_texture: Texture2D = null
 var squad_color := BASE_COLOR
 var callsign := ""
@@ -67,6 +68,11 @@ func set_selected(v: bool) -> void:
 	queue_redraw()
 
 
+func set_routing_highlight(v: bool) -> void:
+	routing_highlight = v
+	queue_redraw()
+
+
 func set_sprite(t: Texture2D) -> void:
 	sprite_texture = t
 	queue_redraw()
@@ -94,8 +100,9 @@ func _draw() -> void:
 		draw_texture_rect(sprite_texture, Rect2(Vector2(-RADIUS, -RADIUS), Vector2(RADIUS, RADIUS) * 2.0), false)
 	else:
 		draw_circle(Vector2.ZERO, RADIUS, body)
-	var outline := SELECTED_COLOR if selected else body.darkened(0.45)
-	draw_arc(Vector2.ZERO, RADIUS + 1.2, 0.0, TAU, 24, outline, 2.0 if selected else 1.2)
+	var highlighted := selected or routing_highlight
+	var outline := SELECTED_COLOR if highlighted else body.darkened(0.45)
+	draw_arc(Vector2.ZERO, RADIUS + 1.2, 0.0, TAU, 24, outline, 2.0 if highlighted else 1.2)
 	if status == &"halted" or status == &"blocked":
 		draw_arc(Vector2.ZERO, RADIUS + 3.6, 0.0, TAU, 24, WARN_COLOR, 1.4 if status == &"halted" else 0.8)
 	elif status == &"done":

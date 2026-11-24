@@ -16,23 +16,26 @@ var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
 var overlay: TacticalOverlay = null
-var fog_segment_rebuilds := 0
-var fog_poly_computes := 0
-var _segs: Array = []
-var _segs_sig := ""
-var _sight_cache := {}
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
 const OPERATIVE_COUNT := 2
 const GREYBOX_SOURCE := "greybox_default"
 
-const ROUTE_HINT := "Long-press an operative, then drag to draw its route."
+const ROUTE_HINT := "Hold an operative and draw a route. Tap a route cell to add a go-code wait."
 
 var squads := SquadConfig.new()
 var spawn_cells: Array[Vector2i] = []
 var plans := {}
 var route_cells := {}
+var _route_waits := {}
+var _invalid_routes := {}
+var _selected_op := -1
+var _selected_node := RoutePlanner.NO_CELL
+var _checkpoints: Array[Vector2i] = []
+var _exits: Array[Vector2i] = []
+var _reached_checkpoints := {}
+var _result_view: AarScreen = null
 var _pending_go_codes: Array[StringName] = []
 var _status_label: Label = null
 var map_source := ""
@@ -57,6 +60,7 @@ func _ready() -> void:
 		Engine.physics_ticks_per_second,
 	])
 	map = _load_selected_map()
+	_load_mission_targets()
 	_apply_theme()
 	renderer = MapRenderer.new()
 	renderer.apply_palette(_tm.palette())
@@ -66,6 +70,7 @@ func _ready() -> void:
 	fog.setup(map)
 	fog.apply_palette(_tm.palette())
 	add_child(fog)
+	fog.visible = false
 	overlay = TacticalOverlay.new()
 	overlay.local_faction_id = local_faction_id
 	overlay.z_index = 2
@@ -95,11 +100,11 @@ func _ready() -> void:
 	for i in range(spawn_cells.size()):
 		controller.op_colors[i] = PlanBoard.squad_color(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()])
 	controller.route_committed.connect(_on_route_committed)
+	controller.cell_tapped.connect(_on_route_node_tapped)
 	add_child(controller)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	world = SimWorld.new()
-	world.setup(map, DEV_SEED)
-	_populate_world()
+	_rebuild_world()
 	for i in range(spawn_cells.size()):
 		squads.add_member(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()], i)
 	_setup_hud()
@@ -135,7 +140,12 @@ func _physics_process(_delta: float) -> void:
 		for code in _pending_go_codes:
 			world.schedule_go_code(code)
 		_pending_go_codes.clear()
+		var journal_start := world.journal.size()
 		world.step()
+		for i in range(journal_start, world.journal.size()):
+			if world.journal[i]["ev"] == &"breach_opened":
+				renderer.refresh()
+				break
 		_sync_tokens()
 		_update_fog()
 		if squad_hud != null:
@@ -146,77 +156,18 @@ func _physics_process(_delta: float) -> void:
 func _sync_tokens() -> void:
 	if world == null or controller == null:
 		return
-	var s := float(SimConstants.GRID_CELL_SIZE_PX)
 	for o in world.operatives:
 		for token in controller.tokens:
 			if token.op_id == o.id:
-				token.sync_from(o, o.pos * s)
-
-
-func _door_signature() -> String:
-	var parts := PackedStringArray()
-	for k in map.door_cells.keys():
-		parts.append("%d,%d=%s" % [int(k.x), int(k.y), "1" if bool(map.door_open.get(k, false)) else "0"])
-	return ";".join(parts) + "|%d" % map.solid_cells.size()
-
-
-func _wall_segments() -> Array:
-	var sig := _door_signature()
-	if sig != _segs_sig:
-		_segs = map.get_wall_segments()
-		_segs_sig = sig
-		_sight_cache.clear()
-		fog_segment_rebuilds += 1
-	return _segs
-
-
-func _sight(key: int, pos: Vector2, segs: Array) -> Dictionary:
-	var pos_key := "%.6f,%.6f" % [pos.x, pos.y]
-	if _sight_cache.has(key):
-		var cached: Dictionary = _sight_cache[key]
-		if String(cached["key"]) == pos_key:
-			return cached
-	var poly := Visibility.compute_polygon(pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
-	fog_poly_computes += 1
-	var entry := {"key": pos_key, "cells": poly, "px": _cells_to_px(poly)}
-	_sight_cache[key] = entry
-	return entry
+				token.sync_from(o, o.pos * float(SimConstants.GRID_CELL_SIZE_PX))
 
 
 func _update_fog() -> void:
-	if fog == null or map == null or world == null:
+	if fog == null or world == null or world.map == null:
 		return
-	var segs := _wall_segments()
-	var cell_polys := []
-	var px_polys := []
-	for o in world.operatives:
-		if o.faction_id != local_faction_id or not o.is_alive():
-			continue
-		var sight := _sight(o.id, o.pos, segs)
-		var poly: PackedVector2Array = sight["cells"]
-		if poly.size() >= 3:
-			cell_polys.append(poly)
-			px_polys.append(sight["px"])
-	for i in range(world.drones.size()):
-		var d: SimDrone = world.drones[i]
-		if d.destroyed:
-			continue
-		var dsight := _sight(-1 - i, d.pos, segs)
-		var dpoly: PackedVector2Array = dsight["cells"]
-		if dpoly.size() >= 3:
-			cell_polys.append(dpoly)
-			px_polys.append(dsight["px"])
-	fog.update_polys(px_polys)
-	if overlay != null:
-		overlay.update_contacts(world, cell_polys)
-
-
-static func _cells_to_px(poly: PackedVector2Array) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	var s := float(SimConstants.GRID_CELL_SIZE_PX)
-	for p in poly:
-		out.append(p * s)
-	return out
+	fog.visible = true
+	fog.update_visibility(world, local_faction_id)
+	overlay.update_contacts(world, fog.live_polygons_cells())
 
 
 func _apply_theme() -> void:
@@ -231,9 +182,15 @@ func _on_theme_changed(pal: Dictionary) -> void:
 		fog.apply_palette(pal)
 	if overlay != null:
 		overlay.apply_palette(pal)
-	_configure_tokens(pal)
 	if squad_hud != null:
 		squad_hud.apply_palette(pal)
+		_configure_tokens(pal)
+
+
+func _configure_tokens(pal: Dictionary) -> void:
+	for token in controller.tokens:
+		var squad := squad_hud.squad_of(token.op_id)
+		token.configure(PlanBoard.squad_color(squad), squad_hud.callsign(token.op_id), pal["ink"])
 
 
 func _setup_hud() -> void:
@@ -262,19 +219,18 @@ func _setup_hud() -> void:
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_status_label.text = ROUTE_HINT
+	_status_label.text = _planning_hint()
 	_hud_canvas.add_child(_status_label)
 	_set_phase_controls(false)
 	squad_hud = SquadHud.new()
 	squad_hud.squads = squads
+	squad_hud.operative_selected.connect(_on_operative_selected)
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
 	for c in [_menu_button, _hud, squad_hud, _status_label]:
 		(c as Control).theme = _tm.applied_theme
-	squad_hud.operative_selected.connect(_on_operative_selected)
 	_configure_tokens(_tm.palette())
-	_sync_tokens()
 	_place_hud()
 
 
@@ -314,56 +270,75 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _on_execute_pressed() -> void:
-	if world == null or SimClock.phase != SimClock.Phase.PLANNING:
+	if world == null or _result_view != null or SimClock.phase != SimClock.Phase.PLANNING:
+		return
+	if not _invalid_routes.is_empty():
+		_set_status("Redraw the blocked routes before executing.")
+		return
+	var routed := 0
+	for cells in route_cells.values():
+		if not cells.is_empty():
+			routed += 1
+	if routed == 0:
+		_set_status(_planning_hint())
 		return
 	_pending_go_codes.clear()
 	SimClock.start_execution()
 	_set_phase_controls(true)
-	fog.reset_fog()
-	fog.set_active(true)
-	_update_fog()
-	var routed := 0
-	for k in plans.keys():
-		if not (plans[k] as Array).is_empty():
-			routed += 1
-	_set_status("EXECUTING: %d of %d operatives routed" % [routed, spawn_cells.size()])
+	_set_status("EXECUTING · %d of %d operatives routed" % [routed, spawn_cells.size()])
 
 
-func _queue_go_code(code: StringName) -> void:
-	if world == null or SimClock.phase != SimClock.Phase.EXECUTION:
+func _select_go_code(code: StringName) -> void:
+	if world == null or _result_view != null:
 		return
-	if not _pending_go_codes.has(code):
-		_pending_go_codes.append(code)
-	_set_status("GO-CODE " + String(code).to_upper() + " sent")
+	if SimClock.phase == SimClock.Phase.EXECUTION:
+		if not _pending_go_codes.has(code):
+			_pending_go_codes.append(code)
+		_set_status("GO-CODE " + String(code).to_upper() + " sent")
+	elif _selected_node != RoutePlanner.NO_CELL:
+		var waits: Dictionary = _route_waits.get(_selected_op, {})
+		if waits.get(_selected_node, &"") == code:
+			waits.erase(_selected_node)
+		else:
+			waits[_selected_node] = code
+		_route_waits[_selected_op] = waits
+		_compile_route(_selected_op)
+		_rebuild_world()
+		_show_selected_node()
 
 
 func _on_alpha_pressed() -> void:
-	_queue_go_code(&"alpha")
+	_select_go_code(&"alpha")
 
 
 func _on_bravo_pressed() -> void:
-	_queue_go_code(&"bravo")
+	_select_go_code(&"bravo")
 
 
 func _on_charlie_pressed() -> void:
-	_queue_go_code(&"charlie")
+	_select_go_code(&"charlie")
 
 
 func _on_delta_pressed() -> void:
-	_queue_go_code(&"delta")
+	_select_go_code(&"delta")
 
 
 func _on_reset_pressed() -> void:
 	if world == null:
 		return
+	if _result_view != null:
+		_hud_canvas.remove_child(_result_view)
+		_result_view.queue_free()
+		_result_view = null
 	_pending_go_codes.clear()
+	_selected_node = RoutePlanner.NO_CELL
 	SimClock.reset_to_planning()
 	_rebuild_world()
 	_set_phase_controls(false)
 	fog.reset_fog()
-	if overlay != null:
-		overlay.reset()
-	_set_status(ROUTE_HINT if plans.is_empty() else "RESET: routes kept, ready to execute")
+	fog.visible = false
+	overlay.reset()
+	_set_status(_planning_hint() if plans.is_empty() else "RESET · Routes kept. " + _planning_hint())
 
 
 func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
@@ -372,40 +347,83 @@ func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
 	var start: Vector2i = spawn_cells[op_id]
 	var result := RoutePlanner.plan(map, start, waypoints)
 	var cells: Array[Vector2i] = result["cells"]
-	var commands: Array[AgentCommand] = result["commands"]
 	var blocked: Vector2i = result["blocked_at"]
-	plans[op_id] = commands
+	plans[op_id] = result["commands"]
 	route_cells[op_id] = cells
+	_route_waits.erase(op_id)
+	_selected_node = RoutePlanner.NO_CELL
+	squad_hud.touch_operative(op_id)
 	controller.show_route(op_id, RoutePlanner.path_points_px(start, cells))
-	_rebuild_world()
-	var who := squad_hud.callsign(op_id) if squad_hud != null else "OP%d" % op_id
+	controller.show_waits(op_id, {})
 	if blocked != RoutePlanner.NO_CELL:
-		_set_status("%s ROUTE BLOCKED AT %s%02d (%d cells kept)" % [who, MapRenderer.col_letter(blocked.x), blocked.y + 1, cells.size()])
+		_invalid_routes[op_id] = blocked
 	else:
-		_set_status("%s ROUTE SET: %d cells" % [who, cells.size()])
-
-
-func _configure_tokens(pal: Dictionary) -> void:
-	if controller == null:
-		return
-	var ink: Color = pal.get("ink", Color(0.9, 0.92, 0.95))
-	for token in controller.tokens:
-		var squad := SquadConfig.SQUADS[token.op_id % SquadConfig.SQUADS.size()]
-		if squad_hud != null:
-			squad = squad_hud.squad_of(token.op_id)
-		var sign_text := squad_hud.callsign(token.op_id) if squad_hud != null else ""
-		token.configure(PlanBoard.squad_color(squad), sign_text, ink)
+		_invalid_routes.erase(op_id)
+	_rebuild_world()
+	var who := squad_hud.callsign(op_id)
+	if blocked != RoutePlanner.NO_CELL:
+		_set_status("%s route blocked at %s. Redraw to continue." % [who, _cell_name(blocked)])
+	else:
+		var doors := (plans[op_id] as Array).size() - cells.size()
+		var action_note := " · %d door action%s" % [doors, "" if doors == 1 else "s"] if doors > 0 else ""
+		_set_status("%s route set · %d cells%s. Tap a route cell to set a wait." % [who, cells.size(), action_note])
 
 
 func _on_operative_selected(op_id: int) -> void:
-	if controller == null:
-		return
+	_selected_op = op_id
+	_selected_node = RoutePlanner.NO_CELL
 	for token in controller.tokens:
 		token.set_selected(token.op_id == op_id)
+	if SimClock.phase == SimClock.Phase.PLANNING:
+		_set_phase_controls(false)
+
+
+func _on_route_node_tapped(cell: Vector2i) -> void:
+	if SimClock.phase != SimClock.Phase.PLANNING or _result_view != null:
+		return
+	_selected_node = RoutePlanner.NO_CELL
+	if _has_route_node(_selected_op, cell):
+		_selected_node = cell
+	else:
+		for op_id in range(spawn_cells.size()):
+			if _has_route_node(op_id, cell):
+				squad_hud.touch_operative(op_id)
+				_selected_node = cell
+				break
+	_set_phase_controls(false)
+	if _selected_node != RoutePlanner.NO_CELL:
+		_show_selected_node()
+
+
+func _has_route_node(op_id: int, cell: Vector2i) -> bool:
+	if not route_cells.has(op_id):
+		return false
+	var cells: Array[Vector2i] = route_cells[op_id]
+	return not cells.is_empty() and (cell == spawn_cells[op_id] or cells.has(cell))
+
+
+func _show_selected_node() -> void:
+	var waits: Dictionary = _route_waits.get(_selected_op, {})
+	var code := String(waits.get(_selected_node, "")).to_upper()
+	var action := "Choose a go-code." if code.is_empty() else "Wait on %s. Tap that code again to clear." % code
+	_set_status("%s · %s · %s" % [squad_hud.callsign(_selected_op), _cell_name(_selected_node), action])
+
+
+func _compile_route(op_id: int) -> void:
+	var cells: Array[Vector2i] = route_cells[op_id]
+	var waits: Dictionary = _route_waits.get(op_id, {})
+	plans[op_id] = RoutePlanner.compile_commands(map, spawn_cells[op_id], cells, waits)
+	controller.show_waits(op_id, waits)
+
+
+static func _cell_name(cell: Vector2i) -> String:
+	return "%s%02d" % [MapRenderer.col_letter(cell.x), cell.y + 1]
 
 
 func _rebuild_world() -> void:
 	world.setup(map, DEV_SEED)
+	_reached_checkpoints.clear()
+	renderer.setup(world.map)
 	_populate_world()
 	_sync_tokens()
 	if squad_hud != null:
@@ -413,13 +431,17 @@ func _rebuild_world() -> void:
 
 
 func _set_phase_controls(executing: bool) -> void:
+	var result_visible := _result_view != null
 	if _execute_button != null:
-		_execute_button.disabled = executing
-	for b in [_alpha_button, _bravo_button, _charlie_button, _delta_button]:
+		_execute_button.disabled = executing or result_visible
+	var code_buttons := [_alpha_button, _bravo_button, _charlie_button, _delta_button]
+	for i in range(code_buttons.size()):
+		var b: Button = code_buttons[i]
 		if b != null:
-			(b as Button).disabled = not executing
+			b.disabled = result_visible or (not executing and _selected_node == RoutePlanner.NO_CELL)
+			b.text = ("SEND " if executing else "WAIT ") + "ABCD".substr(i, 1)
 	if controller != null:
-		controller.routing_enabled = not executing
+		controller.routing_enabled = not executing and not result_visible
 
 
 func _set_status(msg: String) -> void:
@@ -427,27 +449,74 @@ func _set_status(msg: String) -> void:
 		_status_label.text = msg
 
 
+func _load_mission_targets() -> void:
+	for objective in map.objectives:
+		var cell := MapEditorValidator.cell_of(objective.get("cell", []))
+		if map.in_bounds(cell) and not _checkpoints.has(cell):
+			_checkpoints.append(cell)
+	for zone in map.extraction_zones:
+		for entry in zone.get("cells", []):
+			var cell := MapEditorValidator.cell_of(entry)
+			if map.in_bounds(cell) and not _exits.has(cell):
+				_exits.append(cell)
+
+
+func _planning_hint() -> String:
+	if _checkpoints.is_empty() and _exits.is_empty():
+		return "Ground-floor practice. " + ROUTE_HINT
+	var goal := "Reach the marked checkpoints. " if not _checkpoints.is_empty() else ""
+	if not _exits.is_empty():
+		goal += "Finish a route at an amber exit. "
+	return goal + ROUTE_HINT
+
+
 func _maybe_aar() -> void:
-	if world == null or world.operatives.is_empty():
-		return
-	var friendlies := 0
-	var all_down := true
-	for o in world.operatives:
-		if o.faction_id != local_faction_id:
+	var alive := 0
+	var all_finished := true
+	var halted := false
+	var at_exit := false
+	for op in world.operatives:
+		if not op.is_alive():
 			continue
-		friendlies += 1
-		if o.is_alive():
-			all_down = false
-			break
-	if friendlies == 0 or not all_down:
-		return
-	var aar := AarScreen.new()
-	aar.world = world
-	add_child(aar)
+		alive += 1
+		all_finished = all_finished and (op.done or op.halted)
+		halted = halted or op.halted
+		var cell := GridUtil.cell_of(op.pos)
+		if _checkpoints.has(cell):
+			_reached_checkpoints[cell] = true
+		at_exit = at_exit or (op.done and _exits.has(cell))
+	if alive == 0:
+		_show_result(false, "No operatives remaining.", alive)
+	elif all_finished and world.pending.is_empty() and world.entities.is_empty():
+		var complete := not halted and _reached_checkpoints.size() == _checkpoints.size() and (_exits.is_empty() or at_exit)
+		var reason := "All routes completed."
+		if halted:
+			reason = "An operative halted before completing the plan."
+		elif _reached_checkpoints.size() != _checkpoints.size():
+			reason = "One or more checkpoints were missed."
+		elif not _exits.is_empty() and not at_exit:
+			reason = "No operative finished at an exit."
+		_show_result(complete, reason, alive)
+
+
+func _show_result(complete: bool, reason: String, alive: int) -> void:
+	_result_view = AarScreen.new()
+	_result_view.name = "OperationResult"
+	_result_view.result = {
+		"completed": complete,
+		"practice": _checkpoints.is_empty() and _exits.is_empty(),
+		"reason": reason,
+		"reached": _reached_checkpoints.size(),
+		"checkpoints": _checkpoints.size(),
+		"alive": alive,
+		"operatives": world.operatives.size(),
+		"ticks": world.tick,
+	}
+	_result_view.retry_requested.connect(_on_reset_pressed)
+	_result_view.leave_requested.connect(_go_back)
+	_hud_canvas.add_child(_result_view)
 	SimClock.reset_to_planning()
 	_set_phase_controls(false)
-	_set_status("ALL OPERATIVES DOWN")
-	_sync_tokens()
 
 
 func _populate_world() -> void:
@@ -457,6 +526,11 @@ func _populate_world() -> void:
 			for cmd in plans[i]:
 				plan.append(cmd)
 		world.add_operative(i, spawn_cells[i], plan)
+	for i in range(map.ai_spawns.size()):
+		var entry: Dictionary = map.ai_spawns[i]
+		var cell := MapEditorValidator.cell_of(entry.get("cell", []))
+		if map.in_bounds(cell) and not map.is_solid(cell):
+			world.add_enemy(OPERATIVE_COUNT + i, cell, StringName(String(entry.get("archetype", ""))), float(entry.get("facing_deg", 0.0)))
 
 
 static func spawn_cells_for(m: GreyboxMap, greybox: bool, count: int) -> Array[Vector2i]:

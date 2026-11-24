@@ -1,0 +1,46 @@
+# TacPlanShooter code audit and Android build
+
+**November 24, 2026 · `main` at [`77c064b`](https://github.com/GhostMan612/TacPlanShooter/commit/77c064bcbfc061592fdc6131f727c6a2c4f46349)**
+
+Route A produced a signed ARM64 debug APK from the audited source. The existing headless gates passed. The current campaign flow still lacks a successful mission ending, and the route editor can accept movement that stalls at a closed door.
+
+## Code findings
+
+| Priority | Finding | Evidence and proposed fix |
+|---|---|---|
+| P1 | **Campaign and Quick Plan lack a success path.** Loaded objectives and enemy spawns have no effect on the live mission. | The map loader reads objectives and spawns, but `_populate_world()` creates player operatives only. `_maybe_aar()` fires on all-down and adds a grading-only `AarScreen`. Wire mission data into world initialization, add explicit terminal outcomes, and exercise the real result screen in an end-to-end test. [Map loader](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/map_loader.gd#L50) · [World population and result trigger](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/planning_root.gd#L369) · [After-action screen](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/ui/aar_screen.gd#L9) |
+| P1 | **Enemy activation raises an invalid-property error.** | Both AI lookups read `world.operates`, while `SimWorld` exposes `operatives`. A focused probe registered one enemy and reproduced the failure at line 57. Fix both reads and cover a live enemy tick before enabling mission spawns. [AI coordinator](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/ai/ai_coordinator.gd#L28) · [World property](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/sim_world.gd#L15) |
+| P1 | **The planner accepts routes that execution cannot complete.** | The route builder treats all door cells as traversable and generates movement commands only. The command-node tap handler logs a placeholder, so the player cannot schedule a wait or door interaction from the normal planning UI. A focused probe accepted a route across a closed door, blocked at tick 8, and remained incomplete at tick 300. Align route validation with execution and cover the closed-door case. [Route planner](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/route_planner.gd#L12) · [Tap handler](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/planning_controller.gd#L189) · [Movement gate](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/sim_world.gd#L457) |
+| P1 | **Reset and replay can start from different state.** | Reset reuses the mutable map. A probe opened a door and confirmed it remained open after setup. A fresh snapshot restore dropped a drone and an acoustic record while preserving the same hash. Two worlds with distinct pending commands also shared a hash and diverged on the next tick. Rebuild from an immutable mission baseline and cover active state and pending inputs in round-trip and hash tests. [Reset](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/planning_root.gd#L315) · [World rebuild](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/planning_root.gd#L346) · [Snapshot, restore, and hash](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/sim_world.gd#L183) |
+| P2 | **Map Editor can discard edits or history.** | Painting a wall removes door data, but undo restores only wall occupancy. Import replaces the editor state and reports success even when malformed JSON falls back to an empty map. Playtest serializes the map without the undo/redo history. Make cell changes reversible as a unit, reject invalid imports before replacing state, and preserve edit history across Playtest. [Wall undo](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/editor/map_editor_state.gd#L27) · [Import and Playtest](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/editor/map_editor_screen.gd#L305) · [JSON fallback](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/map_loader.gd#L21) |
+| P2 | **Fog updates are a mobile frame-time risk.** | Each execution tick recomputes visibility per observer, tests every generated ray against all wall segments, scans the map by cell, and rebuilds live polygon nodes. Intersection work is quadratic in the segment count. Measure worst-case frame time on a handset and reduce geometry rebuilds and allocations. [Physics tick and fog update](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/planning_root.gd#L122) · [Visibility loop](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/sim/visibility.gd#L9) · [Fog renderer](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/scripts/planning/fog_layer.gd#L42) |
+| P2 | **A clean clone cannot reproduce the documented Android export as written.** | The build guide assumes an existing Android preset, but the entire preset is ignored and there is no tracked template. The game reads map JSON through `FileAccess`. Godot 4.0 needs an explicit non-resource export include filter for these files. A credential-free preset example and clean-clone package check would close the gap. [Git ignore](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/.gitignore#L2) · [Build guide](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/docs/BUILD-IN-ANDROID-STUDIO.md#L21) · [Godot export troubleshooting](https://docs.godotengine.org/en/4.0/about/troubleshooting.html) |
+
+## Android build evidence
+
+| Check | Result |
+|---|---|
+| Export | Godot `4.0.4.stable` with matching official templates, direct debug export, Android Build-Tools `33.0.2` |
+| Manifest | `com.tacplan.game` · debug · `arm64-v8a` · minimum SDK 21 · target SDK 33 |
+| Integrity | Archive and ZIP alignment checks passed. APK signature schemes v1, v2, and v3 verified. |
+| Content | All ten `data/maps/*.json` files are inside the APK. The extracted APK asset payload booted through splash to title under the headless desktop engine. |
+| SHA-256 | `25862b2ebf669aa4de809a25f586187518fe3f754929987667dc743737f14378` |
+| Device | No Android device was attached. Install, launch, touch input, and GPU frame time are pending handset verification. |
+
+Godot logged an empty launcher icon path error during export and resource leak diagnostics at editor shutdown. The export completed, and the archive and signature checks above passed. A fresh debug key signed this copy. Android will reject an in-place update over the same package ID if the existing install uses a different key.
+
+### Reproduce Route A on Windows
+
+1. Open the project with Godot `4.0.4.stable` and install the matching export templates. Configure the Android SDK and existing debug keystore in Editor Settings. [Godot 4.0 Android export](https://docs.godotengine.org/en/4.0/tutorials/export/exporting_for_android.html)
+2. Add or select an Android export preset. Turn **Use Gradle Build** off, enable **arm64-v8a**, set **Package / Unique Name** to `com.tacplan.game`, and add `data/maps/*.json` under the non-resource include filter. The export here excluded `tests/*, tools/*, blueprints/*, docs/*`.
+3. Export a debug APK into `builds/`. For a handset check, install the APK and confirm splash, title, campaign list, then Quick Plan and route execution. Reuse your laptop’s existing debug key for updates to an installation signed on that laptop.
+
+### Android Studio and Gradle
+
+Route B was checked against the official `4.0.4.stable` Android source template. That template pins Gradle `7.4.2`, AGP `7.2.1`, Java `11`, compile and target SDK `33`, Build-Tools `33.0.2`, and NDK `23.2.8568313`. The build guide lists SDK 32 for the older template. The documented laptop JDK 25 is incompatible with Gradle 7.4.2. Use the configuration in the template that was actually generated. No Gradle APK was assembled in this audit. [Official Godot release](https://github.com/godotengine/godot/releases/tag/4.0.4-stable) · [Gradle Java compatibility](https://docs.gradle.org/current/userguide/compatibility.html#java)
+
+## Verification scope
+
+- All ten headless gates passed locally with the CI-pinned engine. The parse gate covered 80 scripts and 13 scenes. The 41-case determinism harness passed, as did scene smoke, map validation, editor, progression, UI/audio, and clock gates. [CI definition](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/.github/workflows/headless-ci.yml) · [PR #3 CI](https://github.com/GhostMan612/TacPlanShooter/actions/runs/45455386140)
+- The four focused simulation reproductions used Godot `4.7.2`. The editor, campaign wiring, and fog findings came from source inspection. The advertised AI replay test compares two freshly initialized worlds without activating enemy AI or stepping either one. [AI replay test](https://github.com/GhostMan612/TacPlanShooter/blob/77c064b/tests/determinism_harness.gd#L712)
+- The tracked checkout matched the audited commit. The build used a local preset and a local debug signing key. No tracked files, commits, branches, or pull requests were changed.

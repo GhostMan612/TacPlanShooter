@@ -7,6 +7,7 @@ extends Node
 
 signal mode_changed(mode: int)
 signal route_committed(op_id: int, waypoints: Array[Vector2i])
+signal cell_tapped(cell: Vector2i)
 
 enum Mode { OBSERVATION, ROUTING }
 
@@ -149,7 +150,7 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 		return
 	_routing_finger = idx
 	_routing_token = best
-	best.set_selected(true)
+	best.set_routing_highlight(true)
 	mode = Mode.ROUTING
 	_raw_route = PackedVector2Array([best.position])
 	_kept_route = PackedVector2Array([best.position])
@@ -177,7 +178,7 @@ func _commit_route() -> void:
 
 func _exit_routing() -> void:
 	if _routing_token != null:
-		_routing_token.set_selected(false)
+		_routing_token.set_routing_highlight(false)
 	mode = Mode.OBSERVATION
 	_routing_finger = -1
 	_routing_token = null
@@ -187,7 +188,8 @@ func _exit_routing() -> void:
 
 
 func _handle_tap(pos: Vector2) -> void:
-	print("[PLAN] tap cell %s (command menus arrive in M4)" % str(GridUtil.px_to_cell(_to_world(pos))))
+	if routing_enabled:
+		cell_tapped.emit(GridUtil.px_to_cell(_to_world(pos)))
 
 
 func _ensure_preview() -> void:
@@ -197,6 +199,25 @@ func _ensure_preview() -> void:
 
 func show_route(op_id: int, pts: PackedVector2Array) -> void:
 	_line_for(op_id).points = pts
+
+
+func show_waits(op_id: int, waits: Dictionary) -> void:
+	var line := _line_for(op_id)
+	for marker in line.get_children():
+		line.remove_child(marker)
+		marker.queue_free()
+	for cell in waits:
+		var mark := Label.new()
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mark.text = String(waits[cell]).substr(0, 1).to_upper()
+		mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		mark.add_theme_font_size_override("font_size", 9)
+		mark.add_theme_color_override("font_outline_color", Color.BLACK)
+		mark.add_theme_constant_override("outline_size", 3)
+		mark.position = GridUtil.cell_center_px(cell) - Vector2(6.0, 8.0)
+		mark.size = Vector2(12.0, 16.0)
+		line.add_child(mark)
 
 
 func route_line(op_id: int) -> Line2D:

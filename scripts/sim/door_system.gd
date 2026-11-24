@@ -53,3 +53,19 @@ func breach(cell: Vector2i, method: StringName) -> bool:
 		return false
 	doors[cell] = {"state": int(State.BREACHED_DESTROYED), "lock_level": 0}
 	return true
+
+
+func to_array() -> Array:
+	var rows: Array = []
+	for cell in GreyboxMap.sorted_cells(doors):
+		var door: Dictionary = doors[cell]
+		rows.append([cell.x, cell.y, int(door["state"]), int(door["lock_level"])])
+	return rows
+
+
+static func from_array(rows: Array) -> DoorSystem:
+	var system := DoorSystem.new()
+	for row in rows:
+		var cell := Vector2i(int(row[0]), int(row[1]))
+		system.doors[cell] = {"state": int(row[2]), "lock_level": int(row[3])}
+	return system

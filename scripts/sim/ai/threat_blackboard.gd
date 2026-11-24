@@ -85,3 +85,38 @@ func cone_visible(observer: Vector2, target: Vector2, facing_deg: float, focal: 
 		if t > 0.000001 and t < 0.999999:
 			return false
 	return true
+
+
+func to_dict() -> Dictionary:
+	var positions := {}
+	for id in threats:
+		var at := lkp_of(id)
+		positions[str(id)] = {"target": target_of(id), "x": at.x, "y": at.y}
+	var alert_states := {}
+	for id in alerts:
+		alert_states[str(id)] = int(alerts[id])
+	var acoustic_events: Array = []
+	for event in acoustic:
+		var cell: Vector2i = event["cell"]
+		acoustic_events.append([cell.x, cell.y, String(event["kind"]), int(event["t"])])
+	return {
+		"threats": positions,
+		"alerts": alert_states,
+		"acoustic": acoustic_events,
+		"alert_level": alert_level,
+	}
+
+
+static func from_dict(d: Dictionary) -> ThreatBlackboard:
+	var board := ThreatBlackboard.new()
+	var positions: Dictionary = d.get("threats", {})
+	for id in positions:
+		var at: Dictionary = positions[id]
+		board.set_threat(int(id), int(at["target"]), Vector2(float(at["x"]), float(at["y"])))
+	var alert_states: Dictionary = d.get("alerts", {})
+	for id in alert_states:
+		board.set_alert(int(id), int(alert_states[id]))
+	for event in d.get("acoustic", []):
+		board.record_acoustic(Vector2i(int(event[0]), int(event[1])), StringName(event[2]), int(event[3]))
+	board.alert_level = int(d.get("alert_level", int(Alert.UNAWARE)))
+	return board

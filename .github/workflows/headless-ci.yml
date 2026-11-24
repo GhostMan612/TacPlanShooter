@@ -75,6 +75,11 @@ jobs:
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/map_editor_harness.gd 2>&1 | tee map_editor.log || true
           bash tools/ci_gate.sh map_editor.log "PASS"
+      - name: Fog layer cache and mask harness
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/fog_layer_harness.gd 2>&1 | tee fog_layer.log || true
+          bash tools/ci_gate.sh fog_layer.log "[FOG] RESULT PASS"
       - name: SimClock probe (FPS caps 30/60)
         if: ${{ !cancelled() }}
         run: |

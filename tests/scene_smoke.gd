@@ -44,6 +44,7 @@ func _run() -> void:
 		get_tree().root.remove_child(inst)
 		inst.queue_free()
 		await get_tree().process_frame
+	_check_door_route()
 	print("[SMOKE] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -117,56 +118,101 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_check(queued >= 1, "drawn route reaches the sim queue (%d commands)" % queued)
 	var line := pr.controller.route_line(0)
 	_check(line != null and line.points.size() == queued + 1, "committed route line matches the executable cells")
-	var tok: OperativeToken = pr.controller.tokens[0]
-	_check(tok.callsign == pr.squad_hud.callsign(0) and tok.callsign != "" and tok.squad_color == PlanBoard.squad_color(pr.squad_hud.squad_of(0)), "token shows squad colour and callsign %s" % tok.callsign)
-	_check(not pr.fog.active and not pr.fog.visible, "fog hidden while planning")
+	var token: OperativeToken = pr.controller.tokens[0]
+	var squad := pr.squad_hud.squad_of(0)
+	_check(token.callsign == pr.squad_hud.callsign(0) and token.squad_color == PlanBoard.squad_color(squad), "token displays the squad colour and callsign")
+	_check(token.selected and not pr.controller.tokens[1].selected, "squad selection highlights the active token")
+	_check(not pr.fog.visible, "planning hides the fog mask")
+	_check(pr.world.ai.enemies.size() == pr.map.ai_spawns.size(), "mission initializes map AI spawns outside the squad")
+	pr.controller.cell_tapped.emit(start)
+	_check(not pr._alpha_button.disabled, "route node enables planning go-code buttons")
+	pr._on_alpha_pressed()
+	queued += 1
+	_check(pr.world.operatives[0].queue.peek_next().command_type == AgentCommand.CommandType.WAIT_GO_CODE, "assigned go-code enters the plan")
 	pr._on_execute_pressed()
 	_check(SimClock.phase == SimClock.Phase.EXECUTION and not pr._alpha_button.disabled and not pr.controller.routing_enabled, "execute unlocks go-codes and locks routing")
-	var rebuilds_at_exec := pr.fog_segment_rebuilds
-	var computes_at_exec := pr.fog_poly_computes
+	for i in range(3):
+		await get_tree().physics_frame
+	_check(pr.world.operatives[0].wait_code == &"alpha" and GridUtil.cell_of(pr.world.operatives[0].pos) == start, "operative waits at the selected route node")
+	_check(pr.fog.visible and pr.fog.live_polygons_cells().size() == 2, "execution fog gets both friendly sight polygons")
 	pr._on_alpha_pressed()
-	for i in range(40):
+	for i in range(8):
+		await get_tree().physics_frame
+	var expected_px := pr.world.operatives[0].pos * float(SimConstants.GRID_CELL_SIZE_PX)
+	var cell_center := GridUtil.cell_center_px(GridUtil.cell_of(pr.world.operatives[0].pos))
+	_check(token.position.is_equal_approx(expected_px) and not expected_px.is_equal_approx(cell_center), "token tracks sub-cell simulation position")
+	for i in range(32):
 		await get_tree().physics_frame
 	_check(pr.world.tick > 0 and GridUtil.cell_of(pr.world.operatives[0].pos) != start, "operative moves along the drawn route")
 	_check(pr.world.go_codes_issued.has(&"alpha"), "go-code button reaches the sim via the tick stream")
-	_check(pr.fog.active and pr.fog.visible and pr.fog.shape_count() == 2, "fog buffer active with one sight shape per friendly (%d)" % pr.fog.shape_count())
-	_check(pr.fog.pool_size() == 4, "fog reuses a fixed polygon pool (%d)" % pr.fog.pool_size())
-	_check(pr.fog_segment_rebuilds == rebuilds_at_exec, "wall segments cached while doors are unchanged")
-	var computes := pr.fog_poly_computes - computes_at_exec
-	_check(computes > 0 and computes <= 41, "sight polygons cached for stationary operatives (%d computes in 40 ticks)" % computes)
-	var op0 := pr.world.operatives[0]
-	_check(tok.position.distance_to(op0.pos * float(SimConstants.GRID_CELL_SIZE_PX)) < 0.001, "token tracks the exact sim position")
 	pr._on_reset_pressed()
 	_check(SimClock.phase == SimClock.Phase.PLANNING and pr.world.tick == 0, "reset returns to planning")
 	_check(GridUtil.cell_of(pr.world.operatives[0].pos) == start and pr.world.operatives[0].queue.commands.size() == queued, "reset keeps the route and restores the spawn")
-	_check(not pr.fog.active and pr.overlay.contacts.is_empty(), "reset hides fog and clears contacts")
-	_inspect_hostiles(pr)
-	_probe_fog_perf(pr)
+
+	pr.set_physics_process(false)
+	pr._on_execute_pressed()
+	for i in range(3):
+		pr._physics_process(SimWorld.DT)
+	_check(pr.world.tick > 0, "retained plan can be executed again")
+	pr._on_alpha_pressed()
+	for i in range(120):
+		pr._physics_process(SimWorld.DT)
+		if pr._result_view != null:
+			break
+	_check(pr._result_view != null and not bool(pr._result_view.result["completed"]), "route ending before the checkpoint reports failure")
+	if pr._result_view != null:
+		pr._result_view.retry_requested.emit()
+	_check(pr._result_view == null and SimClock.phase == SimClock.Phase.PLANNING, "result replan clears the overlay and restores planning")
+
+	var checkpoint := MapEditorValidator.cell_of(pr.map.objectives[0])
+	var exit_cell := MapEditorValidator.cell_of(pr.map.extraction_zones[0]["cells"][0])
+	var mission_route: Array[Vector2i] = [start, checkpoint, exit_cell]
+	pr._on_route_committed(0, mission_route)
+	pr._on_execute_pressed()
+	for i in range(1200):
+		pr._physics_process(SimWorld.DT)
+		if pr._result_view != null:
+			break
+	_check(pr._result_view != null and bool(pr._result_view.result["completed"]), "authored campaign checkpoint and exit complete the mission")
+	if pr._result_view != null:
+		var title := pr._result_view.find_child("ResultTitle", true, false) as Label
+		_check(title != null and title.text == "OPERATION COMPLETE", "successful operation renders a result screen")
+	_inspect_contacts(pr)
 
 
-func _inspect_hostiles(pr: PlanningRoot) -> void:
-	var none: Array[AgentCommand] = []
-	pr.world.add_operative(9, Vector2i(3, 3), none)
-	var hostile: SimOperative = pr.world.operatives[pr.world.operatives.size() - 1]
-	hostile.faction_id = 1
-	pr._update_fog()
-	_check(pr.overlay.visible_contacts().has(9), "hostile in line of sight is a live contact")
-	_check(pr.squad_hud.card_count() == 2, "hostiles never appear in the squad HUD")
-	hostile.pos = Vector2(7.5, 5.5)
-	pr._update_fog()
-	_check(pr.overlay.lkp_contacts().has(9) and not pr.overlay.visible_contacts().has(9), "hostile behind a wall becomes a last-known-position ghost")
-	var lkp: Vector2 = pr.overlay.contacts[9]["pos"]
-	_check(lkp.distance_to(Vector2(3.5, 3.5)) < 0.001, "LKP keeps the last seen position, not the true one")
+func _inspect_contacts(pr: PlanningRoot) -> void:
 	pr._on_reset_pressed()
-	_check(pr.overlay.contacts.is_empty() and pr.world.operatives.size() == 2, "reset clears injected hostile and contacts")
+	pr.world.setup(GreyboxMap.build_default(), 1)
+	var commands: Array[AgentCommand] = []
+	pr.world.add_operative(0, Vector2i(2, 3), commands)
+	var enemy := pr.world.add_enemy(9, Vector2i(3, 3), &"")
+	pr._update_fog()
+	_check(pr.overlay.visible_contacts().has(9), "registered enemy in sight is a visible contact")
+	var last_seen := enemy.pos
+	enemy.pos = Vector2(10.5, 3.5)
+	pr.world.tick += 60
+	pr._update_fog()
+	var contact: Dictionary = pr.overlay.contacts.get(9, {})
+	_check(pr.overlay.lkp_contacts().has(9) and contact.get("pos") == last_seen, "hidden enemy retains only the last seen position")
+	_check(is_equal_approx(pr.overlay.seconds_since_contact(9), 1.0), "contact age follows simulation ticks")
+	pr._on_reset_pressed()
+	_check(pr.overlay.contacts.is_empty() and not pr.fog.visible, "reset clears contacts and hides the fog mask")
 
 
-func _probe_fog_perf(pr: PlanningRoot) -> void:
-	var runs := 120
-	var t0 := Time.get_ticks_usec()
-	for i in range(runs):
-		pr._sight_cache.clear()
-		pr._update_fog()
-	var avg_us := float(Time.get_ticks_usec() - t0) / float(runs)
-	print("[SMOKE] perf fog_update uncached avg_us=%.1f segs=%d" % [avg_us, pr._segs.size()])
-	_check(avg_us < 8000.0, "uncached fog update under 8 ms on CI (%.0f us)" % avg_us)
+func _check_door_route() -> void:
+	var map := GreyboxMap.build_default()
+	var start := Vector2i(7, 6)
+	var door := Vector2i(8, 6)
+	var goal := Vector2i(9, 6)
+	var waypoints: Array[Vector2i] = [door, goal]
+	var route := RoutePlanner.plan(map, start, waypoints)
+	var commands: Array[AgentCommand] = route["commands"]
+	_check(commands.size() == 3 and commands[0].command_type == AgentCommand.CommandType.PERFORM_ACTION, "closed-door route queues an action before moving")
+	var sim := SimWorld.new()
+	sim.setup(map, 1)
+	sim.add_operative(0, start, commands)
+	for i in range(250):
+		sim.step()
+		if sim.operatives[0].done:
+			break
+	_check(sim.operatives[0].done and GridUtil.cell_of(sim.operatives[0].pos) == goal, "closed-door route reaches the far side")

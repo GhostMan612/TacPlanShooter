@@ -29,10 +29,35 @@ static func plan(m: GreyboxMap, start: Vector2i, waypoints: Array[Vector2i]) -> 
 		for sc in step_cells:
 			cells.append(sc)
 		prev = c
+	return {"cells": cells, "commands": compile_commands(m, start, cells), "blocked_at": blocked}
+
+
+static func compile_commands(m: GreyboxMap, start: Vector2i, cells: Array[Vector2i], waits: Dictionary = {}) -> Array[AgentCommand]:
 	var commands: Array[AgentCommand] = []
-	for c in cells:
-		commands.append(move_cmd(c))
-	return {"cells": cells, "commands": commands, "blocked_at": blocked}
+	var door_actions := {}
+	var pending_waits := waits.duplicate()
+	_append_wait(commands, pending_waits, start)
+	for cell in cells:
+		if m.door_cells.has(cell) and m.is_solid(cell) and not door_actions.has(cell):
+			var action := AgentCommand.new()
+			action.command_type = AgentCommand.CommandType.PERFORM_ACTION
+			action.target_cell = cell
+			action.action_kind = AgentCommand.ActionKind.BREACH_CHARGE
+			commands.append(action)
+			door_actions[cell] = true
+		commands.append(move_cmd(cell))
+		_append_wait(commands, pending_waits, cell)
+	return commands
+
+
+static func _append_wait(commands: Array[AgentCommand], waits: Dictionary, cell: Vector2i) -> void:
+	if not waits.has(cell):
+		return
+	var command := AgentCommand.new()
+	command.command_type = AgentCommand.CommandType.WAIT_GO_CODE
+	command.go_code = waits[cell]
+	commands.append(command)
+	waits.erase(cell)
 
 
 static func _connect(m: GreyboxMap, a: Vector2i, b: Vector2i) -> Array[Vector2i]:

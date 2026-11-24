@@ -64,12 +64,13 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Phase A (WO-N64-R6-AND-M6-REMEDIATION): FogLayer SubViewport masks (fog2 probe PASS: live=1, memory=1, poly_contains=true, reset=0); Visibility wrapf + endpoint tolerance (WCW PASS: poly=900 t=80.3990); HUD CanvasLayer + Alpha/Bravo/Charlie/Delta wired; Zero-Artifact CI (`.github/workflows/headless-ci.yml`)
 - ✅ Visited-memory additive buffer @50% opacity (mark_visible → memory_vp, Phase A2)
 - ✅ Phase J: ThemeManager v2 (real Theme + StyleBoxFlat, theme_changed, applied_theme), MapRenderer MGRS coords (A–Z, 01–99) + zone overlays, SquadHud screen-space Control, PlanBoard N64 squad palette (red/blue/green/gold), OperativeToken MIL-STD symbology + LKP ghost dot, ExecutionHud health dots, RosterRolesScreen + ArmoryScreen, `ui_polish_audit` PASS
-- ✅ Perf budget: polygon recompute cost within frame on mid-range Android profile (UPDATE_ONCE + Polygon2D shapes)
+- ✅ Planning smoke covers exact token tracking, live contacts, last-seen positions, and fog reset.
+- ⬜ Verify frame time and fog compositing on a mid-range Android handset.
 
 ## M7 — Enemy AI & mission loop (BP-09)
 - ⬜ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
 - ⬜ Engagement resolution deterministic (seeded RNG for spread/reaction only)
-- ⬜ Mission success/fail conditions; end-of-mission report; replay scrub UI hooks (CP-071)
+- 🔄 Ground-floor mission success and failure, visible result, and retry pass scene smoke. Timeline and replay scrubbing remain open (CP-071).
 - ⬜ Fatal funnels emphasis: doorway chokepoint encounter authored into first real map
 
 ## M8 — Touch UX polish (BP-05)
@@ -83,8 +84,8 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ⬜ Damage → heartbeat synth drives LowPassFilter over environment mix
 
 ## M10 — Android release track (BP-10) — ACTIVE (Route A default)
-- ✅ Export preset configured for Route A: Android / ARM64 / portrait / package com.tacplan.game / `use_gradle_build=false` / export_path `builds\TacPlan-debug.apk` (CP-100 structural half)
+- ✅ Route A clean-checkout preset verified with Godot 4.0.4, ARM64 packaging, signature, and all ten source maps (CP-100).
 - ✅ Handoff doc rewritten: `docs\BUILD-IN-ANDROID-STUDIO.md` (Route A walkthrough, `adb.exe install`, CP-030 1–7 test script, Route B blocker details)
-- ⬜ **USER**: Route A export (`builds\TacPlan-debug.apk`) + `adb.exe install` on phone → CP-030 feel verdict + first device boot report (CP-101)
-- ⬜ Godot upgrade decision (4.0 → 4.x) — unblocks Route B (or install JDK 11/17 + SDK platform 32 + build-tools 32.0.0 + NDK 23.2.8568313)
+- ⬜ **USER**: Install the Route A debug APK on a phone and verify boot and touch controls (CP-101 and CP-030).
+- ⬜ Route B requires JDK 11 and the SDK platform, build-tools, and NDK versions pinned by the generated template.
 - ⬜ Release signing flow (deferred until store-ready; debug keystore only, never committed)

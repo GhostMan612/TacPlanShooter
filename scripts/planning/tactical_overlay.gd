@@ -28,27 +28,23 @@ func apply_palette(pal: Dictionary) -> void:
 
 
 func reset() -> void:
+	world = null
 	contacts.clear()
 	queue_redraw()
 
 
-func update_contacts(w: SimWorld, live_polys_cells: Array) -> void:
+func update_contacts(w: SimWorld, live_polys_cells: Array[PackedVector2Array]) -> void:
 	world = w
-	if w == null:
-		return
-	for o in w.operatives:
+	for contact in contacts.values():
+		contact["visible"] = false
+	for id in w.enemy_actors:
+		var o: SimOperative = w.enemy_actors[id]
 		if o.faction_id == local_faction_id:
 			continue
-		var seen := false
 		for poly in live_polys_cells:
 			if Geometry2D.is_point_in_polygon(o.pos, poly):
-				seen = true
+				contacts[id] = {"pos": o.pos, "tick": int(w.tick), "visible": true, "alive": o.is_alive()}
 				break
-		if seen:
-			contacts[o.id] = {"pos": o.pos, "tick": int(w.tick), "visible": true, "alive": o.is_alive()}
-		elif contacts.has(o.id):
-			var c: Dictionary = contacts[o.id]
-			c["visible"] = false
 	queue_redraw()
 
 

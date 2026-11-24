@@ -6,106 +6,134 @@ class_name FogLayer
 extends Node2D
 
 
-const MEMORY_ALPHA := 0.5
-const UNSEEN_ALPHA := 0.85
-
-
-var map: GreyboxMap = null
 var live_vp: SubViewport = null
 var memory_vp: SubViewport = null
-var active := false
-var _comp: ColorRect = null
-var _live_pool: Array[Polygon2D] = []
-var _memory_pool: Array[Polygon2D] = []
+var _material: ShaderMaterial = null
+var _map: GreyboxMap = null
+var _door_open: Dictionary = {}
+var _wall_segments: Array = []
+var _live_origins: Array[Vector2] = []
+var _polygons: Dictionary = {}
+var _live_shapes: Array[Polygon2D] = []
+var _memory_shapes: Array[Polygon2D] = []
+var _pending_memory := 0
 
 
 func setup(m: GreyboxMap) -> void:
-	map = m
-	var w := int(float(map.width_cells) * float(SimConstants.GRID_CELL_SIZE_PX))
-	var h := int(float(map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX))
-	live_vp = _make_viewport(w, h, SubViewport.CLEAR_MODE_ALWAYS)
-	memory_vp = _make_viewport(w, h, SubViewport.CLEAR_MODE_ONCE)
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://scripts/planning/fog_mask.gdshader")
-	_comp = ColorRect.new()
-	_comp.size = Vector2(w, h)
-	_comp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_comp.material = mat
-	mat.set_shader_parameter("live_tex", live_vp.get_texture())
-	mat.set_shader_parameter("memory_tex", memory_vp.get_texture())
-	add_child(_comp)
-	apply_palette(ThemeManager.palette_for(ThemeManager.Style.DARK_TACTICAL))
-	set_active(false)
+	var extent := Vector2i(m.width_cells, m.height_cells) * SimConstants.GRID_CELL_SIZE_PX
+	live_vp = _make_viewport(extent)
+	memory_vp = _make_viewport(extent)
+	memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+	RenderingServer.frame_post_draw.connect(_retire_memory_shapes)
+
+	_material = ShaderMaterial.new()
+	_material.shader = load("res://scripts/planning/fog_mask.gdshader")
+	_material.set_shader_parameter("live_tex", live_vp.get_texture())
+	_material.set_shader_parameter("memory_tex", memory_vp.get_texture())
+	var comp := ColorRect.new()
+	comp.size = Vector2(extent)
+	comp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	comp.material = _material
+	add_child(comp)
 
 
-func _make_viewport(w: int, h: int, clear_mode: int) -> SubViewport:
+func apply_palette(pal: Dictionary) -> void:
+	var background: Color = pal.get("bg", Color(0.1, 0.11, 0.14))
+	_material.set_shader_parameter("unseen_color", Color(background, 0.85))
+	_material.set_shader_parameter("memory_color", Color(background, 0.5))
+
+
+func live_polygons_cells() -> Array[PackedVector2Array]:
+	var polygons: Array[PackedVector2Array] = []
+	for shape in _live_shapes:
+		if shape.visible:
+			polygons.append(shape.polygon)
+	return polygons
+
+
+func _make_viewport(extent: Vector2i) -> SubViewport:
 	var vp := SubViewport.new()
-	vp.size = Vector2i(w, h)
+	vp.size = extent
 	vp.msaa_2d = Viewport.MSAA_DISABLED
-	vp.transparent_bg = true
 	vp.disable_3d = true
-	vp.render_target_clear_mode = clear_mode
-	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	vp.transparent_bg = true
+	vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(vp)
 	return vp
 
 
-func apply_palette(pal: Dictionary) -> void:
-	if _comp == null:
+func update_visibility(world: SimWorld, local_faction_id: int) -> void:
+	var geometry_changed := _map != world.map or _door_open != world.map.door_open
+	if geometry_changed:
+		_map = world.map
+		_door_open = _map.door_open.duplicate()
+		_wall_segments = _map.get_wall_segments()
+		_polygons.clear()
+
+	var origins: Array[Vector2] = []
+	for operative in world.operatives:
+		if operative.faction_id == local_faction_id and operative.is_alive():
+			origins.append(operative.pos)
+	for drone in world.drones:
+		if not drone.destroyed:
+			origins.append(drone.pos)
+	if not geometry_changed and origins == _live_origins:
 		return
-	var unseen: Color = pal.get("bg", Color(0.1, 0.11, 0.14))
-	var mat := _comp.material as ShaderMaterial
-	mat.set_shader_parameter("unseen_color", Color(unseen.r, unseen.g, unseen.b, UNSEEN_ALPHA))
-	mat.set_shader_parameter("memory_color", Color(unseen.r, unseen.g, unseen.b, UNSEEN_ALPHA * MEMORY_ALPHA))
 
-
-func set_active(on: bool) -> void:
-	active = on
-	visible = on
-	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-	if live_vp != null:
-		live_vp.render_target_update_mode = mode
-	if memory_vp != null:
-		memory_vp.render_target_update_mode = mode
-
-
-func update_polys(px_polys: Array) -> void:
-	_fill_pool(live_vp, _live_pool, px_polys)
-	_fill_pool(memory_vp, _memory_pool, px_polys)
-
-
-func shape_count() -> int:
-	var n := 0
-	for p in _live_pool:
-		if p.visible:
-			n += 1
-	return n
-
-
-func pool_size() -> int:
-	return _live_pool.size() + _memory_pool.size()
-
-
-func _fill_pool(vp: SubViewport, pool: Array[Polygon2D], px_polys: Array) -> void:
-	if vp == null:
-		return
-	while pool.size() < px_polys.size():
-		var shape := Polygon2D.new()
-		shape.color = Color.WHITE
-		shape.antialiased = false
-		vp.add_child(shape)
-		pool.append(shape)
-	for i in range(pool.size()):
-		var shape := pool[i]
-		if i < px_polys.size():
-			shape.polygon = px_polys[i]
-			shape.visible = true
+	var next_polygons: Dictionary = {}
+	var live_count := 0
+	for origin in origins:
+		if next_polygons.has(origin):
+			continue
+		var poly: PackedVector2Array
+		if _polygons.has(origin):
+			poly = _polygons[origin]
 		else:
-			shape.visible = false
+			poly = Visibility.compute_polygon(origin, _wall_segments, SimConstants.LOS_VERTEX_EPSILON_RAD)
+			if poly.size() >= 3:
+				_write_shape(memory_vp, _memory_shapes, _pending_memory, poly)
+				_pending_memory += 1
+				memory_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		next_polygons[origin] = poly
+		if poly.size() >= 3:
+			_write_shape(live_vp, _live_shapes, live_count, poly)
+			live_count += 1
+	for i in range(live_count, _live_shapes.size()):
+		_live_shapes[i].hide()
+	_polygons = next_polygons
+	_live_origins = origins
+	live_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
+func _write_shape(vp: SubViewport, pool: Array[Polygon2D], index: int, poly: PackedVector2Array) -> void:
+	if index == pool.size():
+		var created := Polygon2D.new()
+		created.color = Color.WHITE
+		created.scale = Vector2.ONE * float(SimConstants.GRID_CELL_SIZE_PX)
+		pool.append(created)
+		vp.add_child(created)
+	var shape := pool[index]
+	if shape.polygon != poly:
+		shape.polygon = poly
+	shape.show()
+
+
+func _retire_memory_shapes() -> void:
+	for i in range(_pending_memory):
+		_memory_shapes[i].hide()
+	_pending_memory = 0
 
 
 func reset_fog() -> void:
-	update_polys([])
-	if memory_vp != null:
-		memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-	set_active(false)
+	_map = null
+	_door_open.clear()
+	_wall_segments.clear()
+	_live_origins.clear()
+	_polygons.clear()
+	_retire_memory_shapes()
+	for shape in _live_shapes:
+		shape.hide()
+	live_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+	memory_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
