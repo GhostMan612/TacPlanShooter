@@ -17,7 +17,7 @@ const SQUAD_COLORS: Dictionary = {
 var routes := {}
 
 
-func squad_color(squad: StringName) -> Color:
+static func squad_color(squad: StringName) -> Color:
 	return SQUAD_COLORS.get(squad, Color(0.5, 0.5, 0.5))
 
 

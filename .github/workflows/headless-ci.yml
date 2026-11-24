@@ -26,10 +26,11 @@ jobs:
           (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
       - name: Import pass 1
-        run: timeout 45 ./bin/godot --headless --path . --editor  --quit || true
+        run: |
+          timeout 45 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import1.log || true
       - name: Import pass 2
         run: |
-          timeout 45 ./bin/godot --headless --path . --editor --quit || true
+          timeout 45 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import2.log || true
           test -f .godot/global_script_class_cache.cfg
       - name: Boot smoke
         run: |
@@ -48,6 +49,24 @@ jobs:
           cat meta_progression.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" meta_progression.log; then exit 1; fi
           grep -q "PASS" meta_progression.log
+      - name: UI polish audit (M6 Phase J)
+        run: |
+          timeout 60 ./bin/godot --headless --path . -s res://tests/ui_polish_audit.gd > ui_polish_audit.log 2>&1 || true
+          cat ui_polish_audit.log
+          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" ui_polish_audit.log; then exit 1; fi
+          grep -q "PASS" ui_polish_audit.log
+      - name: Map validation harness
+        run: |
+          timeout 60 ./bin/godot --headless --path . -s res://tests/map_validation_harness.gd > map_validation.log 2>&1 || true
+          cat map_validation.log
+          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" map_validation.log; then exit 1; fi
+          grep -q "PASS" map_validation.log
+      - name: UI audio smoke
+        run: |
+          timeout 60 ./bin/godot --headless --path . -s res://tests/ui_audio_smoke.gd > ui_audio_smoke.log 2>&1 || true
+          cat ui_audio_smoke.log
+          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" ui_audio_smoke.log; then exit 1; fi
+          grep -q "PASS" ui_audio_smoke.log
       - name: SimClock probe
         run: |
           timeout 30 ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit > simclock.log 2>&1 || true

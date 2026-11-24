@@ -23,7 +23,7 @@ func record_xp(profile: UnitProfile, xp: int) -> void:
 
 func draw_bars() -> void:
 	var y := 16.0
-	for t in UnitProfile.TRAIT_NAMES:
+	for t in OperativeProfile.TRAIT_NAMES:
 		draw_rect(Rect2(Vector2(8.0, y), Vector2(200.0, 10.0)), Color(0.08, 0.14, 0.22))
 		draw_rect(Rect2(Vector2(8.0, y), Vector2(60.0, 10.0)), Color(0.2, 0.6, 0.95))
 		y += 16.0

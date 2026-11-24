@@ -16,9 +16,16 @@ func _initialize() -> void:
 
 func _test_theme_apply() -> int:
 	var tm := ThemeManager.new()
-	tm.set_theme(ThemeManager.Style.NIGHT_OPS)
-	tm.apply()
-	var ok := tm.current == ThemeManager.Style.NIGHT_OPS and tm.applied_theme != null
+	var ok := true
+	for name in [&"dark_tactical", &"light_blueprint", &"night_ops"]:
+		for k in ThemeManager.PALETTES[name].keys():
+			var c: Color = ThemeManager.PALETTES[name][k]
+			ok = ok and (c.r <= 1.0 and c.g <= 1.0 and c.b <= 1.0 and c.a <= 1.0)
+	var a := ThemeManager.PALETTES[&"dark_tactical"]["bg"]
+	var b := ThemeManager.PALETTES[&"light_blueprint"]["bg"]
+	var c := ThemeManager.PALETTES[&"night_ops"]["bg"]
+	ok = ok and a != b and b != c and a != c
+	ok = ok and tm.applied_theme != null
 	print("[HARNESS] ui_theme_apply %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -26,7 +33,8 @@ func _test_theme_apply() -> int:
 func _test_squad_hud_control() -> int:
 	var h := SquadHud.new()
 	h.world = SimWorld.new()
-	var ok := h is Control and h.world != null
+	h._ready()
+	var ok := h is Control and h.get_child_count() > 0
 	print("[HARNESS] ui_squad_hud_control %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
