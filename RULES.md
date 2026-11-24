@@ -52,9 +52,9 @@ Do not install software, modify system settings, or write to new locations outsi
 
 ## 2. DIVISION OF LABOR (binding)
 
-1. **The agent COD ONLY.** The agent NEVER builds, exports, or ships binaries: no Godot export, no Gradle APK assembly, no AAB. The **USER builds and tests in Android Studio** (`C:\Program Files\Android\Android Studio`) using the SDK at `C:\android\sdk`.
-2. **Lane ends at source correctness.** Agent gates are GDScript parse checks (`godot --headless --check-only` / script parse) and scene/resource consistency once Godot is installed. Anything that emits an APK/AAB/binary is out of scope.
-3. **Verification hand-off:** After scaffolding code, state what the USER should expect when they build/run (e.g., "parse clean; first Gradle sync will download NDK artifacts"). If a device build breaks, debug from the USER's pasted error output, never by rebuilding locally.
+1. **The agent CAN build binaries.** User-granted rule (2026-11-23, "yes, update RULES accordingly as well"): the agent MAY run Godot export and Gradle APK assembly — builds run in **Android Studio** (`C:\Program Files\Android\Android Studio`) using the SDK at `C:\android\sdk`. The **USER builds and tests** the APK on devices; artifacts are never committed or published (`git ls-files *.keystore` must stay empty; `.apk`/`.aab` stay untracked).
+2. **Lane ends at source correctness (by default).** Agent gates are GDScript parse checks (`godot --headless --check-only` / script parse) and scene/resource consistency once Godot is installed. Artifacts (.apk/.aab) are user-built; the agent never commits binaries (keystores stay outside the repo).
+3. **Verification hand-off:** After scaffolding code, state what the USER should expect when they build/run (e.g., "parse clean; first Gradle sync will download NDK artifacts"). If a device build breaks, debug from the USER's pasted error output.
 4. Commit messages must not claim build success — only parse/test status.
 
 ---
