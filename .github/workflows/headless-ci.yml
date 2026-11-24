@@ -27,7 +27,7 @@ jobs:
       - name: Import pass 1 (waits for the editor scan to write the class cache)
         run: |
           for attempt in 1 2 3 4; do
-            timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit-after 600 2>&1 | tee -a import1.log || true
+            timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit-after 40 2>&1 | tee -a import1.log || true
             if [ -f .godot/global_script_class_cache.cfg ]; then
               echo "class cache written on attempt $attempt"
               break
@@ -37,7 +37,7 @@ jobs:
           test -f .godot/global_script_class_cache.cfg
       - name: Import pass 2 (refreshes dependents of new classes)
         run: |
-          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit-after 600 2>&1 | tee import2.log || true
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit-after 40 2>&1 | tee import2.log || true
           test -f .godot/global_script_class_cache.cfg
       - name: Parse gate (every script and scene)
         run: |
