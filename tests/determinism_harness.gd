@@ -783,3 +783,28 @@ func _test_camera_clamp() -> int:
 		str(left_ok),
 	])
 	return 0 if ok else 1
+
+
+func _test_visibility_west_corner_wrap() -> int:
+	var segs := [
+		[Vector2(0, 0), Vector2(10, 0)],
+		[Vector2(10, 0), Vector2(10, 10)],
+		[Vector2(10, 10), Vector2(0, 10)],
+		[Vector2(0, 10), Vector2(0, 0)],
+		[Vector2(2, 5), Vector2(2, 2)],
+	]
+	var observer := Vector2(5, 5)
+	var poly := Visibility.compute_polygon(observer, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+	var ok := poly.size() >= 3
+	var vertex_hit := false
+	var graze_t := -1.0
+	for p in poly:
+		if p.distance_to(Vector2(2, 5)) < 0.001:
+			vertex_hit = true
+		if absf(p.x) < 0.001 and absf(p.y - 5.0) < 0.001:
+			graze_t = p.distance_to(observer)
+		if p.x < -0.001 or p.y < -0.001 or p.x > 10.001 or p.y > 10.001:
+			ok = false
+	ok = ok and vertex_hit and absf(graze_t - 5.0) < 0.001
+	print("[HARNESS] visibility_west_corner_wrap %s (poly=%d t=%.4f)" % ["PASS" if ok else "FAIL", poly.size(), graze_t])
+	return 0 if ok else 1
