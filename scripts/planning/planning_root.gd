@@ -20,6 +20,7 @@ var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
 const OPERATIVE_COUNT := 2
+const NODE_BUTTON_PX := 104
 const GREYBOX_SOURCE := "greybox_default"
 
 const ROUTE_HINT := "Hold an operative and draw a route. Tap a route cell to add a go-code wait."
@@ -29,6 +30,9 @@ var spawn_cells: Array[Vector2i] = []
 var plans := {}
 var route_cells := {}
 var _route_waits := {}
+var _route_orders := {}
+var _node_menu: PanelContainer = null
+var _node_buttons: Dictionary = {}
 var _invalid_routes := {}
 var _selected_op := -1
 var _selected_node := RoutePlanner.NO_CELL
@@ -221,6 +225,7 @@ func _setup_hud() -> void:
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_label.text = _planning_hint()
 	_hud_canvas.add_child(_status_label)
+	_build_node_menu(settings)
 	_set_phase_controls(false)
 	squad_hud = SquadHud.new()
 	squad_hud.squads = squads
@@ -228,7 +233,7 @@ func _setup_hud() -> void:
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
-	for c in [_menu_button, _hud, squad_hud, _status_label]:
+	for c in [_menu_button, _hud, squad_hud, _status_label, _node_menu]:
 		(c as Control).theme = _tm.applied_theme
 	_configure_tokens(_tm.palette())
 	_place_hud()
@@ -250,6 +255,9 @@ func _place_hud() -> void:
 		_status_label.size = Vector2(vp.x - margin * 3.0 - 280.0, bar_h)
 	if squad_hud != null:
 		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(vp.x - margin * 2.0, SquadHud.HEIGHT_PX)))
+	if _node_menu != null:
+		_node_menu.position = Vector2(margin, 72.0 + bar_h + margin)
+		_node_menu.size = Vector2(vp.x - margin * 2.0, 0.0)
 
 
 func _go_back() -> void:
@@ -351,6 +359,7 @@ func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
 	plans[op_id] = result["commands"]
 	route_cells[op_id] = cells
 	_route_waits.erase(op_id)
+	_route_orders.erase(op_id)
 	_selected_node = RoutePlanner.NO_CELL
 	squad_hud.touch_operative(op_id)
 	controller.show_route(op_id, RoutePlanner.path_points_px(start, cells))
@@ -403,17 +412,154 @@ func _has_route_node(op_id: int, cell: Vector2i) -> bool:
 
 
 func _show_selected_node() -> void:
+	var summary := node_summary(_selected_op, _selected_node)
+	var detail := "Set orders below or a WAIT code." if summary.is_empty() else summary
+	_set_status("%s · %s · %s" % [squad_hud.callsign(_selected_op), _cell_name(_selected_node), detail])
+	_refresh_node_menu()
+
+
+func node_order(op_id: int, cell: Vector2i) -> Dictionary:
+	var orders: Dictionary = _route_orders.get(op_id, {})
+	return orders.get(cell, {})
+
+
+func node_summary(op_id: int, cell: Vector2i) -> String:
+	var parts := PackedStringArray()
+	var order := node_order(op_id, cell)
+	if order.has("stance"):
+		parts.append(String(order["stance"]).to_upper())
+	if order.has("mode"):
+		parts.append(String(order["mode"]).to_upper())
+	if order.has("fof"):
+		parts.append(_facing_label(int(order["fof"])))
+	var waits: Dictionary = _route_waits.get(op_id, {})
+	if waits.has(cell):
+		parts.append("WAIT " + String(waits[cell]).to_upper())
+	if order.has("action"):
+		parts.append(_action_label(int(order["action"])))
+	return " · ".join(parts)
+
+
+static func _facing_label(bearing: int) -> String:
+	match bearing:
+		-1:
+			return "FACE FREE"
+		0:
+			return "FACE E"
+		90:
+			return "FACE S"
+		180:
+			return "FACE W"
+		270:
+			return "FACE N"
+	return "FACE %d" % bearing
+
+
+static func _action_label(kind: int) -> String:
+	match kind:
+		AgentCommand.ActionKind.FLASHBANG:
+			return "FLASHBANG"
+		AgentCommand.ActionKind.FRAG:
+			return "FRAG"
+		AgentCommand.ActionKind.TEAR_GAS:
+			return "GAS"
+	return "ACTION"
+
+
+func _build_node_menu(settings: Dictionary) -> void:
+	_node_menu = PanelContainer.new()
+	_node_menu.name = "NodeMenu"
+	_node_menu.visible = false
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	_node_menu.add_child(col)
+	var rows := [
+		["STANCE", "stance", [["CAUTIOUS", &"cautious"], ["NORMAL", &"normal"], ["BLITZ", &"blitz"]]],
+		["MODE", "mode", [["ENGAGE", &"engage"], ["ADVANCE", &"advance"], ["ESCORT", &"escort"]]],
+		["ACTION", "action", [["FLASH", AgentCommand.ActionKind.FLASHBANG], ["FRAG", AgentCommand.ActionKind.FRAG], ["GAS", AgentCommand.ActionKind.TEAR_GAS]]],
+		["FACE", "fof", [["N", 270], ["E", 0], ["S", 90], ["W", 180], ["FREE", -1]]],
+	]
+	for row in rows:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		var title := Label.new()
+		title.text = String(row[0])
+		title.custom_minimum_size = Vector2(170, 0)
+		title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		line.add_child(title)
+		for opt in row[2]:
+			var b := UiKit.button(String(opt[0]), _set_node_order.bind(String(row[1]), opt[1]), settings)
+			b.toggle_mode = true
+			b.custom_minimum_size = Vector2(0, NODE_BUTTON_PX)
+			b.name = "Node_%s_%s" % [String(row[1]), String(opt[0])]
+			_node_buttons[b.name] = [String(row[1]), opt[1], b]
+			line.add_child(b)
+		col.add_child(line)
+	var clear_btn := UiKit.button("CLEAR NODE", _clear_node, settings)
+	clear_btn.name = "Node_clear"
+	clear_btn.custom_minimum_size = Vector2(0, NODE_BUTTON_PX)
+	col.add_child(clear_btn)
+	_hud_canvas.add_child(_node_menu)
+
+
+func _set_node_order(key: String, value: Variant) -> void:
+	if SimClock.phase != SimClock.Phase.PLANNING or _result_view != null or _selected_node == RoutePlanner.NO_CELL:
+		return
+	var orders: Dictionary = _route_orders.get(_selected_op, {})
+	var order: Dictionary = orders.get(_selected_node, {})
+	if order.has(key) and order[key] == value:
+		order.erase(key)
+	else:
+		order[key] = value
+	if order.is_empty():
+		orders.erase(_selected_node)
+	else:
+		orders[_selected_node] = order
+	_route_orders[_selected_op] = orders
+	_compile_route(_selected_op)
+	_rebuild_world()
+	_show_selected_node()
+
+
+func _clear_node() -> void:
+	if SimClock.phase != SimClock.Phase.PLANNING or _selected_node == RoutePlanner.NO_CELL:
+		return
+	var orders: Dictionary = _route_orders.get(_selected_op, {})
+	orders.erase(_selected_node)
+	_route_orders[_selected_op] = orders
 	var waits: Dictionary = _route_waits.get(_selected_op, {})
-	var code := String(waits.get(_selected_node, "")).to_upper()
-	var action := "Choose a go-code." if code.is_empty() else "Wait on %s. Tap that code again to clear." % code
-	_set_status("%s · %s · %s" % [squad_hud.callsign(_selected_op), _cell_name(_selected_node), action])
+	waits.erase(_selected_node)
+	_route_waits[_selected_op] = waits
+	_compile_route(_selected_op)
+	_rebuild_world()
+	_show_selected_node()
+
+
+func _refresh_node_menu() -> void:
+	if _node_menu == null:
+		return
+	var menu_open := SimClock.phase == SimClock.Phase.PLANNING and _result_view == null and _selected_node != RoutePlanner.NO_CELL
+	_node_menu.visible = menu_open
+	if not menu_open:
+		return
+	var order := node_order(_selected_op, _selected_node)
+	for key in _node_buttons:
+		var entry: Array = _node_buttons[key]
+		var b: Button = entry[2]
+		b.set_pressed_no_signal(order.has(String(entry[0])) and order[String(entry[0])] == entry[1])
 
 
 func _compile_route(op_id: int) -> void:
 	var cells: Array[Vector2i] = route_cells[op_id]
 	var waits: Dictionary = _route_waits.get(op_id, {})
-	plans[op_id] = RoutePlanner.compile_commands(map, spawn_cells[op_id], cells, waits)
-	controller.show_waits(op_id, waits)
+	var orders: Dictionary = _route_orders.get(op_id, {})
+	plans[op_id] = RoutePlanner.compile_commands(map, spawn_cells[op_id], cells, waits, orders)
+	var marks := {}
+	for cell in waits:
+		marks[cell] = String(waits[cell]).substr(0, 1).to_upper()
+	for cell in orders:
+		marks[cell] = String(marks.get(cell, "")) + "*"
+	controller.show_waits(op_id, marks)
 
 
 static func _cell_name(cell: Vector2i) -> String:
@@ -442,6 +588,7 @@ func _set_phase_controls(executing: bool) -> void:
 			b.text = ("SEND " if executing else "WAIT ") + "ABCD".substr(i, 1)
 	if controller != null:
 		controller.routing_enabled = not executing and not result_visible
+	_refresh_node_menu()
 
 
 func _set_status(msg: String) -> void:
