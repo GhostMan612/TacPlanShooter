@@ -137,7 +137,25 @@ Target files:
 - CREATE: `scenes/map_editor.tscn`
 - MODIFY: `scripts/ui/title_screen.gd` (add `MAP EDITOR` menu button)
 - CREATE: `tests/map_editor_harness.gd`
-- 
+
+## PHASE L — AAA-Grade Tactical CPU & GOAP Squad AI (+ CI _init() Fix)
+Spec: `blueprints/AAA-TACTICAL-AI-CPU-SPEC.md`
+Target files:
+- MODIFY: `tests/determinism_harness.gd` (ensure `func _init() -> void:` invokes `_initialize()` cleanly under Godot 4.0.4 Linux `--script`)
+- MODIFY: `tests/meta_progression_harness.gd` (ensure `func _init() -> void:` invokes `_initialize()` cleanly under Godot 4.0.4 Linux `--script`)
+- MODIFY: `tests/ui_polish_audit.gd` (ensure `func _init() -> void:` invokes `_initialize()` cleanly under Godot 4.0.4 Linux `--script`)
+- MODIFY: `tests/map_validation_harness.gd` (ensure `func _init() -> void:` invokes `_initialize()` cleanly under Godot 4.0.4 Linux `--script`)
+- MODIFY: `tests/ui_audio_smoke.gd` (ensure `func _init() -> void:` invokes `_initialize()` cleanly under Godot 4.0.4 Linux `--script`)
+- MODIFY: `tests/map_editor_harness.gd` (ensure `func _init() -> void:` invokes `_initialize()` cleanly under Godot 4.0.4 Linux `--script`)
+- CREATE: `scripts/sim/ai/influence_map.gd`
+- CREATE: `scripts/sim/ai/goap_actions.gd`
+- CREATE: `scripts/sim/ai/goap_planner.gd`
+- CREATE: `scripts/sim/ai/squad_tactics.gd`
+- CREATE: `scripts/sim/ai/cpu_commander.gd`
+- MODIFY: `scripts/sim/ai/enemy_ai.gd`
+- MODIFY: `scripts/sim/sim_world.gd`
+- CREATE: `tests/aaa_ai_harness.gd`
+  
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
