@@ -36,19 +36,22 @@ replay scrubbing to iterate.
 ├── tests\                ← SceneTree harnesses & probes
 ├── android\              ← gitignored Gradle template (Route B currently blocked)
 ├── docs\                 ← BUILD-IN-ANDROID-STUDIO.md + supporting documentation
-├── blueprints\           ← governance + engineering canon (gitignored by design)
+├── blueprints\           ← governance + engineering canon
 │   ├── SESSION_HANDOFF.md          ← cold start entry point
 │   ├── Tactical Android Game Development.rtf   ← THE source document
 │   └── blueprint-sections\         ← BP-01 … BP-10 engineering specs
 └── _archive\             ← retired material
 ```
 
-## Build & test (human-owned)
+## Android build and test
 
-Godot 4.x (Compatibility renderer) authors the project; Android debug APKs are exported via
-Route A (direct Godot export) per `docs\BUILD-IN-ANDROID-STUDIO.md` (Route B Android Studio
-Gradle builds are currently blocked on JDK/SDK template version alignment). Agents code and verify
-parse-cleanliness only — see `RULES.md` §2.
+Use the [Android build guide](docs/BUILD-IN-ANDROID-STUDIO.md) to export a debug APK directly from
+Godot. The [sample export preset](export_presets.cfg.example) includes the campaign maps and keeps
+signing settings local. Android Studio Gradle builds require the JDK and SDK components pinned by
+the generated template.
+
+The [code audit](docs/TacPlanShooter_Code_Audit_77c064b.md) records findings and Android export
+evidence for commit `77c064b`.
 
 ## Status
 
