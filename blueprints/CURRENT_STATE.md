@@ -56,7 +56,7 @@
 | **Deterministic sim core** | 🟢 14/14 harness PASS; zero-tick instants, move carry, strengthened hash, CP-050/051 execution adherence, CP-040 stances, CP-042 tactical actions, CP-043 FoF override | CP-044 (radial menu); M6 fog (CP-060/061) |
 | **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + per-op lines + clamped camera + resize wired | CP-030 feel verdict = USER device test |
 | **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 slice 1: `GridPathfinder` A* movement + adherence + collision-halt + wall/door/bounds + action range; `PlanningRoot` Execute/Go-Code Alpha/Reset HUD + live token sync | CP-050/051/052 ✅ PASS; next: M5 remainder, then M4 stances/actions/FoF |
-| Visibility/fog (M6/BP-06) | 🟢 CP-060 ✅ + CP-061 ✅ (FogLayer v2: SubViewport live/memory masks + shader composite; WCW PASS) | Phase A complete — M7 mission loop (CP-070/071) |
+| Visibility/fog (M6/BP-06) | 🟢 CP-060 ✅ + CP-061 ✅ (FogLayer v2: SubViewport live/memory masks; Phase A2: UPDATE_ONCE + fog_mask.gdshader; WCW PASS) + Phase J (ThemeManager v2, MapRenderer coords+zones, SquadHud Control, PlanBoard palette) | Phase A–J complete — M7 mission loop (CP-070/071) |
 | Enemy AI / mission loop (M7/BP-09) | ⬜ not started | execution sim wiring |
 | Audio pass (M9/BP-08) | ⬜ not started | content |
 | **Android export track (M10/BP-10)** | 🟡 Route A READY · Route B BLOCKED | USER Route A APK export + CP-101 boot; Route B blocked by Godot 4.0 template (Gradle 7.4/AGP 7.2.1/API 32/Java 11) vs local JDK 25 & SDK 24/31/33–37 |

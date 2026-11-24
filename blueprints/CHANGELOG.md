@@ -3,7 +3,29 @@ Newest first. One entry per work session.
 
 ---
 
-## Session 10 — 2026-11-23 — M6 remediation (WO-N64-R6-AND-M6-REMEDIATION Phase A)
+## Session 11 — 2026-11-23 — M6 WO completion (Phases A2, J, J2)
+
+### Phase A2 — Re-Audit fixes (WO-N64-R6-AND-M6-REMEDIATION)
+- `FogLayer` v2: `live_vp`/`memory_vp` `UPDATE_ONCE` (triggered on change), `fog_mask.gdshader` (live > 0.5 → alpha 0; memory → 50% fog), `mark_visible()` renders full visibility polygons into `memory_vp`.
+- `LockstepSession`: `peer.poll()` inside `poll()`, `ticks_since_sync` every tick, `LOCKSTEP_INPUT_DELAY_TICKS` on queued inputs.
+- `acoustic_bus.gd` → `tactical_audio.gd` (sim kept pure); `planning_root.gd` `queue_redraw()` on acoustic rings.
+
+### Phase J — MIL-STD C4I UI/UX & RTS-RPG (N64-R6-MILSTD-UI-UX-RTS-RPG-SPEC)
+- `ThemeManager` v2: real `Theme` + `StyleBoxFlat`, `theme_changed(palette)`, `applied_theme`; 3 palettes (Dark Tactical/Light Blueprint/Night-Ops).
+- `MapRenderer`: MGRS-style coords (columns A–Z, row labels 01–99) + zone overlays.
+- `SquadHud`: screen-space `Control` (was a Node2D stub).
+- `PlanBoard`: N64 squad palette (red/blue/green/gold).
+- `OperativeToken` v2: MIL-STD symbology + LKP ghost dot (`set_lkp`).
+- `ExecutionHud`: health dots (green/yellow/red).
+- `RosterRolesScreen` v2 + `ArmoryScreen` v2 (bar graphs / slot cards).
+- `tests/ui_polish_audit.gd` — audit (theme_apply, squad_hud_control, map_renderer: PASS).
+
+### Finalization
+- Pull synced (remote main = 6e512cd); boot smoke + editor clean.
+
+---
+
+## Session 10 - 2026-11-23 - M6 remediation (WO-N64-R6-AND-M6-REMEDIATION Phase A)
 
 ### Fog render (CP-061)
 - `FogLayer` (`scripts/planning/fog_layer.gd`) redesigned per WO Phase A: two offscreen `SubViewport` masks — `live_vp` (`CLEAR_MODE_ALWAYS`; white `Polygon2D` shapes of visible operative polygons) + `memory_vp` (`CLEAR_MODE_NEVER`) — composited by a full-map `ColorRect` with `fog_mask.gdshader` (live > 0.5 → alpha 0; memory > 0.5 → 0.50 fog; unseen → 0.85 fog); per-cell `Polygon2D` churn + `_map_cells()` CPU loops removed.

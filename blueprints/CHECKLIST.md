@@ -62,8 +62,9 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Rotational sweep-line visibility polygon: 3 rays/vertex, T1>0 ∧ 0<T2<1, angular sort (CP-060 — verified: segments=180, poly=720)
 - ✅ Rotational sweep-line visibility polygon: 3 rays/vertex, T1>0 ∧ 0<T2<1, angular sort (CP-060 — verified: segments=180, poly=720)
 - ✅ Phase A (WO-N64-R6-AND-M6-REMEDIATION): FogLayer SubViewport masks (fog2 probe PASS: live=1, memory=1, poly_contains=true, reset=0); Visibility wrapf + endpoint tolerance (WCW PASS: poly=900 t=80.3990); HUD CanvasLayer + Alpha/Bravo/Charlie/Delta wired; Zero-Artifact CI (`.github/workflows/headless-ci.yml`)
-- ⬜ Visited-memory additive buffer @50% opacity
-- ⬜ Perf budget: polygon recompute cost within frame on mid-range Android profile
+- ✅ Visited-memory additive buffer @50% opacity (mark_visible → memory_vp, Phase A2)
+- ✅ Phase J: ThemeManager v2 (real Theme + StyleBoxFlat, theme_changed, applied_theme), MapRenderer MGRS coords (A–Z, 01–99) + zone overlays, SquadHud screen-space Control, PlanBoard N64 squad palette (red/blue/green/gold), OperativeToken MIL-STD symbology + LKP ghost dot, ExecutionHud health dots, RosterRolesScreen + ArmoryScreen, `ui_polish_audit` PASS
+- ✅ Perf budget: polygon recompute cost within frame on mid-range Android profile (UPDATE_ONCE + Polygon2D shapes)
 
 ## M7 — Enemy AI & mission loop (BP-09)
 - ⬜ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
