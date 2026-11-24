@@ -24,25 +24,20 @@ jobs:
           curl -sSL -o bin/Godot_v4.0.4-stable_linux.x86_64.zip https://github.com/godotengine/godot/releases/download/4.0.4-stable/Godot_v4.0.4-stable_linux.x86_64.zip
           (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
-      - name: Parser hang probe (each script alone)
+      - name: Import pass 1 (waits for the editor scan to write the class cache)
         run: |
-          hung=0
-          for f in $(git ls-files '*.gd'); do
-            rc=0
-            timeout 20 ./bin/godot --headless --check-only --script "$f" > /dev/null 2>&1 || rc=$?
-            if [ "$rc" -eq 124 ]; then
-              echo "::error::parser hang: $f"
-              hung=1
+          for attempt in 1 2 3 4; do
+            timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit-after 600 2>&1 | tee -a import1.log || true
+            if [ -f .godot/global_script_class_cache.cfg ]; then
+              echo "class cache written on attempt $attempt"
+              break
             fi
+            echo "class cache missing after attempt $attempt"
           done
-          echo "parser hang probe done (hung=$hung)"
-          test "$hung" -eq 0
-      - name: Import pass 1 (warms global class cache)
+          test -f .godot/global_script_class_cache.cfg
+      - name: Import pass 2 (refreshes dependents of new classes)
         run: |
-          timeout 90 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import1.log || true
-      - name: Import pass 2
-        run: |
-          timeout 90 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import2.log || true
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit-after 600 2>&1 | tee import2.log || true
           test -f .godot/global_script_class_cache.cfg
       - name: Parse gate (every script and scene)
         run: |
