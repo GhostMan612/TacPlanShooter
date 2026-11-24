@@ -630,8 +630,8 @@ func _test_ai_no_wallhack_lkp() -> int:
 func _test_ai_acoustic_wall_attenuation() -> int:
 	var b := ThreatBlackboard.new()
 	var ok := b.hearing_attenuation(0) == 0.0
-	ok = ok and b.hearing_attenuation(1) == -0.35
-	ok = ok and b.hearing_attenuation(3) == -1.05
+	ok = ok and is_equal_approx(b.hearing_attenuation(1), -0.35)
+	ok = ok and is_equal_approx(b.hearing_attenuation(3), -1.05)
 	print("[HARNESS] ai_acoustic_wall_attenuation %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -704,7 +704,7 @@ func _test_ai_determinism_replay() -> int:
 func _test_visibility_sweepline_ioi() -> int:
 	var map := GreyboxMap.build_default()
 	var segs := map.get_wall_segments()
-	var observer := Vector2(2.5 * 16.0, 2.5 * 16.0)
+	var observer := Vector2(2.5, 2.5)
 	var poly := Visibility.compute_polygon(observer, segs, 0.00001)
 	var ok := poly.size() >= 3
 	var n_rays := 1440
