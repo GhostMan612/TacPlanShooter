@@ -441,28 +441,26 @@ func node_summary(op_id: int, cell: Vector2i) -> String:
 
 
 static func _facing_label(bearing: int) -> String:
-	match bearing:
-		-1:
-			return "FACE FREE"
-		0:
-			return "FACE E"
-		90:
-			return "FACE S"
-		180:
-			return "FACE W"
-		270:
-			return "FACE N"
+	if bearing < 0:
+		return "FACE FREE"
+	if bearing == 0:
+		return "FACE E"
+	if bearing == 90:
+		return "FACE S"
+	if bearing == 180:
+		return "FACE W"
+	if bearing == 270:
+		return "FACE N"
 	return "FACE %d" % bearing
 
 
 static func _action_label(kind: int) -> String:
-	match kind:
-		AgentCommand.ActionKind.FLASHBANG:
-			return "FLASHBANG"
-		AgentCommand.ActionKind.FRAG:
-			return "FRAG"
-		AgentCommand.ActionKind.TEAR_GAS:
-			return "GAS"
+	if kind == int(AgentCommand.ActionKind.FLASHBANG):
+		return "FLASHBANG"
+	if kind == int(AgentCommand.ActionKind.FRAG):
+		return "FRAG"
+	if kind == int(AgentCommand.ActionKind.TEAR_GAS):
+		return "GAS"
 	return "ACTION"
 
 

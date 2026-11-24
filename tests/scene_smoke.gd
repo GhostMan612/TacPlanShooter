@@ -182,10 +182,12 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_inspect_node_orders(pr)
 
 
-func _plan_has(pr: PlanningRoot, op_id: int, kind: int, check: Callable) -> bool:
+func _plan_has(pr: PlanningRoot, op_id: int, kind: int, field: String = "", value: Variant = null) -> bool:
 	for c in pr.plans.get(op_id, []):
 		var cmd: AgentCommand = c
-		if int(cmd.command_type) == kind and check.call(cmd):
+		if int(cmd.command_type) != kind:
+			continue
+		if field == "" or cmd.get(field) == value:
 			return true
 	return false
 
@@ -200,13 +202,13 @@ func _inspect_node_orders(pr: PlanningRoot) -> void:
 	pr._on_route_node_tapped(node)
 	_check(pr._node_menu.visible and pr._selected_node == node, "tapping a waypoint opens the command node menu")
 	pr._set_node_order("stance", &"blitz")
-	_check(_plan_has(pr, 0, AgentCommand.CommandType.SET_STANCE, func(c): return c.stance_name == &"blitz"), "stance order compiles into the plan")
+	_check(_plan_has(pr, 0, AgentCommand.CommandType.SET_STANCE, "stance_name", &"blitz"), "stance order compiles into the plan")
 	var blitz_btn: Button = pr._node_menu.find_child("Node_stance_BLITZ", true, false)
 	_check(blitz_btn != null and blitz_btn.button_pressed, "active stance shows as pressed")
 	pr._set_node_order("action", AgentCommand.ActionKind.FLASHBANG)
-	_check(_plan_has(pr, 0, AgentCommand.CommandType.PERFORM_ACTION, func(c): return int(c.action_kind) == int(AgentCommand.ActionKind.FLASHBANG)), "action order compiles into the plan")
+	_check(_plan_has(pr, 0, AgentCommand.CommandType.PERFORM_ACTION, "action_kind", AgentCommand.ActionKind.FLASHBANG), "action order compiles into the plan")
 	pr._set_node_order("fof", 90)
-	_check(_plan_has(pr, 0, AgentCommand.CommandType.SET_FIELD_OF_FIRE, func(c): return c.bearing_deg == 90), "facing order compiles into the plan")
+	_check(_plan_has(pr, 0, AgentCommand.CommandType.SET_FIELD_OF_FIRE, "bearing_deg", 90), "facing order compiles into the plan")
 	_check(pr.node_summary(0, node).contains("BLITZ") and pr.node_summary(0, node).contains("FLASHBANG"), "status summarises the node orders")
 	var line := pr.controller.route_line(0)
 	var marked := false
@@ -215,9 +217,9 @@ func _inspect_node_orders(pr: PlanningRoot) -> void:
 			marked = true
 	_check(marked, "route shows a marker on the ordered node")
 	pr._set_node_order("stance", &"blitz")
-	_check(not _plan_has(pr, 0, AgentCommand.CommandType.SET_STANCE, func(c): return true), "tapping the active stance again removes it")
+	_check(not _plan_has(pr, 0, AgentCommand.CommandType.SET_STANCE), "tapping the active stance again removes it")
 	pr._clear_node()
-	_check(pr.node_order(0, node).is_empty() and not _plan_has(pr, 0, AgentCommand.CommandType.PERFORM_ACTION, func(c): return int(c.action_kind) == int(AgentCommand.ActionKind.FLASHBANG)), "clear node removes every order")
+	_check(pr.node_order(0, node).is_empty() and not _plan_has(pr, 0, AgentCommand.CommandType.PERFORM_ACTION, "action_kind", AgentCommand.ActionKind.FLASHBANG), "clear node removes every order")
 	pr._set_node_order("mode", &"advance")
 	pr._on_execute_pressed()
 	_check(SimClock.phase == SimClock.Phase.EXECUTION and not pr._node_menu.visible, "node menu closes when execution starts")
