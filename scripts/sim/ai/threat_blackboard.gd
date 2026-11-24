@@ -8,6 +8,8 @@ extends RefCounted
 
 const FOCAL_ANGLE := 35.0
 const PERIPHERAL_ANGLE := 75.0
+const FOCAL_MAX_RANGE := 100.0
+const PERIPHERAL_RANGE_MULT := 0.6
 
 
 enum Alert { UNAWARE, ALERTED, COMBAT }
@@ -59,3 +61,22 @@ func target_of(ai_id: int) -> int:
 
 func hearing_attenuation(walls: int) -> float:
 	return -0.35 * float(walls)
+
+
+func cone_visible(observer: Vector2, target: Vector2, facing_deg: float, focal: bool, segs: Array) -> bool:
+	var d := target - observer
+	if d.length_squared() < 0.0001:
+		return true
+	var dist := d.length()
+	var rel := wrapf(atan2(d.y, d.x) - facing_deg * PI / 180.0, -PI, PI)
+	var limit := FOCAL_ANGLE if focal else PERIPHERAL_ANGLE
+	if abs(rel) > limit * PI / 180.0:
+		return false
+	if focal and dist > FOCAL_MAX_RANGE:
+		return false
+	if not focal and dist > FOCAL_MAX_RANGE * PERIPHERAL_RANGE_MULT:
+		return false
+	for s in segs:
+		if Visibility._ray_hit_t(observer, d, s[0], s[1]) > 0.000001:
+			return false
+	return true

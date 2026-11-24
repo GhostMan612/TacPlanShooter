@@ -94,6 +94,7 @@ func issue_go_code(code: StringName) -> void:
 func step() -> void:
 	tick += 1
 	ai.step_all()
+	ai.update_threats(self)
 	if tapin_player_cooldown > 0:
 		tapin_player_cooldown -= 1
 	_tick_down_tapin()

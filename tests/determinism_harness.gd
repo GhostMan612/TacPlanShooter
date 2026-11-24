@@ -41,6 +41,7 @@ func _initialize() -> void:
 	failures += _test_ai_threat_weighted_flank()
 	failures += _test_ai_flashbang_morale_stun()
 	failures += _test_ai_lkp_freeze()
+	failures += _test_ai_cone_vision()
 	failures += _test_ai_hostage_lof_safety()
 	failures += _test_ai_determinism_replay()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
@@ -592,6 +593,17 @@ func _test_vehicles() -> int:
 	w.vehicles.append(v)
 	var ok := w.vehicles.size() == 1 and v.type == SimVehicle.Type.RAID_VAN
 	print("[HARNESS] vehicles %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_cone_vision() -> int:
+	var b := ThreatBlackboard.new()
+	var segs := GreyboxMap.build_default().get_wall_segments()
+	var ok := b.cone_visible(Vector2(80.0, 80.0), Vector2(96.0, 80.0), 0.0, true, segs)
+	ok = ok and b.cone_visible(Vector2(80.0, 80.0), Vector2(96.0, 80.0), -90.0, false, segs) == false
+	ok = ok and b.cone_visible(Vector2(80.0, 80.0), Vector2(96.0, 80.0), 0.0, false, segs)
+	ok = ok and not b.cone_visible(Vector2(80.0, 80.0), Vector2(500.0, 80.0), 0.0, true, segs)
+	print("[HARNESS] ai_cone_vision %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
 
