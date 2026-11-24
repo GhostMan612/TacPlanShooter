@@ -7,6 +7,7 @@ extends Node
 
 
 const PORT: int = 7600
+const HASH_SYNC_EVERY: int = 60
 
 
 var peer: ENetMultiplayerPeer = null
@@ -14,6 +15,7 @@ var local_faction_id: int = 0
 var pending_inputs: Array = []
 var last_sync_hash: String = ""
 var session_active := false
+var ticks_since_sync := 0
 
 
 func host(faction_id: int) -> void:
@@ -57,6 +59,23 @@ func process_tick(world: SimWorld) -> void:
 		oc.use_slot = bool(inp["use_slot"])
 		world.apply_override(oc)
 	pending_inputs.clear()
+	ticks_since_sync += 1
+	if ticks_since_sync >= HASH_SYNC_EVERY:
+		ticks_since_sync = 0
+		sync_tick_hash(world.state_hash())
+
+
+func poll() -> void:
+	if not session_active or peer == null:
+		return
+	while peer.get_available_packet_count() > 0:
+		var data := peer.get_packet()
+		if peer.get_packet_peer() == null or data.size() == 0:
+			continue
+		var inp := JSON.parse_string(data.get_string_from_ascii())
+		if inp == null:
+			continue
+		pending_inputs.append(inp)
 
 
 func sync_tick_hash(hash: String) -> void:
