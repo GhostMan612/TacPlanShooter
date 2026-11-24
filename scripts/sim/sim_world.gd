@@ -91,6 +91,10 @@ func issue_go_code(code: StringName) -> void:
 	journal.append({"t": tick, "ev": &"go_issued", "code": String(code)})
 
 
+func heartbeat_radius_of(o: SimOperative) -> int:
+	return int(o.heartbeat_radius)
+
+
 func step() -> void:
 	tick += 1
 	ai.step_all()

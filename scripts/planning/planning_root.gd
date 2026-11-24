@@ -13,6 +13,7 @@ var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
+var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
 var _hud := Control.new()
@@ -42,6 +43,8 @@ func _ready() -> void:
 	fog.setup(map)
 	add_child(fog)
 	fog.visible = false
+	prep_flow = MissionPrepFlow.new()
+	add_child(prep_flow)
 	for spec in [[0, Vector2i(2, 2)], [1, Vector2i(13, 2)]]:
 		var token := OperativeToken.new(int(spec[0]))
 		token.position = GridUtil.cell_center_px(Vector2i(spec[1]))
