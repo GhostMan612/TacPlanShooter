@@ -33,7 +33,9 @@ func damage_for(caliber: StringName, armor: StringName) -> int:
 	for c in CALIBERS:
 		if c["name"] == caliber:
 			pen = int(c["pen"])
-	return max(pen - int(ARMOR_TABLE.get(armor, 0)), 0)
+	if pen <= 0:
+		return 0
+	return max(pen - int(ARMOR_TABLE.get(armor, 0)), 1)
 
 
 func apply_suppression(op_id: int, ticks: int) -> void:

@@ -581,6 +581,7 @@ func _test_ballistics() -> int:
 	ok = ok and b.damage_for(&"7.62", &"light_iia") == 7
 	ok = ok and b.damage_for(&"9mm", &"medium_ii") == 1
 	ok = ok and b.damage_for(&"5.56", &"shield") == 3
+	ok = ok and b.damage_for(&"unknown", &"light_iia") == 0
 	print("[HARNESS] ballistics %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
