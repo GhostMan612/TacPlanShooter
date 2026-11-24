@@ -117,13 +117,56 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_check(queued >= 1, "drawn route reaches the sim queue (%d commands)" % queued)
 	var line := pr.controller.route_line(0)
 	_check(line != null and line.points.size() == queued + 1, "committed route line matches the executable cells")
+	var tok: OperativeToken = pr.controller.tokens[0]
+	_check(tok.callsign == pr.squad_hud.callsign(0) and tok.callsign != "" and tok.squad_color == PlanBoard.squad_color(pr.squad_hud.squad_of(0)), "token shows squad colour and callsign %s" % tok.callsign)
+	_check(not pr.fog.active and not pr.fog.visible, "fog hidden while planning")
 	pr._on_execute_pressed()
 	_check(SimClock.phase == SimClock.Phase.EXECUTION and not pr._alpha_button.disabled and not pr.controller.routing_enabled, "execute unlocks go-codes and locks routing")
+	var rebuilds_at_exec := pr.fog_segment_rebuilds
+	var computes_at_exec := pr.fog_poly_computes
 	pr._on_alpha_pressed()
 	for i in range(40):
 		await get_tree().physics_frame
 	_check(pr.world.tick > 0 and GridUtil.cell_of(pr.world.operatives[0].pos) != start, "operative moves along the drawn route")
 	_check(pr.world.go_codes_issued.has(&"alpha"), "go-code button reaches the sim via the tick stream")
+	_check(pr.fog.active and pr.fog.visible and pr.fog.shape_count() == 2, "fog buffer active with one sight shape per friendly (%d)" % pr.fog.shape_count())
+	_check(pr.fog.pool_size() == 4, "fog reuses a fixed polygon pool (%d)" % pr.fog.pool_size())
+	_check(pr.fog_segment_rebuilds == rebuilds_at_exec, "wall segments cached while doors are unchanged")
+	var computes := pr.fog_poly_computes - computes_at_exec
+	_check(computes > 0 and computes <= 41, "sight polygons cached for stationary operatives (%d computes in 40 ticks)" % computes)
+	var op0 := pr.world.operatives[0]
+	_check(tok.position.distance_to(op0.pos * float(SimConstants.GRID_CELL_SIZE_PX)) < 0.001, "token tracks the exact sim position")
 	pr._on_reset_pressed()
 	_check(SimClock.phase == SimClock.Phase.PLANNING and pr.world.tick == 0, "reset returns to planning")
 	_check(GridUtil.cell_of(pr.world.operatives[0].pos) == start and pr.world.operatives[0].queue.commands.size() == queued, "reset keeps the route and restores the spawn")
+	_check(not pr.fog.active and pr.overlay.contacts.is_empty(), "reset hides fog and clears contacts")
+	_inspect_hostiles(pr)
+	_probe_fog_perf(pr)
+
+
+func _inspect_hostiles(pr: PlanningRoot) -> void:
+	var none: Array[AgentCommand] = []
+	pr.world.add_operative(9, Vector2i(3, 3), none)
+	var hostile: SimOperative = pr.world.operatives[pr.world.operatives.size() - 1]
+	hostile.faction_id = 1
+	pr._update_fog()
+	_check(pr.overlay.visible_contacts().has(9), "hostile in line of sight is a live contact")
+	_check(pr.squad_hud.card_count() == 2, "hostiles never appear in the squad HUD")
+	hostile.pos = Vector2(7.5, 5.5)
+	pr._update_fog()
+	_check(pr.overlay.lkp_contacts().has(9) and not pr.overlay.visible_contacts().has(9), "hostile behind a wall becomes a last-known-position ghost")
+	var lkp: Vector2 = pr.overlay.contacts[9]["pos"]
+	_check(lkp.distance_to(Vector2(3.5, 3.5)) < 0.001, "LKP keeps the last seen position, not the true one")
+	pr._on_reset_pressed()
+	_check(pr.overlay.contacts.is_empty() and pr.world.operatives.size() == 2, "reset clears injected hostile and contacts")
+
+
+func _probe_fog_perf(pr: PlanningRoot) -> void:
+	var runs := 120
+	var t0 := Time.get_ticks_usec()
+	for i in range(runs):
+		pr._sight_cache.clear()
+		pr._update_fog()
+	var avg_us := float(Time.get_ticks_usec() - t0) / float(runs)
+	print("[SMOKE] perf fog_update uncached avg_us=%.1f segs=%d" % [avg_us, pr._segs.size()])
+	_check(avg_us < 8000.0, "uncached fog update under 8 ms on CI (%.0f us)" % avg_us)

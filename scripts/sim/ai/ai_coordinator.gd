@@ -32,7 +32,7 @@ func update_threats(world: SimWorld) -> void:
 		if op == null:
 			continue
 		var seen := false
-		for t in world.operates:
+		for t in world.operatives:
 			if not t.is_alive():
 				continue
 			if blackboard.cone_visible(op.pos, t.pos, op.facing_deg, true, segs):
@@ -54,7 +54,7 @@ func acoustic_rings() -> Array:
 
 
 func _ai_op(world: SimWorld, ai_id: int) -> SimOperative:
-	for o in world.operates:
+	for o in world.operatives:
 		if o.id == ai_id:
 			return o
 	return null

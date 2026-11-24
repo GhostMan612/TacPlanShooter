@@ -15,6 +15,12 @@ var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
+var overlay: TacticalOverlay = null
+var fog_segment_rebuilds := 0
+var fog_poly_computes := 0
+var _segs: Array = []
+var _segs_sig := ""
+var _sight_cache := {}
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
@@ -58,8 +64,13 @@ func _ready() -> void:
 	add_child(renderer)
 	fog = FogLayer.new()
 	fog.setup(map)
+	fog.apply_palette(_tm.palette())
 	add_child(fog)
-	fog.visible = false
+	overlay = TacticalOverlay.new()
+	overlay.local_faction_id = local_faction_id
+	overlay.z_index = 2
+	overlay.apply_palette(_tm.palette())
+	add_child(overlay)
 	prep_flow = MissionPrepFlow.new()
 	add_child(prep_flow)
 	spawn_cells = spawn_cells_for(map, map_source == GREYBOX_SOURCE, OPERATIVE_COUNT)
@@ -132,53 +143,72 @@ func _physics_process(_delta: float) -> void:
 		_maybe_aar()
 
 
-func _draw() -> void:
-	queue_redraw()
-	if world == null or map == null:
-		return
-	var ticks := int(world.tick)
-	for ring in world.ai.acoustic_rings():
-		var age := ticks - int(ring["tick"])
-		if age > 24:
-			continue
-		var center := GridUtil.cell_center_px(ring["cell"])
-		var a := 1.0 - (float(age) / 24.0)
-		draw_circle(center, 20.0 + a * 10.0, Color(1.0, 0.7, 0.0, a * 0.8))
-		draw_circle(center, 38.0, Color(1.0, 0.4, 0.0, a * 0.5))
-
-
 func _sync_tokens() -> void:
 	if world == null or controller == null:
 		return
+	var s := float(SimConstants.GRID_CELL_SIZE_PX)
 	for o in world.operatives:
 		for token in controller.tokens:
 			if token.op_id == o.id:
-				token.position = GridUtil.cell_center_px(GridUtil.cell_of(o.pos))
+				token.sync_from(o, o.pos * s)
+
+
+func _door_signature() -> String:
+	var parts := PackedStringArray()
+	for k in map.door_cells.keys():
+		parts.append("%d,%d=%s" % [int(k.x), int(k.y), "1" if bool(map.door_open.get(k, false)) else "0"])
+	return ";".join(parts) + "|%d" % map.solid_cells.size()
+
+
+func _wall_segments() -> Array:
+	var sig := _door_signature()
+	if sig != _segs_sig:
+		_segs = map.get_wall_segments()
+		_segs_sig = sig
+		_sight_cache.clear()
+		fog_segment_rebuilds += 1
+	return _segs
+
+
+func _sight(key: int, pos: Vector2, segs: Array) -> Dictionary:
+	var pos_key := "%.6f,%.6f" % [pos.x, pos.y]
+	if _sight_cache.has(key):
+		var cached: Dictionary = _sight_cache[key]
+		if String(cached["key"]) == pos_key:
+			return cached
+	var poly := Visibility.compute_polygon(pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+	fog_poly_computes += 1
+	var entry := {"key": pos_key, "cells": poly, "px": _cells_to_px(poly)}
+	_sight_cache[key] = entry
+	return entry
 
 
 func _update_fog() -> void:
 	if fog == null or map == null or world == null:
 		return
-	fog.visible = true
-	var segs := map.get_wall_segments()
-	var live_polys := []
+	var segs := _wall_segments()
+	var cell_polys := []
+	var px_polys := []
 	for o in world.operatives:
 		if o.faction_id != local_faction_id or not o.is_alive():
 			continue
-		var poly := Visibility.compute_polygon(o.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+		var sight := _sight(o.id, o.pos, segs)
+		var poly: PackedVector2Array = sight["cells"]
 		if poly.size() >= 3:
-			var px_poly := _cells_to_px(poly)
-			live_polys.append(px_poly)
-			fog.mark_visible(px_poly)
-	for d in world.drones:
+			cell_polys.append(poly)
+			px_polys.append(sight["px"])
+	for i in range(world.drones.size()):
+		var d: SimDrone = world.drones[i]
 		if d.destroyed:
 			continue
-		var dpoly := Visibility.compute_polygon(d.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+		var dsight := _sight(-1 - i, d.pos, segs)
+		var dpoly: PackedVector2Array = dsight["cells"]
 		if dpoly.size() >= 3:
-			var px_dpoly := _cells_to_px(dpoly)
-			live_polys.append(px_dpoly)
-			fog.mark_visible(px_dpoly)
-	fog.rebuild(live_polys)
+			cell_polys.append(dpoly)
+			px_polys.append(dsight["px"])
+	fog.update_polys(px_polys)
+	if overlay != null:
+		overlay.update_contacts(world, cell_polys)
 
 
 static func _cells_to_px(poly: PackedVector2Array) -> PackedVector2Array:
@@ -197,6 +227,11 @@ func _apply_theme() -> void:
 func _on_theme_changed(pal: Dictionary) -> void:
 	if renderer != null:
 		renderer.apply_palette(pal)
+	if fog != null:
+		fog.apply_palette(pal)
+	if overlay != null:
+		overlay.apply_palette(pal)
+	_configure_tokens(pal)
 	if squad_hud != null:
 		squad_hud.apply_palette(pal)
 
@@ -237,6 +272,9 @@ func _setup_hud() -> void:
 	squad_hud.refresh(world)
 	for c in [_menu_button, _hud, squad_hud, _status_label]:
 		(c as Control).theme = _tm.applied_theme
+	squad_hud.operative_selected.connect(_on_operative_selected)
+	_configure_tokens(_tm.palette())
+	_sync_tokens()
 	_place_hud()
 
 
@@ -281,6 +319,9 @@ func _on_execute_pressed() -> void:
 	_pending_go_codes.clear()
 	SimClock.start_execution()
 	_set_phase_controls(true)
+	fog.reset_fog()
+	fog.set_active(true)
+	_update_fog()
 	var routed := 0
 	for k in plans.keys():
 		if not (plans[k] as Array).is_empty():
@@ -320,7 +361,8 @@ func _on_reset_pressed() -> void:
 	_rebuild_world()
 	_set_phase_controls(false)
 	fog.reset_fog()
-	fog.visible = false
+	if overlay != null:
+		overlay.reset()
 	_set_status(ROUTE_HINT if plans.is_empty() else "RESET: routes kept, ready to execute")
 
 
@@ -341,6 +383,25 @@ func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
 		_set_status("%s ROUTE BLOCKED AT %s%02d (%d cells kept)" % [who, MapRenderer.col_letter(blocked.x), blocked.y + 1, cells.size()])
 	else:
 		_set_status("%s ROUTE SET: %d cells" % [who, cells.size()])
+
+
+func _configure_tokens(pal: Dictionary) -> void:
+	if controller == null:
+		return
+	var ink: Color = pal.get("ink", Color(0.9, 0.92, 0.95))
+	for token in controller.tokens:
+		var squad := SquadConfig.SQUADS[token.op_id % SquadConfig.SQUADS.size()]
+		if squad_hud != null:
+			squad = squad_hud.squad_of(token.op_id)
+		var sign_text := squad_hud.callsign(token.op_id) if squad_hud != null else ""
+		token.configure(PlanBoard.squad_color(squad), sign_text, ink)
+
+
+func _on_operative_selected(op_id: int) -> void:
+	if controller == null:
+		return
+	for token in controller.tokens:
+		token.set_selected(token.op_id == op_id)
 
 
 func _rebuild_world() -> void:
@@ -369,12 +430,16 @@ func _set_status(msg: String) -> void:
 func _maybe_aar() -> void:
 	if world == null or world.operatives.is_empty():
 		return
+	var friendlies := 0
 	var all_down := true
 	for o in world.operatives:
+		if o.faction_id != local_faction_id:
+			continue
+		friendlies += 1
 		if o.is_alive():
 			all_down = false
 			break
-	if not all_down:
+	if friendlies == 0 or not all_down:
 		return
 	var aar := AarScreen.new()
 	aar.world = world
