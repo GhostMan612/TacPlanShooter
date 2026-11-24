@@ -26,14 +26,30 @@ jobs:
           (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
       - name: Import pass 1
-        run: timeout 60 ./bin/godot --headless --path . --import --quit || true
+        run: timeout 45 ./bin/godot --headless --path . --editor  --quit || true
       - name: Import pass 2
-        run: timeout 60 ./bin/godot --headless --path . --import --quit || true
+        run: |
+          timeout 45 ./bin/godot --headless --path . --editor --quit || true
+          test -f .godot/global_script_class_cache.cfg
       - name: Boot smoke
-        run: ./bin/godot --headless --path . --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true
+        run: |
+          timeout 30 ./bin/godot --headless --path . --quit > boot.log 2>&1 || true
+          cat boot.log
+          if grep -E "ERROR|SCRIPT ERROR|Parse" boot.log; then exit 1; fi
       - name: Determinism harness
-        run: status=0; ./bin/godot --headless --path . -s res://tests/determinism_harness.gd > determinism.log 2>&1 || status=$?; grep -E "PASS|FAIL" determinism.log || true; if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" determinism.log; then exit 1; fi; exit $status
-      - name: SimClock probe
-        run: ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true
+        run: |
+          timeout 60 ./bin/godot --headless --path . -s res://tests/determinism_harness.gd > determinism.log 2>&1 || true
+          cat determinism.log
+          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" determinism.log; then exit 1; fi
+          grep -q "PASS" determinism.log
       - name: Meta progression harness
-        run: status=0; ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd > meta_progression.log 2>&1 || status=$?; grep -E "PASS|FAIL" meta_progression.log || true; if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" meta_progression.log; then exit 1; fi; exit $status
+        run: |
+          timeout 60 ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd > meta_progression.log 2>&1 || true
+          cat meta_progression.log
+          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" meta_progression.log; then exit 1; fi
+          grep -q "PASS" meta_progression.log
+      - name: SimClock probe
+        run: |
+          timeout 30 ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit > simclock.log 2>&1 || true
+          cat simclock.log
+          if grep -E "ERROR|SCRIPT ERROR|Parse" simclock.log; then exit 1; fi
