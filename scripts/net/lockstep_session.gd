@@ -74,7 +74,7 @@ func poll() -> void:
 		var data := peer.get_packet()
 		if peer.get_packet_peer() == null or data.size() == 0:
 			continue
-		var inp := JSON.parse_string(data.get_string_from_ascii())
+		var inp: Variant = JSON.parse_string(data.get_string_from_ascii())
 		if inp == null:
 			continue
 		pending_inputs.append(inp)

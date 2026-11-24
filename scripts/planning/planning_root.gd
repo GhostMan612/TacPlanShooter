@@ -18,7 +18,10 @@ var fog: FogLayer = null
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
-var _hud := Control.new()
+var squads := SquadConfig.new()
+var map_source := ""
+var _hud: HBoxContainer = null
+var _menu_button: Button = null
 var _execute_button: Button = null
 var _alpha_button: Button = null
 var _bravo_button: Button = null
@@ -37,11 +40,10 @@ func _ready() -> void:
 		method,
 		Engine.physics_ticks_per_second,
 	])
-	map = MapLoader.load_from_json("res://data/maps/op01_glass_house.json")
-	if map.width_cells < 1 or map.height_cells < 1:
-		map = GreyboxMap.build_default()
+	map = _load_selected_map()
 	_apply_theme()
 	renderer = MapRenderer.new()
+	renderer.apply_palette(_tm.palette())
 	renderer.setup(map)
 	add_child(renderer)
 	fog = FogLayer.new()
@@ -74,14 +76,34 @@ func _ready() -> void:
 	world.setup(map, DEV_SEED)
 	world.add_operative(0, Vector2i(2, 2), _demo_plan_op0())
 	world.add_operative(1, Vector2i(13, 2), _demo_plan_op1())
+	squads.add_member(&"red", 0)
+	squads.add_member(&"blue", 1)
 	_setup_hud()
+	print("[TacPlan] planning map=%s size=%dx%d" % [map_source, map.width_cells, map.height_cells])
+
+
+func _load_selected_map() -> GreyboxMap:
+	var inline_json: Variant = ScreenRouter.get_param("map_json", null)
+	ScreenRouter.clear_param("map_json")
+	if typeof(inline_json) == TYPE_STRING and String(inline_json) != "":
+		var custom := MapLoader.load_from_string(String(inline_json))
+		if custom.width_cells > 0 and custom.height_cells > 0:
+			map_source = "editor_buffer"
+			return custom
+	var path := String(ScreenRouter.get_param("map_path", ScreenRouter.DEFAULT_MAP_PATH))
+	if FileAccess.file_exists(path):
+		var loaded := MapLoader.load_from_json(path)
+		if loaded.width_cells > 0 and loaded.height_cells > 0:
+			map_source = path
+			return loaded
+	map_source = "greybox_default"
+	return GreyboxMap.build_default()
 
 
 func _on_viewport_resized() -> void:
 	if camera != null:
 		camera.set_viewport_size(get_viewport_rect().size)
-	if _hud != null:
-		_hud.position = Vector2(0, get_viewport_rect().size.y - 80)
+	_place_hud()
 
 
 func _physics_process(_delta: float) -> void:
@@ -89,6 +111,8 @@ func _physics_process(_delta: float) -> void:
 		world.step()
 		_sync_tokens()
 		_update_fog()
+		if squad_hud != null:
+			squad_hud.refresh(world)
 		_maybe_aar()
 
 
@@ -140,58 +164,78 @@ func _update_fog() -> void:
 
 
 func _apply_theme() -> void:
-	_tm = ThemeManager.new()
+	_tm = ThemeManager.apply_saved()
 	_tm.theme_changed.connect(_on_theme_changed)
-	_tm.apply()
-	_on_theme_changed(_tm._palette())
 
 
 func _on_theme_changed(pal: Dictionary) -> void:
+	if renderer != null:
+		renderer.apply_palette(pal)
 	if squad_hud != null:
 		squad_hud.apply_palette(pal)
 
 
 func _setup_hud() -> void:
-	_execute_button = Button.new()
-	_execute_button.text = "Execute"
-	_execute_button.pressed.connect(_on_execute_pressed)
-	_alpha_button = Button.new()
-	_alpha_button.text = "Alpha"
-	_alpha_button.pressed.connect(_on_alpha_pressed)
-	_bravo_button = Button.new()
-	_bravo_button.text = "Bravo"
-	_bravo_button.pressed.connect(_on_bravo_pressed)
-	_charlie_button = Button.new()
-	_charlie_button.text = "Charlie"
-	_charlie_button.pressed.connect(_on_charlie_pressed)
-	_delta_button = Button.new()
-	_delta_button.text = "Delta"
-	_delta_button.pressed.connect(_on_delta_pressed)
-	_reset_button = Button.new()
-	_reset_button.text = "Reset"
-	_reset_button.pressed.connect(_on_reset_pressed)
+	var settings := ThemeManager.load_settings()
+	_hud_canvas = CanvasLayer.new()
+	add_child(_hud_canvas)
+	_menu_button = UiKit.button("< MENU", _go_back, settings)
+	_menu_button.size_flags_horizontal = Control.SIZE_FILL
+	_hud_canvas.add_child(_menu_button)
+	_hud = HBoxContainer.new()
+	_hud.name = "ActionBar"
+	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_canvas.add_child(_hud)
+	_execute_button = UiKit.button("EXECUTE", _on_execute_pressed, settings)
+	_alpha_button = UiKit.button("A", _on_alpha_pressed, settings)
+	_bravo_button = UiKit.button("B", _on_bravo_pressed, settings)
+	_charlie_button = UiKit.button("C", _on_charlie_pressed, settings)
+	_delta_button = UiKit.button("D", _on_delta_pressed, settings)
+	_reset_button = UiKit.button("RESET", _on_reset_pressed, settings)
+	_execute_button.size_flags_stretch_ratio = 2.0
+	_reset_button.size_flags_stretch_ratio = 1.6
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		_hud.add_child(b)
-	_hud_canvas = CanvasLayer.new()
-	_hud_canvas.add_child(_hud)
-	add_child(_hud_canvas)
 	squad_hud = SquadHud.new()
+	squad_hud.squads = squads
 	_hud_canvas.add_child(squad_hud)
+	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
+	for c in [_menu_button, _hud, squad_hud]:
+		(c as Control).theme = _tm.applied_theme
 	_place_hud()
 
 
 func _place_hud() -> void:
+	if _hud == null:
+		return
 	var vp: Vector2 = get_viewport_rect().size
-	_hud.size = Vector2(vp.x, 80)
-	_hud.position = Vector2(0, vp.y - 80)
-	var bw: float = (1080.0 - 5.0 * 16.0) / 6.0
-	var gap: float = 16.0
-	var x: float = 16.0
-	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
-		b.position = Vector2(x, 8.0)
-		b.size = Vector2(bw, 64.0)
-		x += bw + gap
+	var bar_h := float(ThemeManager.touch_min(_tm != null and _tm.accessible_scaling))
+	var margin := 24.0
+	_hud.position = Vector2(margin, vp.y - bar_h - margin)
+	_hud.size = Vector2(vp.x - margin * 2.0, bar_h)
+	if _menu_button != null:
+		_menu_button.position = Vector2(margin, 72.0)
+		_menu_button.size = Vector2(280.0, bar_h)
+	if squad_hud != null:
+		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(vp.x - margin * 2.0, SquadHud.HEIGHT_PX)))
+
+
+func _go_back() -> void:
+	if SimClock.phase == SimClock.Phase.EXECUTION:
+		SimClock.reset_to_planning()
+	var target := int(ScreenRouter.get_param("return_stage", int(ScreenRouter.Stage.TITLE)))
+	ScreenRouter.goto_stage(target)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_go_back()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if UiKit.is_back_event(event):
+		_go_back()
 
 
 func _on_execute_pressed() -> void:

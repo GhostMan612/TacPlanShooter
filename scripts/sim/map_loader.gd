@@ -12,13 +12,20 @@ static func load_from_json(path: String) -> GreyboxMap:
 		return GreyboxMap.new()
 	var text := f.get_as_text()
 	f.close()
-	var data: Variant = JSON.parse_string(text)
-	if data == null:
+	return load_from_string(text)
+
+
+static func load_from_string(text: String) -> GreyboxMap:
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
 		return GreyboxMap.new()
-	return from_data(data)
+	var d: Dictionary = parsed
+	return from_data(d)
 
 
 static func from_data(d: Dictionary) -> GreyboxMap:
+	if d.has("solids") or d.has("w"):
+		return GreyboxMap.from_dict(d)
 	var m := GreyboxMap.new()
 	m.width_cells = int(d.get("width_cells", 16))
 	m.height_cells = int(d.get("height_cells", 12))

@@ -77,10 +77,7 @@ static func load_from_json(path: String) -> GreyboxMap:
 
 
 static func load_from_string(text: String) -> GreyboxMap:
-	var d: Dictionary = JSON.parse_string(text)
-	if d == null:
-		return GreyboxMap.new()
-	return MapLoader.from_data(d)
+	return MapLoader.load_from_string(text)
 
 
 func to_dict() -> Dictionary:
@@ -119,4 +116,11 @@ static func from_dict(d: Dictionary) -> GreyboxMap:
 		m.door_cells[Vector2i(int(dc[0]), int(dc[1]))] = true
 	for os in d.get("door_open", []):
 		m.door_open[Vector2i(int(os[0]), int(os[1]))] = bool(os[2])
+	m.insertion_zones = d.get("insertion_zones", [])
+	m.extraction_zones = d.get("extraction_zones", [])
+	m.defender_zones = d.get("defender_zones", [])
+	m.objectives = d.get("objectives", [])
+	m.ai_spawns = d.get("ai_spawns", [])
+	m.hostage_spawns = d.get("hostage_spawns", [])
+	m.jammer_nodes = d.get("jammer_nodes", [])
 	return m

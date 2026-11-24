@@ -9,7 +9,7 @@ on:
 jobs:
   headless:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Cache Godot headless
@@ -25,56 +25,59 @@ jobs:
           curl -sSL -o bin/Godot_v4.0.4-stable_linux.x86_64.zip https://github.com/godotengine/godot/releases/download/4.0.4-stable/Godot_v4.0.4-stable_linux.x86_64.zip
           (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
-      - name: Import pass 1
+      - name: Import pass 1 (warms global class cache)
         run: |
-          timeout 45 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import1.log || true
+          timeout 90 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import1.log || true
       - name: Import pass 2
         run: |
-          timeout 45 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import2.log || true
+          timeout 90 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import2.log || true
           test -f .godot/global_script_class_cache.cfg
-      - name: Boot smoke
+      - name: Parse gate (every script and scene)
         run: |
-          timeout 30 stdbuf -oL -eL ./bin/godot --headless --path . --quit 2>&1 | tee boot.log || true
-          cat boot.log
-          if grep -E "ERROR|SCRIPT ERROR|Parse" boot.log; then exit 1; fi
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/parse_all.tscn 2>&1 | tee parse_all.log || true
+          bash tools/ci_gate.sh parse_all.log "[PARSE_ALL] RESULT PASS"
+      - name: Boot smoke (main scene)
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --quit 2>&1 | tee boot.log || true
+          bash tools/ci_gate.sh boot.log "[TacPlan] screen=splash"
+      - name: Scene smoke (every screen)
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/scene_smoke.tscn 2>&1 | tee scene_smoke.log || true
+          bash tools/ci_gate.sh scene_smoke.log "[SMOKE] RESULT PASS"
       - name: Determinism harness
+        if: ${{ !cancelled() }}
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --script tests/determinism_harness.gd 2>&1 | tee determinism.log || true
-          cat determinism.log
-          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" determinism.log; then exit 1; fi
-          grep -q "PASS" determinism.log
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/determinism_harness.gd 2>&1 | tee determinism.log || true
+          bash tools/ci_gate.sh determinism.log "PASS"
       - name: Meta progression harness
+        if: ${{ !cancelled() }}
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --script tests/meta_progression_harness.gd 2>&1 | tee meta_progression.log || true
-          cat meta_progression.log
-          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" meta_progression.log; then exit 1; fi
-          grep -q "PASS" meta_progression.log
-      - name: UI polish audit (M6 Phase J)
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/meta_progression_harness.gd 2>&1 | tee meta_progression.log || true
+          bash tools/ci_gate.sh meta_progression.log "PASS"
+      - name: UI polish audit
+        if: ${{ !cancelled() }}
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --script tests/ui_polish_audit.gd 2>&1 | tee ui_polish_audit.log || true
-          cat ui_polish_audit.log
-          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" ui_polish_audit.log; then exit 1; fi
-          grep -q "PASS" ui_polish_audit.log
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/ui_polish_audit.gd 2>&1 | tee ui_polish_audit.log || true
+          bash tools/ci_gate.sh ui_polish_audit.log "PASS"
       - name: Map validation harness
+        if: ${{ !cancelled() }}
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --script tests/map_validation_harness.gd 2>&1 | tee map_validation.log || true
-          cat map_validation.log
-          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" map_validation.log; then exit 1; fi
-          grep -q "PASS" map_validation.log
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/map_validation_harness.gd 2>&1 | tee map_validation.log || true
+          bash tools/ci_gate.sh map_validation.log "PASS"
       - name: UI audio smoke
+        if: ${{ !cancelled() }}
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --script tests/ui_audio_smoke.gd 2>&1 | tee ui_audio_smoke.log || true
-          cat ui_audio_smoke.log
-          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" ui_audio_smoke.log; then exit 1; fi
-          grep -q "PASS" ui_audio_smoke.log
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/ui_audio_smoke.gd 2>&1 | tee ui_audio_smoke.log || true
+          bash tools/ci_gate.sh ui_audio_smoke.log "PASS"
       - name: Map editor harness
+        if: ${{ !cancelled() }}
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --script tests/map_editor_harness.gd 2>&1 | tee map_editor.log || true
-          cat map_editor.log
-          if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" map_editor.log; then exit 1; fi
-          grep -q "PASS" map_editor.log
-      - name: SimClock probe
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/map_editor_harness.gd 2>&1 | tee map_editor.log || true
+          bash tools/ci_gate.sh map_editor.log "PASS"
+      - name: SimClock probe (FPS caps 30/60)
+        if: ${{ !cancelled() }}
         run: |
-          timeout 30 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit 2>&1 | tee simclock.log || true
-          cat simclock.log
-          if grep -E "ERROR|SCRIPT ERROR|Parse" simclock.log; then exit 1; fi
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/simclock_probe.tscn 2>&1 | tee simclock.log || true
+          bash tools/ci_gate.sh simclock.log "planning_cap=30" "execution_cap=60" "back_to_planning_cap=30"

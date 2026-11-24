@@ -35,44 +35,59 @@ func apply_palette(pal: Dictionary) -> void:
 	queue_redraw()
 
 
+func _color(key: String, fallback: Color) -> Color:
+	if palette.has(key):
+		return palette[key]
+	return fallback
+
+
 func _draw() -> void:
 	if map == null:
 		return
-	var c_floor: Color = palette.get(&"bg", FLOOR_COLOR)
-	var c_major: Color = palette.get(&"accent", MAJOR_COLOR)
+	var c_floor := _color("bg", FLOOR_COLOR)
+	var c_major := _color("accent", MAJOR_COLOR)
+	var c_grid := _color("grid", GRID_COLOR)
+	var c_wall := _color("wall", SOLID_COLOR)
+	var c_door_closed := _color("door_closed", DOOR_CLOSED_COLOR)
+	var c_door_open := _color("door_open", DOOR_OPEN_COLOR)
+	var c_ink := _color("ink", Color(0.9, 0.92, 0.95))
 	var s := float(SimConstants.GRID_CELL_SIZE_PX)
 	var total := Rect2(Vector2.ZERO, Vector2(map.width_cells, map.height_cells) * s)
 	draw_rect(total, c_floor, true)
 	var x := 0.0
 	while x <= total.size.x + 0.01:
 		var major := int(x / s) % 5 == 0
-		draw_line(Vector2(x, 0), Vector2(x, total.size.y), c_major if major else GRID_COLOR, 1.5 if major else 0.5)
+		draw_line(Vector2(x, 0), Vector2(x, total.size.y), c_major if major else c_grid, 1.5 if major else 0.5)
 		x += s
 	var y := 0.0
 	while y <= total.size.y + 0.01:
 		var major := int(y / s) % 5 == 0
-		draw_line(Vector2(0, y), Vector2(total.size.x, y), c_major if major else GRID_COLOR, 1.5 if major else 0.5)
+		draw_line(Vector2(0, y), Vector2(total.size.x, y), c_major if major else c_grid, 1.5 if major else 0.5)
 		y += s
 	for c in map.solid_cells.keys():
-		draw_rect(GridUtil.cell_rect_px(Vector2i(c)), SOLID_COLOR, true)
+		draw_rect(GridUtil.cell_rect_px(Vector2i(c)), c_wall, true)
 	for c in map.door_cells.keys():
 		var is_open := bool(map.door_open.get(c, false))
-		draw_rect(GridUtil.cell_rect_px(Vector2i(c)).grow(-2.0), DOOR_OPEN_COLOR if is_open else DOOR_CLOSED_COLOR, true)
+		draw_rect(GridUtil.cell_rect_px(Vector2i(c)).grow(-2.0), c_door_open if is_open else c_door_closed, true)
 	for z in map.insertion_zones:
-		for c in z["cells"]:
+		for c in z.get("cells", []):
 			draw_rect(GridUtil.cell_rect_px(Vector2i(int(c[0]), int(c[1]))), ZONE_GREEN)
 	for z in map.extraction_zones:
-		for c in z["cells"]:
+		for c in z.get("cells", []):
 			draw_rect(GridUtil.cell_rect_px(Vector2i(int(c[0]), int(c[1]))), ZONE_AMBER)
 	for o in map.objectives:
 		draw_rect(GridUtil.cell_rect_px(Vector2i(int(o["cell"][0]), int(o["cell"][1]))), ZONE_RED)
 	var font := ThemeDB.fallback_font
 	for i in range(map.width_cells):
-		draw_string(font, Vector2(i * s + 3.0, -16.0), _col_letter(i), 0)
+		draw_string(font, Vector2(i * s + 3.0, -6.0), col_letter(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, c_ink)
 	for i in range(map.height_cells):
-		draw_string(font, Vector2(-26.0, i * s + 3.0), str(i + 1).pad_zeros(2), 0)
+		draw_string(font, Vector2(-22.0, i * s + 12.0), str(i + 1).pad_zeros(2), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, c_ink)
 
 
-func _col_letter(x: int) -> String:
-	var arr := [&"A", &"B", &"C", &"D", &"E", &"F", &"G", &"H", &"I", &"J", &"K", &"L", &"M", &"N", &"O", &"P", &"Q", &"R", &"S", &"T", &"U", &"V", &"W", &"X", &"Y", &"Z"]
-	return String(arr[x % 26])
+static func col_letter(x: int) -> String:
+	var letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	if x < 0:
+		return "?"
+	if x < 26:
+		return letters.substr(x, 1)
+	return letters.substr((x / 26) - 1, 1) + letters.substr(x % 26, 1)

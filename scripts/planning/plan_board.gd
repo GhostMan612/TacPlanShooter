@@ -7,10 +7,10 @@ extends RefCounted
 
 
 const SQUAD_COLORS: Dictionary = {
-	&"red": Color(0xEF, 0x44, 0x44),
-	&"blue": Color(0x3B, 0x82, 0xF6),
-	&"green": Color(0x22, 0xC5, 0x5E),
-	&"gold": Color(0xF5, 0x9E, 0x0B),
+	&"red": Color(0.937, 0.267, 0.267),
+	&"blue": Color(0.231, 0.510, 0.965),
+	&"green": Color(0.133, 0.773, 0.369),
+	&"gold": Color(0.961, 0.620, 0.043),
 }
 
 

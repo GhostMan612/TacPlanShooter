@@ -6,7 +6,7 @@ class_name MissionPrepPanels
 extends Node
 
 
-enum Panel { BRIEFING, INTEL, ROSTER, KIT, TEAM, PLANNING }
+enum PrepPanel { BRIEFING, INTEL, ROSTER, KIT, TEAM, PLANNING }
 
 
 var briefing: Control = null
@@ -21,23 +21,23 @@ var contents: Dictionary = {}
 
 func load_panels() -> void:
 	flow = MissionPrepFlow.new()
-	for i in range(int(Panel.PLANNING) + 1):
+	for i in range(int(PrepPanel.PLANNING) + 1):
 		var p := Control.new()
 		match i:
-			Panel.BRIEFING: briefing = p
-			Panel.INTEL: intel = p
-			Panel.ROSTER: roster = p
-			Panel.KIT: kit = p
-			Panel.TEAM: team = p
-			Panel.PLANNING: planning = p
+			PrepPanel.BRIEFING: briefing = p
+			PrepPanel.INTEL: intel = p
+			PrepPanel.ROSTER: roster = p
+			PrepPanel.KIT: kit = p
+			PrepPanel.TEAM: team = p
+			PrepPanel.PLANNING: planning = p
 		add_child(p)
 	add_child(flow)
-	set_content(Panel.BRIEFING, "Mission objectives, threat background, commander notes")
-	set_content(Panel.INTEL, "Categorized dossiers (People, Organizations, Misc) + floor-plan markers")
-	set_content(Panel.ROSTER, "Synthetic operative pool (OPR_xx); 5 traits + 5 skills; select up to 4 from the unit pool")
-	set_content(Panel.KIT, "Primary + secondary weapons; 2 equipment slots; Light/Medium/Heavy armor")
-	set_content(Panel.TEAM, "Split up to 4 operatives into Red/Blue/Green/Gold squads; promote a leader")
-	set_content(Panel.PLANNING, "Color-coded routes on the 16 px grid; synchronized Go-Codes (Alpha/Bravo/Charlie/Delta); 3 ROE modes per waypoint")
+	set_content(PrepPanel.BRIEFING, "Mission objectives, threat background, commander notes")
+	set_content(PrepPanel.INTEL, "Categorized dossiers (People, Organizations, Misc) + floor-plan markers")
+	set_content(PrepPanel.ROSTER, "Synthetic operative pool (OPR_xx); 5 traits + 5 skills; select up to 4 from the unit pool")
+	set_content(PrepPanel.KIT, "Primary + secondary weapons; 2 equipment slots; Light/Medium/Heavy armor")
+	set_content(PrepPanel.TEAM, "Split up to 4 operatives into Red/Blue/Green/Gold squads; promote a leader")
+	set_content(PrepPanel.PLANNING, "Color-coded routes on the 16 px grid; synchronized Go-Codes (Alpha/Bravo/Charlie/Delta); 3 ROE modes per waypoint")
 
 
 func set_content(i: int, content: String) -> void:
@@ -50,10 +50,10 @@ func content(i: int) -> String:
 
 func panel_at(i: int) -> Control:
 	match i:
-		Panel.BRIEFING: return briefing
-		Panel.INTEL: return intel
-		Panel.ROSTER: return roster
-		Panel.KIT: return kit
-		Panel.TEAM: return team
-		Panel.PLANNING: return planning
+		PrepPanel.BRIEFING: return briefing
+		PrepPanel.INTEL: return intel
+		PrepPanel.ROSTER: return roster
+		PrepPanel.KIT: return kit
+		PrepPanel.TEAM: return team
+		PrepPanel.PLANNING: return planning
 	return briefing
