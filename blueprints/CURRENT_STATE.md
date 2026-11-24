@@ -56,7 +56,7 @@
 | **Deterministic sim core** | 🟢 43-case harness passes, including live replay state, pending commands, and reset isolation | Replay scrub UI |
 | **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + per-op lines + clamped camera + resize wired | CP-030 feel verdict = USER device test |
 | **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 slice 1: `GridPathfinder` A* movement + adherence + collision-halt + wall/door/bounds + action range; `PlanningRoot` Execute/Go-Code Alpha/Reset HUD + live token sync | CP-050/051/052 ✅ PASS; next: M5 remainder, then M4 stances/actions/FoF |
-| Visibility/fog (M6/BP-06) | 🟢 Geometry and observer caching, pooled masks, GPU visited coverage | Handset rendering and frame time |
+| Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware GPU masks with live and last-seen map contacts | Handset rendering and frame time |
 | Enemy AI / mission loop (M7/BP-09) | 🟡 Registered enemy actors and playable ground-floor checkpoint-and-exit missions | Upper floors, dedicated objective rules, timeline, and scrubbing |
 | Audio pass (M9/BP-08) | ⬜ not started | content |
 | **Android export track (M10/BP-10)** | 🟡 Route A verified from a clean checkout with Godot 4.0.4 | Handset boot and touch. Route B requires the JDK and SDK versions pinned by its template. |

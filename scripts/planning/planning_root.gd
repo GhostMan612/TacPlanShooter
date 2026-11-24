@@ -15,6 +15,7 @@ var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
+var overlay: TacticalOverlay = null
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
@@ -67,8 +68,14 @@ func _ready() -> void:
 	add_child(renderer)
 	fog = FogLayer.new()
 	fog.setup(map)
+	fog.apply_palette(_tm.palette())
 	add_child(fog)
 	fog.visible = false
+	overlay = TacticalOverlay.new()
+	overlay.local_faction_id = local_faction_id
+	overlay.z_index = 2
+	overlay.apply_palette(_tm.palette())
+	add_child(overlay)
 	prep_flow = MissionPrepFlow.new()
 	add_child(prep_flow)
 	spawn_cells = spawn_cells_for(map, map_source == GREYBOX_SOURCE, OPERATIVE_COUNT)
@@ -139,26 +146,11 @@ func _physics_process(_delta: float) -> void:
 			if world.journal[i]["ev"] == &"breach_opened":
 				renderer.refresh()
 				break
-		queue_redraw()
 		_sync_tokens()
 		_update_fog()
 		if squad_hud != null:
 			squad_hud.refresh(world)
 		_maybe_aar()
-
-
-func _draw() -> void:
-	if world == null or map == null:
-		return
-	var ticks := int(world.tick)
-	for ring in world.ai.acoustic_rings():
-		var age := ticks - int(ring["tick"])
-		if age > 24:
-			continue
-		var center := GridUtil.cell_center_px(ring["cell"])
-		var a := 1.0 - (float(age) / 24.0)
-		draw_circle(center, 20.0 + a * 10.0, Color(1.0, 0.7, 0.0, a * 0.8))
-		draw_circle(center, 38.0, Color(1.0, 0.4, 0.0, a * 0.5))
 
 
 func _sync_tokens() -> void:
@@ -167,7 +159,7 @@ func _sync_tokens() -> void:
 	for o in world.operatives:
 		for token in controller.tokens:
 			if token.op_id == o.id:
-				token.position = GridUtil.cell_center_px(GridUtil.cell_of(o.pos))
+				token.sync_from(o, o.pos * float(SimConstants.GRID_CELL_SIZE_PX))
 
 
 func _update_fog() -> void:
@@ -175,6 +167,7 @@ func _update_fog() -> void:
 		return
 	fog.visible = true
 	fog.update_visibility(world, local_faction_id)
+	overlay.update_contacts(world, fog.live_polygons_cells())
 
 
 func _apply_theme() -> void:
@@ -185,8 +178,19 @@ func _apply_theme() -> void:
 func _on_theme_changed(pal: Dictionary) -> void:
 	if renderer != null:
 		renderer.apply_palette(pal)
+	if fog != null:
+		fog.apply_palette(pal)
+	if overlay != null:
+		overlay.apply_palette(pal)
 	if squad_hud != null:
 		squad_hud.apply_palette(pal)
+		_configure_tokens(pal)
+
+
+func _configure_tokens(pal: Dictionary) -> void:
+	for token in controller.tokens:
+		var squad := squad_hud.squad_of(token.op_id)
+		token.configure(PlanBoard.squad_color(squad), squad_hud.callsign(token.op_id), pal["ink"])
 
 
 func _setup_hud() -> void:
@@ -226,6 +230,7 @@ func _setup_hud() -> void:
 	squad_hud.refresh(world)
 	for c in [_menu_button, _hud, squad_hud, _status_label]:
 		(c as Control).theme = _tm.applied_theme
+	_configure_tokens(_tm.palette())
 	_place_hud()
 
 
@@ -332,7 +337,7 @@ func _on_reset_pressed() -> void:
 	_set_phase_controls(false)
 	fog.reset_fog()
 	fog.visible = false
-	queue_redraw()
+	overlay.reset()
 	_set_status(_planning_hint() if plans.is_empty() else "RESET · Routes kept. " + _planning_hint())
 
 
@@ -367,6 +372,8 @@ func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
 func _on_operative_selected(op_id: int) -> void:
 	_selected_op = op_id
 	_selected_node = RoutePlanner.NO_CELL
+	for token in controller.tokens:
+		token.set_selected(token.op_id == op_id)
 	if SimClock.phase == SimClock.Phase.PLANNING:
 		_set_phase_controls(false)
 

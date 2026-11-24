@@ -8,6 +8,7 @@ extends Node2D
 
 var live_vp: SubViewport = null
 var memory_vp: SubViewport = null
+var _material: ShaderMaterial = null
 var _map: GreyboxMap = null
 var _door_open: Dictionary = {}
 var _wall_segments: Array = []
@@ -25,15 +26,29 @@ func setup(m: GreyboxMap) -> void:
 	memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
 	RenderingServer.frame_post_draw.connect(_retire_memory_shapes)
 
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://scripts/planning/fog_mask.gdshader")
-	mat.set_shader_parameter("live_tex", live_vp.get_texture())
-	mat.set_shader_parameter("memory_tex", memory_vp.get_texture())
+	_material = ShaderMaterial.new()
+	_material.shader = load("res://scripts/planning/fog_mask.gdshader")
+	_material.set_shader_parameter("live_tex", live_vp.get_texture())
+	_material.set_shader_parameter("memory_tex", memory_vp.get_texture())
 	var comp := ColorRect.new()
 	comp.size = Vector2(extent)
 	comp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	comp.material = mat
+	comp.material = _material
 	add_child(comp)
+
+
+func apply_palette(pal: Dictionary) -> void:
+	var background: Color = pal.get("bg", Color(0.1, 0.11, 0.14))
+	_material.set_shader_parameter("unseen_color", Color(background, 0.85))
+	_material.set_shader_parameter("memory_color", Color(background, 0.5))
+
+
+func live_polygons_cells() -> Array[PackedVector2Array]:
+	var polygons: Array[PackedVector2Array] = []
+	for shape in _live_shapes:
+		if shape.visible:
+			polygons.append(shape.polygon)
+	return polygons
 
 
 func _make_viewport(extent: Vector2i) -> SubViewport:

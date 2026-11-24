@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-24 (Session 14 — code audit remediation)
+**Last updated:** 2026-11-24 (Session 15 — planning overlays)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable for CI and verified Route A export.
@@ -21,7 +21,7 @@
 
 - The [code audit](../docs/TacPlanShooter_Code_Audit_77c064b.md) and the credential-free Route A export preset are tracked. The signed APK contains all ten source maps.
 - The 43-case determinism harness covers map reset isolation, active enemy detection, and restored simulation state. Ground-floor operations reach a visible success or failure result. Route nodes can wait for go-codes.
-- Map Editor preserves edit history across Playtest and keeps the current map when import validation fails. Fog caches static geometry and unchanged observer masks and composites visited coverage on the GPU.
+- Map Editor preserves edit history across Playtest and keeps the current map when import validation fails. Fog caches static geometry and unchanged observer masks and composites visited coverage on the GPU. Tokens show squad callsigns and exact movement. The overlay shows live and last-seen contacts.
 - Upper-floor objectives, dedicated objective rules, timeline, and replay scrubbing are open.
 
 ## Immediate next actions

@@ -150,7 +150,7 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 		return
 	_routing_finger = idx
 	_routing_token = best
-	best.set_selected(true)
+	best.set_routing_highlight(true)
 	mode = Mode.ROUTING
 	_raw_route = PackedVector2Array([best.position])
 	_kept_route = PackedVector2Array([best.position])
@@ -178,7 +178,7 @@ func _commit_route() -> void:
 
 func _exit_routing() -> void:
 	if _routing_token != null:
-		_routing_token.set_selected(false)
+		_routing_token.set_routing_highlight(false)
 	mode = Mode.OBSERVATION
 	_routing_finger = -1
 	_routing_token = null

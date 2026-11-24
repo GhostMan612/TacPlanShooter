@@ -118,6 +118,11 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_check(queued >= 1, "drawn route reaches the sim queue (%d commands)" % queued)
 	var line := pr.controller.route_line(0)
 	_check(line != null and line.points.size() == queued + 1, "committed route line matches the executable cells")
+	var token: OperativeToken = pr.controller.tokens[0]
+	var squad := pr.squad_hud.squad_of(0)
+	_check(token.callsign == pr.squad_hud.callsign(0) and token.squad_color == PlanBoard.squad_color(squad), "token displays the squad colour and callsign")
+	_check(token.selected and not pr.controller.tokens[1].selected, "squad selection highlights the active token")
+	_check(not pr.fog.visible, "planning hides the fog mask")
 	_check(pr.world.ai.enemies.size() == pr.map.ai_spawns.size(), "mission initializes map AI spawns outside the squad")
 	pr.controller.cell_tapped.emit(start)
 	_check(not pr._alpha_button.disabled, "route node enables planning go-code buttons")
@@ -129,8 +134,14 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	for i in range(3):
 		await get_tree().physics_frame
 	_check(pr.world.operatives[0].wait_code == &"alpha" and GridUtil.cell_of(pr.world.operatives[0].pos) == start, "operative waits at the selected route node")
+	_check(pr.fog.visible and pr.fog.live_polygons_cells().size() == 2, "execution fog gets both friendly sight polygons")
 	pr._on_alpha_pressed()
-	for i in range(40):
+	for i in range(8):
+		await get_tree().physics_frame
+	var expected_px := pr.world.operatives[0].pos * float(SimConstants.GRID_CELL_SIZE_PX)
+	var cell_center := GridUtil.cell_center_px(GridUtil.cell_of(pr.world.operatives[0].pos))
+	_check(token.position.is_equal_approx(expected_px) and not expected_px.is_equal_approx(cell_center), "token tracks sub-cell simulation position")
+	for i in range(32):
 		await get_tree().physics_frame
 	_check(pr.world.tick > 0 and GridUtil.cell_of(pr.world.operatives[0].pos) != start, "operative moves along the drawn route")
 	_check(pr.world.go_codes_issued.has(&"alpha"), "go-code button reaches the sim via the tick stream")
@@ -166,6 +177,26 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	if pr._result_view != null:
 		var title := pr._result_view.find_child("ResultTitle", true, false) as Label
 		_check(title != null and title.text == "OPERATION COMPLETE", "successful operation renders a result screen")
+	_inspect_contacts(pr)
+
+
+func _inspect_contacts(pr: PlanningRoot) -> void:
+	pr._on_reset_pressed()
+	pr.world.setup(GreyboxMap.build_default(), 1)
+	var commands: Array[AgentCommand] = []
+	pr.world.add_operative(0, Vector2i(2, 3), commands)
+	var enemy := pr.world.add_enemy(9, Vector2i(3, 3), &"")
+	pr._update_fog()
+	_check(pr.overlay.visible_contacts().has(9), "registered enemy in sight is a visible contact")
+	var last_seen := enemy.pos
+	enemy.pos = Vector2(10.5, 3.5)
+	pr.world.tick += 60
+	pr._update_fog()
+	var contact: Dictionary = pr.overlay.contacts.get(9, {})
+	_check(pr.overlay.lkp_contacts().has(9) and contact.get("pos") == last_seen, "hidden enemy retains only the last seen position")
+	_check(is_equal_approx(pr.overlay.seconds_since_contact(9), 1.0), "contact age follows simulation ticks")
+	pr._on_reset_pressed()
+	_check(pr.overlay.contacts.is_empty() and not pr.fog.visible, "reset clears contacts and hides the fog mask")
 
 
 func _check_door_route() -> void:

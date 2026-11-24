@@ -3,6 +3,13 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 15 — 2026-11-24 — Integrate planning overlays
+
+- Resolved [PR #4](https://github.com/GhostMan612/TacPlanShooter/pull/4) with the mission, replay, and fog changes on `main`.
+- Squad tokens show callsigns, selection, and exact movement. Live contacts use registered simulation actors and the existing fog polygons. Contacts keep their last observed position after leaving sight and clear on reset.
+- Fog uses the active palette and transparent alpha masks. Change-driven updates and GPU visited memory are preserved.
+- Godot 4.0.4 headless gates pass, including planning scene checks for token movement, contact transitions, and reset. Physical Android appearance and timing remain open.
+
 ## Session 14 — 2026-11-24 — Code audit remediation
 
 - Published the [audit of `77c064b`](../docs/TacPlanShooter_Code_Audit_77c064b.md) and a credential-free Android export preset. Route A verification compared the signed ARM64 APK contents against all ten source maps.

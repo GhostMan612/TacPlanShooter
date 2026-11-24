@@ -15,6 +15,7 @@ const DOOR_OPEN_COLOR := Color(0.16, 0.7, 0.33)
 const ZONE_GREEN := Color(0.2, 0.7, 0.2, 0.8)
 const ZONE_AMBER := Color(0.8, 0.7, 0.1, 0.6)
 const ZONE_RED := Color(0.8, 0.2, 0.2, 0.9)
+const HOSTAGE_COLOR := Color(0.23, 0.51, 0.96)
 
 
 var map: GreyboxMap = null
@@ -102,6 +103,10 @@ func _draw() -> void:
 			draw_rect(GridUtil.cell_rect_px(Vector2i(int(c[0]), int(c[1]))), ZONE_AMBER)
 	for o in map.objectives:
 		draw_rect(GridUtil.cell_rect_px(Vector2i(int(o["cell"][0]), int(o["cell"][1]))), ZONE_RED)
+	for h in map.hostage_spawns:
+		var hrect := GridUtil.cell_rect_px(MapEditorValidator.cell_of(h)).grow(-2.0)
+		draw_rect(hrect, HOSTAGE_COLOR, false, 1.5)
+		draw_string(ThemeDB.fallback_font, hrect.position + Vector2(0.5, hrect.size.y - 3.0), "HST", HORIZONTAL_ALIGNMENT_LEFT, -1, 5, HOSTAGE_COLOR)
 	var font := ThemeDB.fallback_font
 	for i in range(map.width_cells):
 		draw_string(font, Vector2(i * s + 3.0, -6.0), col_letter(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, c_ink)
