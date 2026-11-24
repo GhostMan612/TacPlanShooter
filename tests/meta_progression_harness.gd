@@ -73,5 +73,6 @@ func _test_pvp_budget() -> int:
 	var screen := ArmoryScreen.new()
 	screen.armory = a
 	var ok := screen.valid_for_pvp(p)
+	screen.free()
 	print("[HARNESS] mp_pvp_budget %s (points=%d max=%d)" % ["PASS" if ok else "FAIL", p.loadout_points(), a.STANDARDIZED_LOADOUT_POINTS])
 	return 0 if ok else 1

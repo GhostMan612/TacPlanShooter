@@ -26,6 +26,8 @@ func _ready() -> void:
 		if not ok:
 			failures += 1
 		print("[PARSE_ALL] %s script %s" % ["OK" if ok else "FAIL", path])
+		if not ok:
+			_diagnose(path)
 	var scenes: Array[String] = []
 	for r in SCENE_ROOTS:
 		_collect(r, ".tscn", scenes)
@@ -59,3 +61,10 @@ func _collect(dir_path: String, ext: String, out: Array[String]) -> void:
 			out.append(full)
 		entry = d.get_next()
 	d.list_dir_end()
+
+
+func _diagnose(path: String) -> void:
+	var probe := GDScript.new()
+	probe.source_code = FileAccess.get_file_as_string(path)
+	var err := probe.reload()
+	print("[PARSE_ALL] diagnose %s reload_error=%d (parser errors print above with line numbers)" % [path, err])

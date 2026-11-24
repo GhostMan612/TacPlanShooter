@@ -708,7 +708,7 @@ func _test_visibility_sweepline_ioi() -> int:
 	var poly := Visibility.compute_polygon(observer, segs, 0.00001)
 	var ok := poly.size() >= 3
 	var n_rays := 1440
-	var match := 0
+	var matched := 0
 	var total := 0
 	for i in range(n_rays):
 		var ang := TAU * i / n_rays
@@ -729,8 +729,8 @@ func _test_visibility_sweepline_ioi() -> int:
 		if d_poly < 0:
 			ok = false
 		elif absf(d_poly - d_ref) <= 0.5:
-			match += 1
-	var ioi := float(match) / float(max(total, 1))
+			matched += 1
+	var ioi := float(matched) / float(max(total, 1))
 	ok = ok and ioi >= 0.99
 	print("[HARNESS] visibility_sweepline_ioi %s (poly=%d rays=%d ioi=%.4f)" % [
 		"PASS" if ok else "FAIL", poly.size(), total, ioi,

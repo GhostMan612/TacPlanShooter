@@ -73,7 +73,7 @@ func _test_map_renderer_palette() -> int:
 	r.setup(GreyboxMap.build_default())
 	var pal := ThemeManager.palette_for(ThemeManager.Style.LIGHT_BLUEPRINT)
 	r.apply_palette(pal)
-	var ok := r._color("bg", Color.BLACK) == pal["bg"] and r._color("missing", Color.BLACK) == Color.BLACK
+	var ok: bool = r._color("bg", Color.BLACK) == pal["bg"] and r._color("missing", Color.BLACK) == Color.BLACK
 	ok = ok and MapRenderer.col_letter(0) == "A" and MapRenderer.col_letter(25) == "Z" and MapRenderer.col_letter(26) == "AA"
 	ok = ok and PlanBoard.squad_color(&"red").r <= 1.0 and PlanBoard.squad_color(&"red").g < 0.5
 	r.free()
