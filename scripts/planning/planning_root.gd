@@ -87,6 +87,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	queue_redraw()
 	if world == null or map == null:
 		return
 	var ticks := int(world.tick)
@@ -122,7 +123,7 @@ func _update_fog() -> void:
 		if poly.size() >= 3:
 			live_polys.append(poly)
 			if fog.poly_contains(o.pos, poly):
-				fog.mark_memory(GridUtil.cell_of(o.pos))
+				fog.mark_visible(poly)
 	for d in world.drones:
 		if d.destroyed:
 			continue

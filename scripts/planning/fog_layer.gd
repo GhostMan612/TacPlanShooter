@@ -21,13 +21,13 @@ func setup(m: GreyboxMap) -> void:
 	live_vp.size = Vector2i(w, h)
 	live_vp.msaa_2d = Viewport.MSAA_DISABLED
 	live_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	live_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	live_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(live_vp)
 	memory_vp = SubViewport.new()
 	memory_vp.size = Vector2i(w, h)
 	memory_vp.msaa_2d = Viewport.MSAA_DISABLED
 	memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_NEVER
-	memory_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	memory_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(memory_vp)
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://scripts/planning/fog_mask.gdshader")
@@ -48,6 +48,7 @@ func rebuild(visible_polys: Array) -> void:
 		shape.set_polygon(poly)
 		shape.color = Color.WHITE
 		live_vp.add_child(shape)
+	live_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 func mark_memory(cell: Vector2i) -> void:
@@ -57,7 +58,24 @@ func mark_memory(cell: Vector2i) -> void:
 	shape.set_polygon(_cell_rect_points(cell))
 	shape.color = Color.WHITE
 	memory_vp.add_child(shape)
+	memory_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_memory_shapes[cell] = shape
+
+
+func mark_visible(poly: PackedVector2Array) -> void:
+	if poly.size() < 3:
+		return
+	for c in _map_cells():
+		if Geometry2D.is_point_in_polygon(GridUtil.cell_center_px(c), poly):
+			mark_memory(c)
+
+
+func _map_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for y in range(map.height_cells):
+		for x in range(map.width_cells):
+			out.append(Vector2i(x, y))
+	return out
 
 
 func reset_fog() -> void:

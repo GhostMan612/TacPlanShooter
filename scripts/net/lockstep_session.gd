@@ -47,11 +47,13 @@ func queue_input(op_id: int, move_dir: Vector2, aim_deg: float, fire_pressed: bo
 
 
 func process_tick(world: SimWorld) -> void:
+	ticks_since_sync += 1
 	if not session_active or pending_inputs.is_empty():
 		return
+	var now := world.tick + SimConstants.LOCKSTEP_INPUT_DELAY_TICKS
 	for inp in pending_inputs:
 		var oc := OverrideCommand.new()
-		oc.tick = world.tick + 1
+		oc.tick = now
 		oc.op_id = int(inp["op_id"])
 		oc.move_dir = Vector2(inp["move_dir"].x, inp["move_dir"].y)
 		oc.aim_deg = float(inp["aim_deg"])
@@ -59,7 +61,6 @@ func process_tick(world: SimWorld) -> void:
 		oc.use_slot = bool(inp["use_slot"])
 		world.apply_override(oc)
 	pending_inputs.clear()
-	ticks_since_sync += 1
 	if ticks_since_sync >= HASH_SYNC_EVERY:
 		ticks_since_sync = 0
 		sync_tick_hash(world.state_hash())
@@ -68,6 +69,7 @@ func process_tick(world: SimWorld) -> void:
 func poll() -> void:
 	if not session_active or peer == null:
 		return
+	peer.poll()
 	while peer.get_available_packet_count() > 0:
 		var data := peer.get_packet()
 		if peer.get_packet_peer() == null or data.size() == 0:
