@@ -30,3 +30,14 @@ static func is_icon(name: StringName) -> bool:
 
 static func count() -> int:
 	return ICONS.size()
+
+
+static func icon(name: StringName) -> Texture2D:
+	if not is_icon(name):
+		return null
+	var p := "res://assets/icons/" + str(name) + ".svg"
+	if not ResourceLoader.exists(p):
+		p = "res://assets/icons/svg/" + str(name) + ".svg"
+	if not ResourceLoader.exists(p):
+		return null
+	return ResourceLoader.load(p, "Texture2D") as Texture2D

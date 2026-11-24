@@ -7,6 +7,17 @@ extends Control
 
 
 var save := ProgressionSave.new()
+var portraits: Dictionary = {}
+
+
+func bind_portraits() -> void:
+	for n in [
+		&"opr_01_vanguard", &"opr_02_vector", &"opr_03_sledge",
+		&"opr_04_aegis", &"opr_05_specter", &"opr_06_lifeline",
+	]:
+		var p := "res://assets/portraits/" + str(n) + ".png"
+		var tex: Texture2D = null if not ResourceLoader.exists(p) else (ResourceLoader.load(p, "Texture2D") as Texture2D)
+		portraits[n] = tex
 
 
 func assign_role(profile: UnitProfile, role: int) -> void:
