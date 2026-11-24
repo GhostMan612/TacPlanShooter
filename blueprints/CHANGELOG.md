@@ -3,6 +3,22 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 12 — 2026-11-23 — Phase K — Touch-First In-Game CQB Map Editor
+
+### Files
+- `scripts/editor/map_editor_state.gd` — `MapEditorState` (Node): paint wall/door/zones/ai_spawn/objective/jammer; undo/redo (≤50) via `Callable` undo+redo closures; `to_json()` / `MapEditorState.from_json()`; `validate()`.
+- `scripts/editor/map_editor_validator.gd` — `MapEditorValidator.validate(m) -> Array[Dictionary]` (out-of-bounds checks for solids, doors, zones, objectives, spawns, jammer).
+- `scripts/editor/map_editor_screen.gd` — `MapEditorScreen` (Control): `MapRenderer` grid canvas + tool palette (WALL/DOOR/ZONES/UNITS/ERASE/UNDO/REDO/VALIDATE) + invalid-cell highlight.
+- `scenes/map_editor.tscn` — root scene.
+- `scripts/ui/title_screen.gd` — `map_editor := 6` + MAP EDITOR button.
+- `tests/map_editor_harness.gd` — `map_editor_state_undo`, `map_editor_roundtrip`, `map_editor_validator`.
+- `scripts/sim/greybox_map.gd` — `to_dict()` extended with zones/spawns/objectives/jammer; `load_from_string()` static.
+
+### Notes
+- `MapLoader.load_from_string(text) -> GreyboxMap` added (per WO spec for the roundtrip gate).
+
+---
+
 ## Session 11 — 2026-11-23 — M6 WO completion (Phases A2, J, J2)
 
 ### Phase A2 — Re-Audit fixes (WO-N64-R6-AND-M6-REMEDIATION)
