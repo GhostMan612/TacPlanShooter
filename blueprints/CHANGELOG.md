@@ -3,6 +3,37 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 13 — 2026-11-24 — UI/UX audit + remediation steps 1–2 (PR #1)
+
+### Audit
+- Full UI/UX + feature audit → `blueprints/WO-UI-UX-AUDIT-REMEDIATION.md` (findings + 7-step plan with gates).
+- Headless CI had never passed (54 failed / 4 cancelled); harness steps silently exited and import-log parse errors were never gated. Earlier "PASS" claims in handoff docs were not CI-verified.
+
+### Files (PR #1, branch `ccr-686be8a5-60lcmh`)
+- `scripts/ui/theme_manager.gd` — RefCounted; static `palette_for()` / `build_theme()` / `load_settings()` / `save_settings()` / `apply_saved()`; real Button/Label/Panel/HSlider styleboxes; 40/48 px fonts; 128/160 px touch padding; `user://settings.json`.
+- `scripts/ui/screen_router.gd` — static `goto_stage()` / `scene_for()` + root-meta params (`map_path`, `map_json`, `return_stage`, `editor_buffer`).
+- `scripts/ui/ui_kit.gd` (new) — shared screen scaffold, headings, captions, touch-size buttons, haptics.
+- `scripts/ui/{splash,title,settings,hq_armory}_screen.gd`, `scripts/ui/{campaign,credits}_screen.gd` (new), `scenes/{campaign,settings,hq,credits}.tscn` (new).
+- `scripts/editor/map_editor_screen.gd` (rewrite), `map_editor_state.gd` (RefCounted, `erase_cell` undoable), `map_editor_validator.gd` (bounds / walkable / reachability / visibility), `scenes/map_editor.tscn` (script attached).
+- `scripts/planning/squad_hud.gd` (rewrite), `planning_root.gd` (map param, MENU/back, themed HUD bar), `map_renderer.gd` (palette keys, `col_letter()`), `plan_board.gd` (0–1 squad colours).
+- `scripts/sim/map_loader.gd` (`load_from_string`, editor schema), `greybox_map.gd` (`from_dict` keeps zones/spawns).
+- Compile fixes: `mission_prep_panels.gd` (`PrepPanel`), `lockstep_session.gd:77`, `audio/acoustic_bus.gd` split from `tactical_audio.gd`, `audio/bus_graph.gd` (`apply_volumes`), harness fixes.
+- CI: `tests/parse_all.{gd,tscn}`, `tests/scene_smoke.{gd,tscn}`, `tools/ci_gate.sh`, `.github/workflows/headless-ci.yml` (all steps run, real gates), `project.godot` `quit_on_go_back=false`.
+
+### Sim fixes surfaced once the harness actually ran
+- `determinism_harness.gd:711` `var match` (keyword) → parser-stage failure that Godot 4.0 never prints; `--script` exited silently in every CI run. `_test_visibility_west_corner_wrap` was called but never committed — implemented.
+- `Visibility`: Godot 4 `wrapf()` snaps values within ~3.1e-5 of PI to -PI, killing the -eps grazing ray at the west seam → exact single-period `wrap_angle()`.
+- `SimWorld`: snapshot/restore now carry `entity_seq` + tap-in state; `setup()` clears entities, overrides, tap-in, drones, vehicles (Planning Reset kept spent CP).
+- Test fixes: sweep-line IoI observer in cell units; acoustic attenuation via `is_equal_approx`; override replay compares equal ticks.
+
+### Decisions
+- **D-BAL-01 (user-approved 2026-11-24):** a hit from a known caliber always deals at least 1 damage: `damage_for = max(pen - armor, 1)`; unknown caliber = 0.
+
+### Gate status (PR #1 CI, Godot 4.0.4 headless)
+- Parse gate PASS (79 scripts, 13 scenes); boot smoke, scene smoke (every screen), meta progression, UI polish audit, map validation, UI audio smoke, map editor, SimClock probe PASS; determinism harness 35/36 before D-BAL-01.
+
+---
+
 ## Session 12 — 2026-11-23 — Phase K — Touch-First In-Game CQB Map Editor
 
 ### Files
