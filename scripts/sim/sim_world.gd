@@ -142,6 +142,19 @@ func state_hash() -> String:
 			int(o.move_blocked_from),
 			";".join(path_parts),
 		])
+	for o in operatives:
+		var ks := PackedStringArray()
+		for k in o.skills.keys():
+			ks.append("%s=%d" % [String(k), int(o.skills[k])])
+		ks.sort()
+		parts.append("X%d|%s|%s|%s|%s|%d" % [
+			o.id,
+			String(o.mode_name),
+			String(o.health),
+			String(o.armor_class),
+			";".join(ks),
+			o.heartbeat_radius,
+		])
 	var door_parts := PackedStringArray()
 	for k in map.door_open.keys():
 		door_parts.append("%d,%d=%s" % [int(k.x), int(k.y), "1" if bool(map.door_open[k]) else "0"])
@@ -228,6 +241,10 @@ func _step_operative(o: SimOperative) -> void:
 			AgentCommand.CommandType.MOVE_TO_CELL:
 				_step_move(o, cmd)
 				return
+			AgentCommand.CommandType.SET_MODE:
+				o.mode_name = cmd.mode_name
+				journal.append({"t": tick, "ev": &"mode_set", "op": o.id, "mode": String(cmd.mode_name)})
+				o.queue.advance_cursor()
 			AgentCommand.CommandType.PERFORM_ACTION:
 				o.move_carry = 0.0
 				_step_action(o, cmd)

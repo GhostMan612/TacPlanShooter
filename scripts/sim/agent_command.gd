@@ -5,7 +5,7 @@
 class_name AgentCommand
 extends Resource
 
-enum CommandType { MOVE_TO_CELL, SET_STANCE, WAIT_GO_CODE, PERFORM_ACTION, SET_FIELD_OF_FIRE }
+enum CommandType { MOVE_TO_CELL, SET_STANCE, WAIT_GO_CODE, PERFORM_ACTION, SET_FIELD_OF_FIRE, SET_MODE }
 enum ActionKind { NONE, FLASHBANG, FRAG, TEAR_GAS, BREACH_CHARGE }
 
 @export var operative_id: int = -1
@@ -16,6 +16,7 @@ enum ActionKind { NONE, FLASHBANG, FRAG, TEAR_GAS, BREACH_CHARGE }
 @export var action_kind: ActionKind = ActionKind.NONE
 @export var go_code: StringName = &""
 @export var stance_name: StringName = &"normal"
+@export var mode_name: StringName = &""
 
 
 func to_dict() -> Dictionary:
@@ -29,6 +30,7 @@ func to_dict() -> Dictionary:
 		"action_kind": int(action_kind),
 		"go_code": String(go_code),
 		"stance_name": String(stance_name),
+		"mode_name": String(mode_name),
 	}
 
 
@@ -42,4 +44,5 @@ static func from_dict(d: Dictionary) -> AgentCommand:
 	c.action_kind = int(d.get("action_kind", 0)) as ActionKind
 	c.go_code = StringName(String(d.get("go_code", "")))
 	c.stance_name = StringName(String(d.get("stance_name", "normal")))
+	c.mode_name = StringName(String(d.get("mode_name", "")))
 	return c

@@ -22,7 +22,7 @@ const STANCE_ACOUSTIC_RADIUS_MULTIPLIERS: Dictionary = {
 	&"cautious": 0.35,
 }
 
-const GO_CODES: Array[StringName] = [&"alpha", &"bravo", &"charlie"]
+const GO_CODES: Array[StringName] = [&"alpha", &"bravo", &"charlie", &"delta"]
 
 const LOS_VERTEX_EPSILON_RAD: float = 0.00001
 const ACTION_FUSE_TICKS: int = 45

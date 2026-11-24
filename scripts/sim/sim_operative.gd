@@ -20,6 +20,11 @@ var done := false
 var move_carry := 0.0
 var halted := false
 var move_blocked_from := 0
+var skills: Dictionary = {}
+var armor_class: StringName = &"light"
+var health: StringName = &"healthy"
+var mode_name: StringName = &""
+var heartbeat_radius: int = 0
 
 
 func speed_cells_per_sec() -> float:
@@ -46,6 +51,11 @@ func to_dict() -> Dictionary:
 		"carry": move_carry,
 		"halted": halted,
 		"blocked": move_blocked_from,
+		"skills": _skills_list(),
+		"armor_class": String(armor_class),
+		"health": String(health),
+		"mode_name": String(mode_name),
+		"heartbeat_radius": heartbeat_radius,
 		"queue": queue.to_dict() if queue != null else {},
 	}
 
@@ -70,5 +80,23 @@ static func from_dict(d: Dictionary) -> SimOperative:
 	o.move_carry = float(d.get("carry", 0.0))
 	o.halted = bool(d.get("halted", false))
 	o.move_blocked_from = int(d.get("blocked", 0))
+	for pair in d.get("skills", []):
+		o.skills[StringName(String(pair[0]))] = int(pair[1])
+	o.armor_class = StringName(String(d.get("armor_class", "light")))
+	o.health = StringName(String(d.get("health", "healthy")))
+	o.mode_name = StringName(String(d.get("mode_name", "")))
+	o.heartbeat_radius = int(d.get("heartbeat_radius", 0))
 	o.queue = CommandQueue.from_dict(d.get("queue", {}))
 	return o
+
+
+func is_alive() -> bool:
+	return health != &"kia"
+
+
+func _skills_list() -> Array:
+	var arr := []
+	for k in skills.keys():
+		arr.append([String(k), int(skills[k])])
+	arr.sort()
+	return arr
