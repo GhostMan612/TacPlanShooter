@@ -39,37 +39,37 @@ jobs:
           if grep -E "ERROR|SCRIPT ERROR|Parse" boot.log; then exit 1; fi
       - name: Determinism harness
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | tee determinism.log || true
+          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . --verbose --script tests/determinism_harness.gd 2>&1 | tee determinism.log || true
           cat determinism.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" determinism.log; then exit 1; fi
           grep -q "PASS" determinism.log
       - name: Meta progression harness
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd 2>&1 | tee meta_progression.log || true
+          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . --verbose --script tests/meta_progression_harness.gd 2>&1 | tee meta_progression.log || true
           cat meta_progression.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" meta_progression.log; then exit 1; fi
           grep -q "PASS" meta_progression.log
       - name: UI polish audit (M6 Phase J)
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . -s res://tests/ui_polish_audit.gd 2>&1 | tee ui_polish_audit.log || true
+          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . --verbose --script tests/ui_polish_audit.gd 2>&1 | tee ui_polish_audit.log || true
           cat ui_polish_audit.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" ui_polish_audit.log; then exit 1; fi
           grep -q "PASS" ui_polish_audit.log
       - name: Map validation harness
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . -s res://tests/map_validation_harness.gd 2>&1 | tee map_validation.log || true
+          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . --verbose --script tests/map_validation_harness.gd 2>&1 | tee map_validation.log || true
           cat map_validation.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" map_validation.log; then exit 1; fi
           grep -q "PASS" map_validation.log
       - name: UI audio smoke
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . -s res://tests/ui_audio_smoke.gd 2>&1 | tee ui_audio_smoke.log || true
+          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . --verbose --script tests/ui_audio_smoke.gd 2>&1 | tee ui_audio_smoke.log || true
           cat ui_audio_smoke.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" ui_audio_smoke.log; then exit 1; fi
           grep -q "PASS" ui_audio_smoke.log
       - name: Map editor harness
         run: |
-          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . -s res://tests/map_editor_harness.gd 2>&1 | tee map_editor.log || true
+          timeout 60 stdbuf -oL -eL ./bin/godot --headless --path . --verbose --script tests/map_editor_harness.gd 2>&1 | tee map_editor.log || true
           cat map_editor.log
           if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" map_editor.log; then exit 1; fi
           grep -q "PASS" map_editor.log
