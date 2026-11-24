@@ -1,44 +1,28 @@
 {
-  "map_id": "op01_glass_house",
-  "title": "OP-01: Glass House",
-  "floors": 1,
-  "width_cells": 20,
-  "height_cells": 16,
-  "lighting": "DAY",
-  "walls": [
-    { "floor": 0, "a": [3, 3], "b": [17, 3], "material": "CONCRETE" },
-    { "floor": 0, "a": [17, 3], "b": [17, 13], "material": "CONCRETE" },
-    { "floor": 0, "a": [17, 13], "b": [3, 13], "material": "CONCRETE" },
-    { "floor": 0, "a": [3, 13], "b": [3, 3], "material": "CONCRETE" },
-    { "floor": 0, "a": [9, 3], "b": [9, 13], "material": "DRY_WALL" },
-    { "floor": 0, "a": [9, 8], "b": [17, 8], "material": "DRY_WALL" }
-  ],
-  "doors": [
-    { "id": "d_front", "floor": 0, "cell": [3, 8], "orientation": "V", "state": "CLOSED_UNLOCKED" },
-    { "id": "d_rear", "floor": 0, "cell": [13, 3], "orientation": "H", "state": "LOCKED" },
-    { "id": "d_hall", "floor": 0, "cell": [9, 6], "orientation": "V", "state": "CLOSED_UNLOCKED" },
-    { "id": "d_office", "floor": 0, "cell": [13, 8], "orientation": "H", "state": "LOCKED" }
-  ],
-  "stair_links": [],
-  "insertion_zones": [
-    { "id": "ins_west", "floor": 0, "cells": [[1, 7], [1, 8], [1, 9]], "vehicle_req": "NONE" },
-    { "id": "ins_north", "floor": 0, "cells": [[12, 1], [13, 1], [14, 1]], "vehicle_req": "VAN" }
-  ],
-  "extraction_zones": [
-    { "id": "ext_west", "floor": 0, "cells": [[1, 6], [1, 7], [1, 8], [1, 9], [1, 10]] }
-  ],
-  "defender_zones": [
-    { "floor": 0, "cells": [[5, 5], [6, 5], [7, 10], [11, 5], [15, 5], [11, 11], [15, 11]] }
-  ],
-  "objectives": [
-    { "kind": "HOSTAGE_RESCUE", "floor": 0, "cell": [15, 11], "timer_ticks": 0 }
-  ],
-  "ai_spawns": [
-    { "id": "opfor_01", "archetype": "PATROL_SENTRY", "floor": 0, "cell": [6, 8], "facing_deg": 180, "patrol": [[6, 5], [6, 11]] },
-    { "id": "opfor_02", "archetype": "HOSTAGE_GUARD", "floor": 0, "cell": [14, 10], "facing_deg": 270, "patrol": [] }
-  ],
-  "hostage_spawns": [
-    { "id": "hst_01", "floor": 0, "cell": [15, 11] }
-  ],
-  "jammer_nodes": []
+	"map_id": "op01_glass_house",
+	"title": "Glass House",
+	"floors": 1,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "DAY",
+	"rp_reward": 150,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [5, 2], "b": [5, 8], "material": "DRY_WALL"},
+		{"floor": 0, "a": [9, 2], "b": [9, 8], "material": "DRY_WALL"},
+		{"floor": 0, "a": [5, 2], "b": [9, 2], "material": "DRY_WALL"},
+		{"floor": 0, "a": [9, 2], "b": [9, 5], "material": "DRY_WALL"}
+	],
+	"doors": [{"id": "d01", "floor": 0, "cell": [5, 2], "orientation": "H", "state": "OPEN"}],
+	"stair_links": [],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 2], [2, 3]], "vehicle_req": "NONE"}],
+	"extraction_zones": [{"id": "ext01", "floor": 0, "cells": [[13, 2]]}],
+	"defender_zones": [],
+	"objectives": [{"kind": "HOSTAGE_RESCUE", "floor": 0, "cell": [12, 2], "timer_ticks": 0}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "hostage_guard", "floor": 0, "cell": [7, 6], "facing_deg": 90, "patrol": []}],
+	"hostage_spawns": [{"id": "host_h01", "floor": 0, "cell": [7, 6]}],
+	"jammer_nodes": []
 }

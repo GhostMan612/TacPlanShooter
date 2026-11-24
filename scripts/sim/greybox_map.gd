@@ -10,6 +10,13 @@ var height_cells := 12
 var solid_cells := {}
 var door_cells := {}
 var door_open := {}
+var insertion_zones := []
+var extraction_zones := []
+var defender_zones := []
+var objectives := []
+var ai_spawns := []
+var hostage_spawns := []
+var jammer_nodes := []
 
 
 static func build_default() -> GreyboxMap:
@@ -63,6 +70,10 @@ func get_wall_segments() -> Array:
 			if not in_bounds(nb) or is_solid(nb):
 				segs.append([f[1], f[2]])
 	return segs
+
+
+static func load_from_json(path: String) -> GreyboxMap:
+	return MapLoader.load_from_json(path)
 
 
 func to_dict() -> Dictionary:

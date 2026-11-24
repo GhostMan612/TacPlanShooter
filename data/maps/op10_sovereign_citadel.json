@@ -1,0 +1,30 @@
+{
+	"map_id": "op10_sovereign_citadel",
+	"title": "Sovereign Citadel",
+	"floors": 2,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "DAY",
+	"rp_reward": 800,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [2, 2], "b": [2, 9], "material": "CONCRETE"},
+		{"floor": 0, "a": [13, 2], "b": [13, 9], "material": "CONCRETE"},
+		{"floor": 0, "a": [13, 2], "b": [13, 2], "material": "ARMORED"}
+	],
+	"doors": [
+		{"id": "d01", "floor": 0, "cell": [2, 2], "orientation": "V", "state": "LOCKED"},
+		{"id": "d02", "floor": 0, "cell": [13, 2], "orientation": "V", "state": "LOCKED"}
+	],
+	"stair_links": [{"from_floor": 0, "from_cell": [7, 11], "to_floor": 1, "to_cell": [7, 1]}],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 11]], "vehicle_req": "BEARCAT"}],
+	"extraction_zones": [{"id": "ext01", "floor": 1, "cells": [[13, 10]]}],
+	"defender_zones": [{"floor": 0, "cells": [[2, 2]]}],
+	"objectives": [{"kind": "HVT_CAPTURE", "floor": 1, "cell": [11, 8], "timer_ticks": 0}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "hostage_guard", "floor": 1, "cell": [8, 8], "facing_deg": 90, "patrol": []}],
+	"hostage_spawns": [{"id": "host_h01", "floor": 1, "cell": [11, 8]}],
+	"jammer_nodes": []
+}

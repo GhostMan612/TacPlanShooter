@@ -1,0 +1,30 @@
+{
+	"map_id": "op05_penthouse_lock",
+	"title": "Penthouse Lock",
+	"floors": 2,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "DAY",
+	"rp_reward": 350,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [5, 2], "b": [5, 8], "material": "DRY_WALL"},
+		{"floor": 0, "a": [7, 2], "b": [7, 8], "material": "DRY_WALL"},
+		{"floor": 1, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 1, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 1, "a": [4, 2], "b": [12, 2], "material": "CONCRETE"},
+		{"floor": 1, "a": [12, 2], "b": [12, 10], "material": "CONCRETE"}
+	],
+	"doors": [{"id": "d01", "floor": 0, "cell": [5, 2], "orientation": "H", "state": "LOCKED"}],
+	"stair_links": [{"from_floor": 0, "from_cell": [8, 10], "to_floor": 1, "to_cell": [8, 1]}],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 10]], "vehicle_req": "NONE"}],
+	"extraction_zones": [{"id": "ext01", "floor": 1, "cells": [[14, 10]]}],
+	"defender_zones": [],
+	"objectives": [{"kind": "HOSTAGE_RESCUE", "floor": 1, "cell": [10, 5], "timer_ticks": 0}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "hostage_guard", "floor": 1, "cell": [8, 4], "facing_deg": 270, "patrol": []}],
+	"hostage_spawns": [{"id": "host_h01", "floor": 1, "cell": [10, 5]}],
+	"jammer_nodes": []
+}

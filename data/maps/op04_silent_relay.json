@@ -1,0 +1,26 @@
+{
+	"map_id": "op04_silent_relay",
+	"title": "Silent Relay",
+	"floors": 1,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "LOW_LIGHT",
+	"rp_reward": 300,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [3, 3], "b": [3, 8], "material": "CONCRETE"},
+		{"floor": 0, "a": [7, 3], "b": [7, 8], "material": "CONCRETE"}
+	],
+	"doors": [{"id": "d01", "floor": 0, "cell": [3, 3], "orientation": "H", "state": "CLOSED_UNLOCKED"}],
+	"stair_links": [],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[1, 2], [2, 2]], "vehicle_req": "NONE"}],
+	"extraction_zones": [{"id": "ext01", "floor": 0, "cells": [[13, 9]]}],
+	"defender_zones": [],
+	"objectives": [{"kind": "INTEL_EXTRACT", "floor": 0, "cell": [12, 2], "timer_ticks": 0}],
+	"ai_spawns": [],
+	"hostage_spawns": [],
+	"jammer_nodes": [{"id": "jm01", "floor": 0, "cell": [7, 6], "radius_cells": 3}]
+}

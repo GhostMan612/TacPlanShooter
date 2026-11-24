@@ -1,0 +1,26 @@
+{
+	"map_id": "op02_night_shift",
+	"title": "Night Shift",
+	"floors": 1,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "NIGHT",
+	"rp_reward": 200,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [3, 2], "b": [3, 9], "material": "CONCRETE"},
+		{"floor": 0, "a": [12, 2], "b": [12, 9], "material": "CONCRETE"}
+	],
+	"doors": [{"id": "d01", "floor": 0, "cell": [3, 2], "orientation": "H", "state": "LOCKED"}],
+	"stair_links": [],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 6], [2, 7]], "vehicle_req": "NONE"}],
+	"extraction_zones": [{"id": "ext01", "floor": 0, "cells": [[14, 6]]}],
+	"defender_zones": [],
+	"objectives": [{"kind": "AREA_CLEAR", "floor": 0, "cell": [10, 6], "timer_ticks": 0}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "patrol_sentry", "floor": 0, "cell": [7, 4], "facing_deg": 0, "patrol": [[6, 4], [8, 4]]}],
+	"hostage_spawns": [],
+	"jammer_nodes": []
+}

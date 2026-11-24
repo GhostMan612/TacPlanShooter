@@ -1,0 +1,36 @@
+{
+	"map_id": "op09_signal_tower",
+	"title": "Signal Tower",
+	"floors": 3,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "NIGHT",
+	"rp_reward": 600,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 1, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 1, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 2, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 2, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 2, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 2, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"}
+	],
+	"doors": [
+		{"id": "d01", "floor": 0, "cell": [6, 2], "orientation": "H", "state": "CLOSED_UNLOCKED"},
+		{"id": "d02", "floor": 2, "cell": [6, 9], "orientation": "H", "state": "LOCKED"}
+	],
+	"stair_links": [
+		{"from_floor": 0, "from_cell": [7, 10], "to_floor": 1, "to_cell": [7, 1]},
+		{"from_floor": 1, "from_cell": [7, 10], "to_floor": 2, "to_cell": [7, 1]}
+	],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 5]], "vehicle_req": "NONE"}],
+	"extraction_zones": [{"id": "ext01", "floor": 2, "cells": [[13, 6]]}],
+	"defender_zones": [{"floor": 2, "cells": [[6, 9]]}],
+	"objectives": [{"kind": "BOMB_DISARM", "floor": 2, "cell": [7, 8], "timer_ticks": 300}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "tech_jammer", "floor": 1, "cell": [8, 6], "facing_deg": 0, "patrol": []}],
+	"hostage_spawns": [],
+	"jammer_nodes": [{"id": "jm01", "floor": 1, "cell": [6, 6], "radius_cells": 2}]
+}

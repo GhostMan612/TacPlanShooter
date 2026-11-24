@@ -1,0 +1,30 @@
+{
+	"map_id": "op07_blackwater_pier",
+	"title": "Blackwater Pier",
+	"floors": 2,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "LOW_LIGHT",
+	"rp_reward": 450,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [2, 2], "b": [2, 9], "material": "CONCRETE"},
+		{"floor": 0, "a": [7, 2], "b": [7, 9], "material": "CONCRETE"},
+		{"floor": 1, "a": [3, 0], "b": [13, 0], "material": "CONCRETE"},
+		{"floor": 1, "a": [3, 0], "b": [3, 10], "material": "CONCRETE"},
+		{"floor": 1, "a": [3, 10], "b": [13, 10], "material": "CONCRETE"},
+		{"floor": 1, "a": [13, 0], "b": [13, 10], "material": "CONCRETE"}
+	],
+	"doors": [{"id": "d01", "floor": 0, "cell": [2, 2], "orientation": "H", "state": "BARRICADED"}],
+	"stair_links": [{"from_floor": 0, "from_cell": [5, 8], "to_floor": 1, "to_cell": [5, 2]}],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 11]], "vehicle_req": "BEARCAT"}],
+	"extraction_zones": [{"id": "ext01", "floor": 1, "cells": [[15, 5]]}],
+	"defender_zones": [{"floor": 0, "cells": [[2, 2]]}],
+	"objectives": [{"kind": "HVT_CAPTURE", "floor": 1, "cell": [6, 8], "timer_ticks": 0}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "heavy_gunner", "floor": 1, "cell": [8, 3], "facing_deg": 0, "patrol": []}],
+	"hostage_spawns": [],
+	"jammer_nodes": []
+}

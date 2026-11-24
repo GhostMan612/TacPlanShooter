@@ -1,0 +1,30 @@
+{
+	"map_id": "op03_iron_shutter",
+	"title": "Iron Shutter",
+	"floors": 1,
+	"width_cells": 16,
+	"height_cells": 12,
+	"lighting": "DAY",
+	"rp_reward": 250,
+	"walls": [
+		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [2, 2], "b": [2, 8], "material": "CONCRETE"},
+		{"floor": 0, "a": [2, 8], "b": [10, 8], "material": "CONCRETE"},
+		{"floor": 0, "a": [10, 8], "b": [10, 2], "material": "CONCRETE"}
+	],
+	"doors": [
+		{"id": "d01", "floor": 0, "cell": [2, 2], "orientation": "V", "state": "LOCKED"},
+		{"id": "d02", "floor": 0, "cell": [10, 8], "orientation": "V", "state": "CLOSED_UNLOCKED"}
+	],
+	"stair_links": [],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[13, 2]], "vehicle_req": "BEARCAT"}],
+	"extraction_zones": [{"id": "ext01", "floor": 0, "cells": [[5, 9]]}],
+	"defender_zones": [],
+	"objectives": [{"kind": "HOSTAGE_RESCUE", "floor": 0, "cell": [5, 4], "timer_ticks": 0}],
+	"ai_spawns": [{"id": "ai_s01", "archetype": "room_anchor", "floor": 0, "cell": [8, 5], "facing_deg": 180, "patrol": []}],
+	"hostage_spawns": [{"id": "host_h01", "floor": 0, "cell": [5, 4]}],
+	"jammer_nodes": []
+}
