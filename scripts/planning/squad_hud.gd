@@ -6,57 +6,79 @@ class_name SquadHud
 extends Control
 
 
+signal operative_selected(op_id: int)
+
+
+const HEIGHT_PX := 200
+const DOT_PX := 22.0
+
+
 var world: SimWorld = null
+var squads: SquadConfig = null
 var selected_op: int = -1
-var _cp_labels: Array = []
-var _health_dots: Array = []
-var palette := ThemeManager.PALETTES[&"dark_tactical"]
+var palette: Dictionary = ThemeManager.palette_for(ThemeManager.Style.DARK_TACTICAL)
+var _row: HBoxContainer = null
+var _cp_label: Label = null
+var _op_buttons: Dictionary = {}
+var _op_dots: Dictionary = {}
+var _roster_key := ""
+
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_row = HBoxContainer.new()
+	_row.name = "Squads"
+	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_row)
+	_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_rebuild()
+
+
+func place(rect: Rect2) -> void:
+	position = rect.position
+	size = rect.size
 
 
 func apply_palette(p: Dictionary) -> void:
 	palette = p
-	for cpl in _cp_labels:
-		cpl.add_theme_color_override("color", palette.get(&"ink", palette[&"accent"]))
-
-
-func _ready() -> void:
-	custom_minimum_size = Vector2(get_viewport_rect().size.x, 120)
-	position = Vector2(0, get_viewport_rect().size.y - 120)
-	var x := 8.0
-	for squad in SquadConfig.SQUADS:
-		var box := HBoxContainer.new()
-		box.position = Vector2(x, 8.0)
-		box.size = Vector2(128.0, 104.0)
-		var header := Label.new()
-		header.text = String(squad)
-		header.add_theme_color_override("font_color", PlanBoard.squad_color(squad))
-		box.add_child(header)
-		for o in world_ops_of(squad):
-			var row := Button.new()
-			row.text = "R" + str(o.id)
-			row.size = Vector2(110.0, 30.0)
-			row.add_theme_color_override("font_color", PlanBoard.squad_color(squad))
-			row.button_down.connect(_on_row.bind(o.id))
-			box.add_child(row)
-			var dot := Label.new()
-			dot.text = "●"
-			dot.position = Vector2(30.0, 8.0)
-			dot.modulate = _health_dot_color(o)
-			dot.add_theme_color_override("font_color", _health_dot_color(o))
-			_health_dots.push_back(dot)
-			_health_ops.push_back(o)
-			row.add_child(dot)
-		var cp := Label.new()
-		cp.position = Vector2(8.0, 56.0)
-		_cp_labels.push_back(cp)
-		box.add_child(cp)
-		add_child(box)
-		x += 140.0
+	if _cp_label != null:
+		_cp_label.add_theme_color_override("font_color", palette["ink"])
 	_update_live()
 
 
-func _on_row(op_id: int) -> void:
-	touch_operative(op_id)
+func refresh(w: SimWorld) -> void:
+	world = w
+	if _roster_signature() != _roster_key:
+		_rebuild()
+	else:
+		_update_live()
+
+
+func squad_of(op_id: int) -> StringName:
+	if squads != null:
+		for sq in SquadConfig.SQUADS:
+			if squads.members(sq).has(op_id):
+				return sq
+	return SquadConfig.SQUADS[posmod(op_id, SquadConfig.SQUADS.size())]
+
+
+func world_ops_of(squad: StringName) -> Array[SimOperative]:
+	var out: Array[SimOperative] = []
+	if world == null:
+		return out
+	for o in world.operatives:
+		if o.faction_id == 0 and squad_of(o.id) == squad:
+			out.append(o)
+	return out
+
+
+func callsign(op_id: int) -> String:
+	var sq := squad_of(op_id)
+	var ops := world_ops_of(sq)
+	for i in range(ops.size()):
+		if ops[i].id == op_id:
+			return String(sq).substr(0, 1).to_upper() + str(i + 1)
+	return "?" + str(op_id)
 
 
 func world_tapin_points() -> int:
@@ -65,40 +87,110 @@ func world_tapin_points() -> int:
 	return int(world.tapin_points)
 
 
-func _health_dot_color(o: SimOperative) -> Color:
+func health_color(o: SimOperative) -> Color:
 	if not o.is_alive():
-		return Color.html("#DC2626")
+		return Color("#DC2626")
 	if o.health == &"wounded":
-		return Color.html("#F59E0B")
-	return Color.html("#16A34A")
-
-
-func refresh(w: SimWorld) -> void:
-	world = w
-	_update_live()
-
-
-func _update_live() -> void:
-	for cpl in _cp_labels:
-		cpl.text = "CP: " + str(world_tapin_points())
-	for i in range(int(_health_dots.size())):
-		var o := _health_ops[i]
-		_health_dots[i].modulate = _health_dot_color(o)
-		_health_dots[i].add_theme_color_override("font_color", _health_dot_color(o))
-
-
-var _health_ops: Array = []
+		return Color("#F59E0B")
+	return Color("#16A34A")
 
 
 func touch_operative(op_id: int) -> void:
 	selected_op = op_id
+	_update_live()
+	operative_selected.emit(op_id)
 
 
-func world_ops_of(squad: StringName) -> Array:
-	var out := []
+func card_count() -> int:
+	if _row == null:
+		return 0
+	return _row.get_child_count() - (1 if _cp_label != null else 0)
+
+
+func operative_button(op_id: int) -> Button:
+	return _op_buttons.get(op_id, null)
+
+
+func _roster_signature() -> String:
 	if world == null:
-		return out
+		return ""
+	var parts: Array[String] = []
 	for o in world.operatives:
 		if o.faction_id == 0:
-			out.append(o)
-	return out
+			parts.append("%d:%s" % [o.id, String(squad_of(o.id))])
+	return ",".join(PackedStringArray(parts))
+
+
+func _rebuild() -> void:
+	_roster_key = _roster_signature()
+	_op_buttons.clear()
+	_op_dots.clear()
+	_cp_label = null
+	if _row == null:
+		return
+	for child in _row.get_children():
+		_row.remove_child(child)
+		child.queue_free()
+	for sq in SquadConfig.SQUADS:
+		var ops := world_ops_of(sq)
+		if ops.is_empty():
+			continue
+		var card := PanelContainer.new()
+		card.name = "Squad_" + String(sq)
+		card.mouse_filter = Control.MOUSE_FILTER_PASS
+		_row.add_child(card)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 6)
+		card.add_child(col)
+		var header := Label.new()
+		header.text = String(sq).to_upper()
+		header.add_theme_color_override("font_color", PlanBoard.squad_color(sq))
+		header.add_theme_font_size_override("font_size", 32)
+		col.add_child(header)
+		var buttons := HBoxContainer.new()
+		col.add_child(buttons)
+		for o in ops:
+			var b := Button.new()
+			b.name = "Op%d" % o.id
+			b.focus_mode = Control.FOCUS_NONE
+			b.custom_minimum_size = Vector2(176, 96)
+			b.add_theme_color_override("font_color", PlanBoard.squad_color(sq))
+			b.pressed.connect(touch_operative.bind(o.id))
+			var dot := ColorRect.new()
+			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			dot.position = Vector2(10, 10)
+			dot.size = Vector2(DOT_PX, DOT_PX)
+			b.add_child(dot)
+			buttons.add_child(b)
+			_op_buttons[o.id] = b
+			_op_dots[o.id] = dot
+	_cp_label = Label.new()
+	_cp_label.name = "CommandPoints"
+	_cp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_cp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_cp_label.add_theme_color_override("font_color", palette["ink"])
+	_row.add_child(_cp_label)
+	_update_live()
+
+
+func _update_live() -> void:
+	if _cp_label != null:
+		_cp_label.text = "CP %d/%d" % [world_tapin_points(), SimConstants.TAPIN_COMMAND_POINTS_MAX]
+	if world == null:
+		return
+	for o in world.operatives:
+		if not _op_buttons.has(o.id):
+			continue
+		var b: Button = _op_buttons[o.id]
+		var dot: ColorRect = _op_dots[o.id]
+		var status := ""
+		if not o.is_alive():
+			status = " KIA"
+		elif o.halted:
+			status = " HALT"
+		elif o.done:
+			status = " DONE"
+		b.text = "   " + callsign(o.id) + status
+		dot.color = health_color(o)
+		b.modulate = Color(1, 1, 1, 1) if selected_op < 0 or selected_op == o.id else Color(1, 1, 1, 0.6)

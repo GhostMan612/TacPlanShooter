@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -u
+log="$1"
+shift
+if [ ! -s "$log" ]; then
+  echo "::error::$log is empty"
+  exit 1
+fi
+bad=$(grep -E "SCRIPT ERROR|Parse Error|Compile Error|\bFAIL\b|^ERROR:|^\s*ERROR:" "$log" | grep -vE "resources still in use at exit|ObjectDB instances leaked|StringName: .* unclaimed")
+if [ -n "$bad" ]; then
+  echo "::error::$log contains failures"
+  echo "$bad" | head -40
+  exit 1
+fi
+for need in "$@"; do
+  if ! grep -qF -- "$need" "$log"; then
+    echo "::error::$log is missing required marker: $need"
+    exit 1
+  fi
+done
+echo "gate ok: $log"

@@ -1,51 +1,75 @@
+# ============================================================
+# As Above, So Below. As Within, So Without.
+# The Future Dictates the Past and the Past is Always Present.
+# ============================================================
 class_name TitleScreen
 extends Control
 
-var campaign := 10
-var quick := 1
-var two_player := 2
-var hq_armory := 3
-var settings := 4
-var credits := 5
-var map_editor := 6
-var scenes: Dictionary = {}
 
-
-func ready_state() -> void:
-	pass
+var settings: Dictionary = {}
+var buttons: Dictionary = {}
 
 
 func _ready() -> void:
-	scenes[campaign] = "res://scenes/planning.tscn"
-	scenes[quick] = "res://scenes/planning.tscn"
-	scenes[two_player] = "res://scenes/planning.tscn"
-	scenes[map_editor] = "res://scenes/map_editor.tscn"
-	scenes[hq_armory] = "res://scenes/title.tscn"
-	scenes[settings] = "res://scenes/title.tscn"
-	scenes[credits] = "res://scenes/title.tscn"
-	_add_button("Campaign", "campaign")
-	_add_button("Quick Operation", "quick")
-	_add_button("2-Player Co-op", "two_player")
-	var me := _add_button("Map Editor", "map_editor")
-	me.rect_position = Vector2(330.0, 0.0)
-	var hq := _add_button("HQ & Armory", "hq_armory")
-	hq.rect_position = Vector2(510.0, 0.0)
-	var st := _add_button("Settings", "settings")
-	st.rect_position = Vector2(700.0, 0.0)
-	var cr := _add_button("Credits", "credits")
-	cr.rect_position = Vector2(880.0, 0.0)
+	var tm := ThemeManager.apply_saved()
+	settings = ThemeManager.load_settings()
+	var pal := tm.palette()
+	var col := UiKit.build_screen(self, pal)
+	col.add_child(UiKit.spacer(48))
+	col.add_child(UiKit.heading("TACPLAN SHOOTER", pal, 88))
+	col.add_child(UiKit.caption("Plan the breach. Commit the plan. Watch it hold.", pal))
+	col.add_child(UiKit.spacer(48))
+	_add(col, &"campaign", "CAMPAIGN", _on_campaign)
+	_add(col, &"quick", "QUICK OPERATION  (OP-01)", _on_quick)
+	var two := _add(col, &"two_player", "2-PLAYER  CO-OP / PVP", Callable())
+	two.disabled = true
+	col.add_child(UiKit.caption("2-Player needs the LAN lockstep transport, which is not available yet.", pal))
+	_add(col, &"map_editor", "MAP EDITOR", _on_map_editor)
+	_add(col, &"hq_armory", "HQ & ARMORY", _on_hq)
+	_add(col, &"settings", "SETTINGS", _on_settings)
+	_add(col, &"credits", "CREDITS", _on_credits)
+	print("[TacPlan] screen=title buttons=%d" % buttons.size())
 
 
-func _add_button(label: StringName, key: StringName) -> Button:
-	var b: Button = Button.new()
-	b.text = label
-	b.rect_min_size = Vector2(150.0, 44.0)
-	b.button_down.connect(_on_select.bind(key))
-	add_child(b)
+func _add(col: VBoxContainer, key: StringName, label: String, cb: Callable) -> Button:
+	var b := UiKit.button(label, cb, settings)
+	b.name = String(key)
+	col.add_child(b)
+	buttons[key] = b
 	return b
 
 
-func _on_select(key: StringName) -> void:
-	var v: String = scenes.get(key)
-	if v != null:
-		get_tree().change_scene_to_file(v)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		get_tree().quit()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if UiKit.is_back_event(event):
+		get_tree().quit()
+
+
+func _on_campaign() -> void:
+	ScreenRouter.goto_stage(ScreenRouter.Stage.CAMPAIGN)
+
+
+func _on_quick() -> void:
+	ScreenRouter.set_param("map_path", ScreenRouter.DEFAULT_MAP_PATH)
+	ScreenRouter.set_param("return_stage", int(ScreenRouter.Stage.TITLE))
+	ScreenRouter.goto_stage(ScreenRouter.Stage.IN_MISSION)
+
+
+func _on_map_editor() -> void:
+	ScreenRouter.goto_stage(ScreenRouter.Stage.MAP_EDITOR)
+
+
+func _on_hq() -> void:
+	ScreenRouter.goto_stage(ScreenRouter.Stage.HQ)
+
+
+func _on_settings() -> void:
+	ScreenRouter.goto_stage(ScreenRouter.Stage.SETTINGS)
+
+
+func _on_credits() -> void:
+	ScreenRouter.goto_stage(ScreenRouter.Stage.CREDITS)

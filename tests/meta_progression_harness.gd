@@ -37,7 +37,7 @@ func _test_save_load() -> int:
 	s.profiles.append(p)
 	var json := s.save_json()
 	var s2 := ProgressionSave.new()
-	var ok := s2.load_json(json) and s2.profiles.size() == 1 and s2.profiles[0].xp == 100
+	var ok: bool = s2.load_json(json) and s2.profiles.size() == 1 and s2.profiles[0].xp == 100
 	print("[HARNESS] mp_save_load %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -73,5 +73,6 @@ func _test_pvp_budget() -> int:
 	var screen := ArmoryScreen.new()
 	screen.armory = a
 	var ok := screen.valid_for_pvp(p)
+	screen.free()
 	print("[HARNESS] mp_pvp_budget %s (points=%d max=%d)" % ["PASS" if ok else "FAIL", p.loadout_points(), a.STANDARDIZED_LOADOUT_POINTS])
 	return 0 if ok else 1

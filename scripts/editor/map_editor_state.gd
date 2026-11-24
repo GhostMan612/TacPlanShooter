@@ -3,7 +3,7 @@
 # The Future Dictates the Past and the Past is Always Present.
 # ============================================================
 class_name MapEditorState
-extends Node
+extends RefCounted
 
 
 enum Tool { WALL, DOOR, STAIR, ZONES, UNITS, ERASE, UNDO, REDO, VALIDATE, PLAYTEST, EXPORT, IMPORT }
@@ -154,9 +154,106 @@ func to_json() -> String:
 
 static func from_json(text: String) -> MapEditorState:
 	var st := MapEditorState.new()
-	var d: Dictionary = JSON.parse_string(text)
-	st.map = MapLoader.from_data(d)
+	st.map = MapLoader.load_from_string(text)
 	return st
+
+
+func snapshot_cell(c: Vector2i) -> Dictionary:
+	return {
+		"solid": map.solid_cells.has(c),
+		"door": map.door_cells.has(c),
+		"door_open": bool(map.door_open.get(c, false)),
+		"objectives": _without_cell(map.objectives, c, true),
+		"ai_spawns": _without_cell(map.ai_spawns, c, true),
+		"hostage_spawns": _without_cell(map.hostage_spawns, c, true),
+		"jammer_nodes": _without_cell(map.jammer_nodes, c, true),
+		"insertion_zones": map.insertion_zones.duplicate(true),
+		"extraction_zones": map.extraction_zones.duplicate(true),
+		"defender_zones": map.defender_zones.duplicate(true),
+	}
+
+
+func cell_has_content(c: Vector2i) -> bool:
+	if map.solid_cells.has(c) or map.door_cells.has(c):
+		return true
+	for lst in [map.objectives, map.ai_spawns, map.hostage_spawns, map.jammer_nodes]:
+		if not _matching(lst, c).is_empty():
+			return true
+	for lst in [map.insertion_zones, map.extraction_zones, map.defender_zones]:
+		for z in lst:
+			for zc in z.get("cells", []):
+				if MapEditorValidator.cell_of(zc) == c:
+					return true
+	return false
+
+
+func erase_cell(c: Vector2i) -> bool:
+	if not cell_has_content(c):
+		return false
+	var before := snapshot_cell(c)
+	_push(Callable(self, "_restore_cell").bind(c, before), Callable(self, "_clear_cell").bind(c))
+	_clear_cell(c)
+	return true
+
+
+func _clear_cell(c: Vector2i) -> void:
+	map.solid_cells.erase(c)
+	map.door_cells.erase(c)
+	map.door_open.erase(c)
+	map.objectives = _without_cell(map.objectives, c, false)
+	map.ai_spawns = _without_cell(map.ai_spawns, c, false)
+	map.hostage_spawns = _without_cell(map.hostage_spawns, c, false)
+	map.jammer_nodes = _without_cell(map.jammer_nodes, c, false)
+	map.insertion_zones = _zones_without_cell(map.insertion_zones, c)
+	map.extraction_zones = _zones_without_cell(map.extraction_zones, c)
+	map.defender_zones = _zones_without_cell(map.defender_zones, c)
+
+
+func _restore_cell(c: Vector2i, before: Dictionary) -> void:
+	if bool(before["solid"]):
+		map.solid_cells[c] = true
+	if bool(before["door"]):
+		map.door_cells[c] = true
+		map.door_open[c] = bool(before["door_open"])
+	map.objectives = map.objectives + before["objectives"]
+	map.ai_spawns = map.ai_spawns + before["ai_spawns"]
+	map.hostage_spawns = map.hostage_spawns + before["hostage_spawns"]
+	map.jammer_nodes = map.jammer_nodes + before["jammer_nodes"]
+	map.insertion_zones = before["insertion_zones"].duplicate(true)
+	map.extraction_zones = before["extraction_zones"].duplicate(true)
+	map.defender_zones = before["defender_zones"].duplicate(true)
+
+
+func _matching(lst: Array, c: Vector2i) -> Array:
+	var out := []
+	for e in lst:
+		if MapEditorValidator.cell_of(e) == c:
+			out.append(e)
+	return out
+
+
+func _without_cell(lst: Array, c: Vector2i, invert: bool) -> Array:
+	var out := []
+	for e in lst:
+		var hit := MapEditorValidator.cell_of(e) == c
+		if hit == invert:
+			out.append(e)
+	return out
+
+
+func _zones_without_cell(zones: Array, c: Vector2i) -> Array:
+	var out := []
+	for z in zones:
+		var cells := []
+		for zc in z.get("cells", []):
+			if MapEditorValidator.cell_of(zc) != c:
+				cells.append(zc)
+		if cells.is_empty():
+			continue
+		var nz: Dictionary = z.duplicate(true)
+		nz["cells"] = cells
+		out.append(nz)
+	return out
 
 
 func undo() -> void:

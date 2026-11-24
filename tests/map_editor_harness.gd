@@ -35,7 +35,7 @@ func _test_roundtrip() -> int:
 	st.place_objective(Vector2i(10, 4))
 	var text := st.to_json()
 	var m := MapLoader.load_from_string(text)
-	var ok := m.ai_spawns.size() == 1 and m.objectives.size() == 1
+	var ok: bool = m.ai_spawns.size() == 1 and m.objectives.size() == 1
 	ok = ok and m.in_bounds(Vector2i(3, 3)) and m.in_bounds(Vector2i(10, 4))
 	var st2 := MapEditorState.from_json(text)
 	ok = ok and st2.map.ai_spawns.size() == 1
@@ -48,7 +48,7 @@ func _test_validator() -> int:
 	m.objectives.append({"cell": [0, 0], "id": "1"})
 	var flags := MapEditorValidator.validate(m)
 	var ok := flags.size() >= 1
-	m2 := GreyboxMap.build_default()
+	var m2 := GreyboxMap.build_default()
 	m2.objectives.append({"cell": [5, 5], "id": "1"})
 	ok = ok and MapEditorValidator.validate(m2).is_empty()
 	print("[HARNESS] map_editor_validator %s" % ("PASS" if ok else "FAIL"))

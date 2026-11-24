@@ -229,13 +229,21 @@ func _test_rng_state_coverage() -> int:
 
 func _test_setup_resets() -> int:
 	var w := _build_world(5)
+	var oc := OverrideCommand.new()
+	oc.tick = 1
+	oc.op_id = 0
+	oc.aim_deg = 45.0
+	w.apply_override(oc)
 	for i in range(10):
 		w.step()
+	var spent := w.tapin_points < SimConstants.TAPIN_COMMAND_POINTS_MAX
 	w.setup(GreyboxMap.build_default(), 5)
 	w.add_operative(0, Vector2i(2, 2), _plan_op0())
 	w.add_operative(1, Vector2i(13, 2), _plan_op1())
 	var ref := _build_world(5)
 	var ok := w.operatives.size() == 2 and w.state_hash() == ref.state_hash()
+	ok = ok and spent and w.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX
+	ok = ok and w.override_stream.is_empty() and w.tapin_player_cooldown == 0 and w.entity_seq == 0
 	print("[HARNESS] setup_resets %s (ops=%d hash_match=%s)" % [
 		"PASS" if ok else "FAIL",
 		w.operatives.size(),
@@ -503,13 +511,15 @@ func _test_override_replay() -> int:
 	w.apply_override(oc)
 	for i in range(2):
 		w.step()
-	var h1 := w.state_hash()
 	var snap := w.snapshot_data()
 	var w2 := SimWorld.new()
 	w2.restore_from_data(snap)
+	var restored_equal := w2.state_hash() == w.state_hash()
 	for i in range(2):
+		w.step()
 		w2.step()
-	var ok := w2.override_stream.size() == 1 and w2.state_hash() == h1
+	var ok := restored_equal and w2.override_stream.size() == 1 and w2.state_hash() == w.state_hash()
+	ok = ok and w2.tapin_points == w.tapin_points and w2.tapin_player_cooldown == w.tapin_player_cooldown
 	print("[HARNESS] override_replay %s (stream=%d)" % ["PASS" if ok else "FAIL", w2.override_stream.size()])
 	return 0 if ok else 1
 
@@ -571,6 +581,7 @@ func _test_ballistics() -> int:
 	ok = ok and b.damage_for(&"7.62", &"light_iia") == 7
 	ok = ok and b.damage_for(&"9mm", &"medium_ii") == 1
 	ok = ok and b.damage_for(&"5.56", &"shield") == 3
+	ok = ok and b.damage_for(&"unknown", &"light_iia") == 0
 	print("[HARNESS] ballistics %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -630,8 +641,8 @@ func _test_ai_no_wallhack_lkp() -> int:
 func _test_ai_acoustic_wall_attenuation() -> int:
 	var b := ThreatBlackboard.new()
 	var ok := b.hearing_attenuation(0) == 0.0
-	ok = ok and b.hearing_attenuation(1) == -0.35
-	ok = ok and b.hearing_attenuation(3) == -1.05
+	ok = ok and is_equal_approx(b.hearing_attenuation(1), -0.35)
+	ok = ok and is_equal_approx(b.hearing_attenuation(3), -1.05)
 	print("[HARNESS] ai_acoustic_wall_attenuation %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -704,11 +715,11 @@ func _test_ai_determinism_replay() -> int:
 func _test_visibility_sweepline_ioi() -> int:
 	var map := GreyboxMap.build_default()
 	var segs := map.get_wall_segments()
-	var observer := Vector2(2.5 * 16.0, 2.5 * 16.0)
+	var observer := Vector2(2.5, 2.5)
 	var poly := Visibility.compute_polygon(observer, segs, 0.00001)
 	var ok := poly.size() >= 3
 	var n_rays := 1440
-	var match := 0
+	var matched := 0
 	var total := 0
 	for i in range(n_rays):
 		var ang := TAU * i / n_rays
@@ -729,8 +740,8 @@ func _test_visibility_sweepline_ioi() -> int:
 		if d_poly < 0:
 			ok = false
 		elif absf(d_poly - d_ref) <= 0.5:
-			match += 1
-	var ioi := float(match) / float(max(total, 1))
+			matched += 1
+	var ioi := float(matched) / float(max(total, 1))
 	ok = ok and ioi >= 0.99
 	print("[HARNESS] visibility_sweepline_ioi %s (poly=%d rays=%d ioi=%.4f)" % [
 		"PASS" if ok else "FAIL", poly.size(), total, ioi,
@@ -782,4 +793,29 @@ func _test_camera_clamp() -> int:
 		str(right_ok),
 		str(left_ok),
 	])
+	return 0 if ok else 1
+
+
+func _test_visibility_west_corner_wrap() -> int:
+	var segs := [
+		[Vector2(0, 0), Vector2(10, 0)],
+		[Vector2(10, 0), Vector2(10, 10)],
+		[Vector2(10, 10), Vector2(0, 10)],
+		[Vector2(0, 10), Vector2(0, 0)],
+		[Vector2(2, 5), Vector2(2, 2)],
+	]
+	var observer := Vector2(5, 5)
+	var poly := Visibility.compute_polygon(observer, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+	var ok := poly.size() >= 3
+	var vertex_hit := false
+	var graze_t := -1.0
+	for p in poly:
+		if p.distance_to(Vector2(2, 5)) < 0.001:
+			vertex_hit = true
+		if absf(p.x) < 0.001 and absf(p.y - 5.0) < 0.001:
+			graze_t = p.distance_to(observer)
+		if p.x < -0.001 or p.y < -0.001 or p.x > 10.001 or p.y > 10.001:
+			ok = false
+	ok = ok and vertex_hit and absf(graze_t - 5.0) < 0.001
+	print("[HARNESS] visibility_west_corner_wrap %s (poly=%d t=%.4f)" % ["PASS" if ok else "FAIL", poly.size(), graze_t])
 	return 0 if ok else 1

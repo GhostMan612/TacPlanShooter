@@ -36,6 +36,15 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	operatives.clear()
 	pending.clear()
 	journal.clear()
+	entities.clear()
+	entity_seq = 0
+	override_stream.clear()
+	tapin_points = SimConstants.TAPIN_COMMAND_POINTS_MAX
+	tapin_player_cooldown = 0
+	tapin_unit_cooldowns.clear()
+	tapin_bursts.clear()
+	drones.clear()
+	vehicles.clear()
 
 
 func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand]) -> void:
@@ -187,7 +196,28 @@ func snapshot_data() -> Dictionary:
 		"override_stream": _overrides_arr(),
 		"operatives": ops_arr,
 		"journal": journal.duplicate(true),
+		"entity_seq": entity_seq,
+		"tapin_points": tapin_points,
+		"tapin_player_cooldown": tapin_player_cooldown,
+		"tapin_unit_cooldowns": _int_dict_pairs(tapin_unit_cooldowns),
+		"tapin_bursts": _int_dict_pairs(tapin_bursts),
 	}
+
+
+static func _int_dict_pairs(d: Dictionary) -> Array:
+	var keys: Array = d.keys()
+	keys.sort()
+	var out: Array = []
+	for k in keys:
+		out.append([int(k), int(d[k])])
+	return out
+
+
+static func _pairs_to_int_dict(pairs: Array) -> Dictionary:
+	var out := {}
+	for p in pairs:
+		out[int(p[0])] = int(p[1])
+	return out
 
 
 func restore_from_data(d: Dictionary) -> void:
@@ -216,6 +246,11 @@ func restore_from_data(d: Dictionary) -> void:
 	override_stream.clear()
 	for od in d.get("override_stream", []):
 		override_stream.append(OverrideCommand.from_dict(od))
+	entity_seq = int(d.get("entity_seq", entities.size()))
+	tapin_points = int(d.get("tapin_points", SimConstants.TAPIN_COMMAND_POINTS_MAX))
+	tapin_player_cooldown = int(d.get("tapin_player_cooldown", 0))
+	tapin_unit_cooldowns = _pairs_to_int_dict(d.get("tapin_unit_cooldowns", []))
+	tapin_bursts = _pairs_to_int_dict(d.get("tapin_bursts", []))
 
 
 func state_hash() -> String:
