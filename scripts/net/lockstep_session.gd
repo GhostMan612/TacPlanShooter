@@ -44,10 +44,19 @@ func queue_input(op_id: int, move_dir: Vector2, aim_deg: float, fire_pressed: bo
 	})
 
 
-func process_tick() -> void:
+func process_tick(world: SimWorld) -> void:
 	if not session_active or pending_inputs.is_empty():
 		return
-	pending_inputs.pop_front()
+	for inp in pending_inputs:
+		var oc := OverrideCommand.new()
+		oc.tick = world.tick + 1
+		oc.op_id = int(inp["op_id"])
+		oc.move_dir = Vector2(inp["move_dir"].x, inp["move_dir"].y)
+		oc.aim_deg = float(inp["aim_deg"])
+		oc.fire_pressed = bool(inp["fire_pressed"])
+		oc.use_slot = bool(inp["use_slot"])
+		world.apply_override(oc)
+	pending_inputs.clear()
 
 
 func sync_tick_hash(hash: String) -> void:

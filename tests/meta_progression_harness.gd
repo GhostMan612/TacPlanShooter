@@ -11,8 +11,22 @@ func _initialize() -> void:
 	failures += _test_xp_roles()
 	failures += _test_armory_tree()
 	failures += _test_pvp_budget()
+	failures += _test_mission_grading()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
+
+
+func _test_mission_grading() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var g := MissionGrading.new()
+	var rp := int(g.grade(w, true)["rp"])
+	var xp := int(g.grade(w, true)["xp"])
+	var ok := rp == MissionGrading.RP_OBJECTIVE + MissionGrading.RP_ZERO_CASUALTIES
+	ok = ok and int(g.grade(w, false)["rp"]) == MissionGrading.RP_ZERO_CASUALTIES
+	ok = ok and xp == rp
+	print("[HARNESS] mp_mission_grading %s (rp=%d)" % ["PASS" if ok else "FAIL", rp])
+	return 0 if ok else 1
 
 
 func _test_save_load() -> int:
