@@ -84,4 +84,4 @@ func _push_erase(c: Vector2i) -> void:
 
 func _draw() -> void:
 	for c in invalid_cells:
-		draw_rect(GridUtil.cell_rect_px(Vector2i(c[0], c[1])), Color(0.9, 0.1, 0.1, 0.35 + 0.2 * sin(Engine.time * 6.28)))
+		draw_rect(GridUtil.cell_rect_px(Vector2i(c[0], c[1])), Color(0.9, 0.1, 0.1, 0.35 + 0.2 * sin(float(Time.get_ticks_msec() % 1000) * 0.00628)))
