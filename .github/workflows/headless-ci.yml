@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p bin
           curl -sSL -o bin/Godot_v4.0.4-stable_linux.x86_64.zip https://github.com/godotengine/godot/releases/download/4.0.4-stable/Godot_v4.0.4-stable_linux.x86_64.zip
-          cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot
+          (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
       - name: Import pass 1
         run: ./bin/godot --headless --path . --import || true
@@ -31,8 +31,8 @@ jobs:
       - name: Boot smoke
         run: ./bin/godot --headless --path . --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true
       - name: Determinism harness
-        run: ./bin/godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | grep -E "FAIL|ERROR|SCRIPT ERROR|PASS" || true
+        run: status=0; ./bin/godot --headless --path . -s res://tests/determinism_harness.gd > determinism.log 2>&1 || status=$?; grep -E "PASS|FAIL" determinism.log || true; if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" determinism.log; then exit 1; fi; exit $status
       - name: SimClock probe
         run: ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true
       - name: Meta progression harness
-        run: ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd 2>&1 | grep -E "FAIL|ERROR|SCRIPT ERROR|PASS" || true
+        run: status=0; ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd > meta_progression.log 2>&1 || status=$?; grep -E "PASS|FAIL" meta_progression.log || true; if grep -E "FAIL|ERROR|SCRIPT ERROR|Parse" meta_progression.log; then exit 1; fi; exit $status
