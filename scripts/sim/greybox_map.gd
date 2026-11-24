@@ -72,8 +72,15 @@ func get_wall_segments() -> Array:
 	return segs
 
 
-static func load_from_json(path: String) -> GreyboxMap:
+	static func load_from_json(path: String) -> GreyboxMap:
 	return MapLoader.load_from_json(path)
+
+
+static func load_from_string(text: String) -> GreyboxMap:
+	var d: Dictionary = JSON.parse_string(text)
+	if d == null:
+		return GreyboxMap.new()
+	return MapLoader.from_data(d)
 
 
 func to_dict() -> Dictionary:
@@ -92,6 +99,13 @@ func to_dict() -> Dictionary:
 		"solids": solids,
 		"door_cells": doors,
 		"door_open": opens,
+		"insertion_zones": insertion_zones,
+		"extraction_zones": extraction_zones,
+		"defender_zones": defender_zones,
+		"objectives": objectives,
+		"ai_spawns": ai_spawns,
+		"hostage_spawns": hostage_spawns,
+		"jammer_nodes": jammer_nodes,
 	}
 
 

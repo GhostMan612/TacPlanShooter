@@ -1,0 +1,5 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/editor/map_editor_screen.gd" id="1"]
+
+[node name="MapEditorScreen" type="Control" script=ExtResource("1")]
