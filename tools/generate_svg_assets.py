@@ -1,79 +1,143 @@
-#!/usr/bin/env python3
-"""Generate tactical SVG icon assets into assets/icons/ (flat SVG, MIL-STD-flavored glyphs).
+# ============================================================================
+# As Above, So Below. As Within, So Without.
+# The Future Dictates the Past and the Past is Always Present.
+# ============================================================================
+from pathlib import Path
 
-Run: python tools/generate_svg_assets.py
-"""
+OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons" / "svg"
 
-import os
-
-DARK = "#000000"
-ACCENT = "#2DD4BF"
-
-
-def glyph(body: str) -> str:
-    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">{body}</svg>'
-
-
-def ring(r: float, stroke_width: float, accent: bool = True) -> str:
-    fill = ACCENT if accent else "#8A8A8A"
-    return f'<circle cx="32" cy="32" r="{r}" fill="none" stroke="{fill}" stroke-width="{stroke_width}"/>'
+CYAN = "#2DD4BF"
+AMBER = "#F59E0B"
+RED = "#EF4444"
+BLUE = "#3B82F6"
+GREEN = "#22C55E"
+WHITE = "#E2E8F0"
 
 
-def horizon(y: int, stroke_width: int = 4) -> str:
-    return f'<line x1="6" y1="{y}" x2="58" y2="{y}" stroke="{ACCENT}" stroke-width="{stroke_width}" stroke-linecap="round"/>'
+def wrap(body: str) -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">'
+        + body
+        + "</svg>\n"
+    )
 
 
-ICONS: dict = {
-    "stance_blitz": horizon(20) + horizon(46) + '<circle cx="32" cy="13" r="5" fill="none" stroke="' + ACCENT + '" stroke-width="4"/>',
-    "stance_normal": horizon(16) + horizon(32) + horizon(48),
-    "stance_cautious": horizon(12) + horizon(26) + horizon(40) + horizon(54),
-    "roe_engage": ring(18, 4) + horizon(22) + horizon(42, 2),
-    "roe_advance": ring(18, 4) + horizon(20, 2) + horizon(42, 2),
-    "roe_escort": ring(18, 4) + horizon(22) + horizon(40),
-    "code_alpha": '<rect x="8" y="8" width="20" height="20" fill="none" stroke="' + ACCENT + '" stroke-width="3"/><path d="M40 20 L58 8 L58 30 L40 18 Z" fill="' + ACCENT + '"/><rect x="28" y="28" width="28" height="24" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "code_bravo": ring(24, 4, False) + '<circle cx="32" cy="32" r="12" fill="' + ACCENT + '"/>',
-    "code_charlie": ring(24, 4) + horizon(30),
-    "code_delta": ring(24, 4) + horizon(26) + horizon(38),
-    "action_flashbang": '<circle cx="32" cy="32" r="22" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + ring(12, 4, False),
-    "action_frag": ring(12, 4, False) + '<path d="M32 10 L32 24 M32 40 L32 54" stroke="' + ACCENT + '" stroke-width="4"/><rect x="12" y="30" width="8" height="4" fill="' + ACCENT + '"/>',
-    "action_tear_gas": '<circle cx="32" cy="28" r="10" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<line x1="16" y1="40" x2="48" y2="46" stroke="' + ACCENT + '" stroke-width="4" stroke-linecap="round"/>',
-    "action_breach": ring(16, 4, False) + '<rect x="24" y="8" width="16" height="48" fill="none" stroke="' + ACCENT + '" stroke-width="4"/>',
-    "action_lockpick": '<line x1="20" y1="20" x2="44" y2="44" stroke="' + ACCENT + '" stroke-width="5"/>' + '<circle cx="32" cy="32" r="14" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "action_fof": ring(22, 3) + ring(30, 3, False) + '<polygon points="10,32 10,44 22,44 22,38" fill="' + ACCENT + '"/>',
-    "role_squad_leader": '<rect x="10" y="20" width="44" height="24" fill="none" stroke="' + ACCENT + '" stroke-width="3"/><circle cx="16" cy="14" r="3" fill="' + ACCENT + '"/>',
-    "role_pointman": '<circle cx="32" cy="22" r="8" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + horizon(40, 3),
-    "role_breacher": '<rect x="12" y="26" width="40" height="22" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<path d="M20 26 L28 14 L32 18 L36 10 L40 18 L40 26 Z" fill="' + ACCENT + '"/>',
-    "role_shield": '<rect x="10" y="18" width="44" height="28" rx="6" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "role_tech_drone_operator": '<path d="M20 20 L24 16 L32 28 L26 32 Z" fill="none" stroke="' + ACCENT + '" stroke-width="3"/><circle cx="26" cy="20" r="4" fill="none" stroke="' + ACCENT + '" stroke-width="2"/>',
-    "role_marksman_overwatch": ring(20, 3) + '<path d="M24 18 L40 10 L32 30 L26 22 Z" fill="' + ACCENT + '"/>',
-    "role_medic_rescue": '<circle cx="32" cy="14" r="6" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<path d="M16 32 L48 32 L48 48 L16 48 Z" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "equipment_mag_p": '<rect x="10" y="16" width="24" height="28" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<rect x="10" y="44" width="24" height="14" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "equipment_mag_s": '<rect x="20" y="14" width="16" height="18" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "equipment_frag": ring(14, 3, False) + '<path d="M32 10 L32 24 L36 24 L36 34 L32 34" fill="' + ACCENT + '"/>',
-    "equipment_flashbang": ring(20, 3) + '<circle cx="32" cy="32" r="8" fill="' + ACCENT + '"/>',
-    "equipment_heartbeat": ring(20, 2, False) + ring(26, 2) + '<circle cx="32" cy="32" r="4" fill="' + ACCENT + '"/>',
-    "equipment_lockpick": '<path d="M10 32 L22 20 L40 40 L54 30" stroke="' + ACCENT + '" stroke-width="4"/>',
-    "equipment_electronics": '<path d="M12 12 L16 20 L14 30 L24 34 L22 44" stroke="' + ACCENT + '" stroke-width="4"/>',
-    "equipment_demolitions": '<rect x="12" y="14" width="40" height="8" fill="' + ACCENT + '"/>' + ring(8, 3, False) + ring(16, 3, False),
-    "item_drone_ground": '<rect x="12" y="10" width="40" height="8" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<rect x="18" y="18" width="28" height="8" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "item_drone_uav": '<circle cx="32" cy="16" r="5" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<line x1="32" y1="21" x2="32" y2="40" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "item_vehicle_van": '<rect x="8" y="22" width="48" height="22" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>' + '<path d="M12 38 L20 34 L40 34 L48 38" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "item_vehicle_apc": '<rect x="10" y="12" width="44" height="32" rx="4" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "objective_hostage": '<circle cx="32" cy="14" r="7" fill="none" stroke="' + ACCENT + '" stroke-width="3"/><path d="M32 30 L32 42 M20 42 L44 42" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "objective_bomb": ring(16, 3) + '<path d="M20 26 L24 30 L26 26 L28 30 L32 26" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "objective_intel": ring(16, 3) + '<rect x="22" y="24" width="20" height="16" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "objective_hvt": ring(20, 3) + '<circle cx="32" cy="32" r="8" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "objective_extract": ring(16, 3, False) + '<line x1="12" y1="32" x2="52" y2="32" stroke="' + ACCENT + '" stroke-width="3" stroke-dasharray="4 4"/>' + '<path d="M30 42 L32 38 L34 42 L36 38 L38 42" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
-    "settings_glyph": ring(16, 3, False) + ring(8, 3) + '<rect x="24" y="24" width="20" height="20" rx="2" fill="none" stroke="' + ACCENT + '" stroke-width="3"/>',
+ICONS = {
+    "gocode_alpha.svg": wrap(
+        f'<polygon points="32,4 60,32 32,60 4,32" fill="#0B0F14" stroke="{AMBER}" stroke-width="3"/>'
+        f'<text x="32" y="41" text-anchor="middle" font-family="monospace" font-size="28" font-weight="bold" fill="{AMBER}">A</text>'
+    ),
+    "gocode_bravo.svg": wrap(
+        f'<polygon points="32,4 60,32 32,60 4,32" fill="#0B0F14" stroke="{GREEN}" stroke-width="3"/>'
+        f'<text x="32" y="41" text-anchor="middle" font-family="monospace" font-size="28" font-weight="bold" fill="{GREEN}">B</text>'
+    ),
+    "gocode_charlie.svg": wrap(
+        f'<polygon points="32,4 60,32 32,60 4,32" fill="#0B0F14" stroke="{CYAN}" stroke-width="3"/>'
+        f'<text x="32" y="41" text-anchor="middle" font-family="monospace" font-size="28" font-weight="bold" fill="{CYAN}">C</text>'
+    ),
+    "gocode_delta.svg": wrap(
+        f'<polygon points="32,4 60,32 32,60 4,32" fill="#0B0F14" stroke="{RED}" stroke-width="3"/>'
+        f'<text x="32" y="41" text-anchor="middle" font-family="monospace" font-size="28" font-weight="bold" fill="{RED}">D</text>'
+    ),
+    "stance_blitz.svg": wrap(
+        f'<polyline points="12,16 26,32 12,48" fill="none" stroke="{AMBER}" stroke-width="4" stroke-linecap="round"/>'
+        f'<polyline points="26,16 40,32 26,48" fill="none" stroke="{AMBER}" stroke-width="4" stroke-linecap="round"/>'
+        f'<polyline points="40,16 54,32 40,48" fill="none" stroke="{AMBER}" stroke-width="4" stroke-linecap="round"/>'
+    ),
+    "stance_normal.svg": wrap(
+        f'<polyline points="18,16 32,32 18,48" fill="none" stroke="{CYAN}" stroke-width="4" stroke-linecap="round"/>'
+        f'<polyline points="34,16 48,32 34,48" fill="none" stroke="{CYAN}" stroke-width="4" stroke-linecap="round"/>'
+    ),
+    "stance_cautious.svg": wrap(
+        f'<polyline points="24,16 40,32 24,48" fill="none" stroke="{GREEN}" stroke-width="4" stroke-linecap="round"/>'
+    ),
+    "mode_engage.svg": wrap(
+        f'<circle cx="32" cy="32" r="20" fill="none" stroke="{RED}" stroke-width="3"/>'
+        f'<line x1="32" y1="6" x2="32" y2="58" stroke="{RED}" stroke-width="2.5"/>'
+        f'<line x1="6" y1="32" x2="58" y2="32" stroke="{RED}" stroke-width="2.5"/>'
+        f'<circle cx="32" cy="32" r="4" fill="{RED}"/>'
+    ),
+    "mode_advance.svg": wrap(
+        f'<line x1="10" y1="32" x2="50" y2="32" stroke="{AMBER}" stroke-width="4"/>'
+        f'<polyline points="36,18 52,32 36,46" fill="none" stroke="{AMBER}" stroke-width="4" stroke-linecap="round"/>'
+    ),
+    "mode_escort.svg": wrap(
+        f'<path d="M32 6 L54 14 V32 C54 46 44 55 32 59 C20 55 10 46 10 32 V14 Z" fill="none" stroke="{BLUE}" stroke-width="3.5"/>'
+        f'<circle cx="32" cy="26" r="6" fill="{BLUE}"/>'
+        f'<path d="M22 44 C22 37 42 37 42 44" fill="none" stroke="{BLUE}" stroke-width="3.5"/>'
+    ),
+    "action_flashbang.svg": wrap(
+        f'<rect x="24" y="16" width="16" height="36" rx="4" fill="none" stroke="{AMBER}" stroke-width="3"/>'
+        f'<line x1="24" y1="26" x2="40" y2="26" stroke="{AMBER}" stroke-width="2.5"/>'
+        f'<line x1="24" y1="42" x2="40" y2="42" stroke="{AMBER}" stroke-width="2.5"/>'
+        f'<circle cx="44" cy="14" r="5" fill="none" stroke="{WHITE}" stroke-width="2.5"/>'
+    ),
+    "action_frag.svg": wrap(
+        f'<ellipse cx="32" cy="36" rx="14" ry="18" fill="none" stroke="{RED}" stroke-width="3"/>'
+        f'<rect x="27" y="12" width="10" height="6" fill="{RED}"/>'
+        f'<line x1="18" y1="36" x2="46" y2="36" stroke="{RED}" stroke-width="2"/>'
+        f'<line x1="32" y1="18" x2="32" y2="54" stroke="{RED}" stroke-width="2"/>'
+    ),
+    "action_breach_c4.svg": wrap(
+        f'<rect x="14" y="20" width="36" height="28" rx="3" fill="none" stroke="{AMBER}" stroke-width="3"/>'
+        f'<rect x="24" y="28" width="16" height="12" fill="{RED}"/>'
+        f'<path d="M22 20 C22 10 42 10 42 20" fill="none" stroke="{CYAN}" stroke-width="2.5"/>'
+    ),
+    "action_fof_cone.svg": wrap(
+        f'<circle cx="32" cy="32" r="22" fill="none" stroke="{CYAN}" stroke-width="2.5"/>'
+        f'<path d="M32 32 L50 18 A23 23 0 0 1 50 46 Z" fill="{AMBER}" fill-opacity="0.45" stroke="{AMBER}" stroke-width="2"/>'
+        f'<circle cx="32" cy="32" r="3.5" fill="{WHITE}"/>'
+    ),
+    "gear_heartbeat.svg": wrap(
+        f'<rect x="16" y="10" width="32" height="44" rx="5" fill="none" stroke="{CYAN}" stroke-width="3"/>'
+        f'<circle cx="32" cy="26" r="10" fill="none" stroke="{GREEN}" stroke-width="2"/>'
+        f'<polyline points="20,44 26,44 29,38 33,48 36,44 44,44" fill="none" stroke="{GREEN}" stroke-width="2.5"/>'
+    ),
+    "gear_lockpick.svg": wrap(
+        f'<rect x="18" y="28" width="28" height="24" rx="3" fill="none" stroke="{RED}" stroke-width="3"/>'
+        f'<path d="M24 28 V18 A8 8 0 0 1 40 18 V22" fill="none" stroke="{WHITE}" stroke-width="3"/>'
+        f'<circle cx="32" cy="40" r="3" fill="{RED}"/>'
+    ),
+    "unit_friendly.svg": wrap(
+        f'<rect x="10" y="16" width="44" height="32" fill="#0B0F14" stroke="{BLUE}" stroke-width="3.5"/>'
+        f'<line x1="10" y1="16" x2="54" y2="48" stroke="{BLUE}" stroke-width="2"/>'
+        f'<line x1="54" y1="16" x2="10" y2="48" stroke="{BLUE}" stroke-width="2"/>'
+    ),
+    "unit_hostile.svg": wrap(
+        f'<polygon points="32,8 56,32 32,56 8,32" fill="#0B0F14" stroke="{RED}" stroke-width="3.5"/>'
+        f'<circle cx="32" cy="32" r="5" fill="{RED}"/>'
+    ),
+    "unit_hostile_lkp.svg": wrap(
+        f'<polygon points="32,8 56,32 32,56 8,32" fill="none" stroke="{RED}" stroke-width="2.5" stroke-dasharray="5,4"/>'
+        f'<text x="32" y="40" text-anchor="middle" font-family="monospace" font-size="24" font-weight="bold" fill="{RED}">?</text>'
+    ),
+    "unit_hostage.svg": wrap(
+        f'<rect x="14" y="14" width="36" height="36" fill="#0B0F14" stroke="{GREEN}" stroke-width="3.5"/>'
+        f'<text x="32" y="40" text-anchor="middle" font-family="monospace" font-size="20" font-weight="bold" fill="{GREEN}">H</text>'
+    ),
+    "drone_uav.svg": wrap(
+        f'<circle cx="16" cy="16" r="8" fill="none" stroke="{CYAN}" stroke-width="2.5"/>'
+        f'<circle cx="48" cy="16" r="8" fill="none" stroke="{CYAN}" stroke-width="2.5"/>'
+        f'<circle cx="16" cy="48" r="8" fill="none" stroke="{CYAN}" stroke-width="2.5"/>'
+        f'<circle cx="48" cy="48" r="8" fill="none" stroke="{CYAN}" stroke-width="2.5"/>'
+        f'<line x1="22" y1="22" x2="42" y2="42" stroke="{WHITE}" stroke-width="3"/>'
+        f'<line x1="42" y1="22" x2="22" y2="42" stroke="{WHITE}" stroke-width="3"/>'
+        f'<circle cx="32" cy="32" r="5" fill="{AMBER}"/>'
+    ),
+    "vehicle_apc.svg": wrap(
+        f'<rect x="8" y="20" width="48" height="24" rx="4" fill="#0B0F14" stroke="{CYAN}" stroke-width="3"/>'
+        f'<circle cx="20" cy="46" r="5" fill="{WHITE}"/>'
+        f'<circle cx="44" cy="46" r="5" fill="{WHITE}"/>'
+        f'<rect x="26" y="14" width="12" height="6" fill="{AMBER}"/>'
+    ),
 }
 
 
 def main() -> None:
-    os.makedirs("assets/icons", exist_ok=True)
-    for name, body in ICONS.items():
-        with open(os.path.join("assets", "icons", f"{name}.svg"), "w", encoding="utf-8") as f:
-            f.write(glyph(body) + "\n")
-    print(f"Generated {len(ICONS)} icons into assets/icons/")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    for name, content in ICONS.items():
+        (OUT_DIR / name).write_text(content, encoding="utf-8")
+    print(f"Generated {len(ICONS)} SVG icons in {OUT_DIR}")
 
 
 if __name__ == "__main__":
