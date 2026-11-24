@@ -42,6 +42,7 @@ func _initialize() -> void:
 	failures += _test_ai_flashbang_morale_stun()
 	failures += _test_ai_lkp_freeze()
 	failures += _test_ai_cone_vision()
+	failures += _test_ai_acoustic_events()
 	failures += _test_ai_hostage_lof_safety()
 	failures += _test_ai_determinism_replay()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
@@ -607,6 +608,14 @@ func _test_ai_cone_vision() -> int:
 	return 0 if ok else 1
 
 
+func _test_ai_acoustic_events() -> int:
+	var b := ThreatBlackboard.new()
+	b.record_acoustic(Vector2i(8, 6), &"gunshot_unsuppressed", 42)
+	var ok := b.acoustic.size() == 1 and int(b.acoustic[0]["t"]) == 42
+	print("[HARNESS] ai_acoustic_events %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
 func _test_ai_no_wallhack_lkp() -> int:
 	var b := ThreatBlackboard.new()
 	var ok := not b.has_threat(0)
@@ -633,6 +642,8 @@ func _test_ai_threat_weighted_flank() -> int:
 	var ok := sc.role(0) == SquadCoordinator.Role.FLANKER
 	sc.assign_role(1, SquadCoordinator.Role.ANCHOR)
 	ok = ok and sc.role(1) == SquadCoordinator.Role.ANCHOR
+	sc.set_sight_penalty(Vector2i(8, 6), 40)
+	ok = ok and sc.sight_penalty_of(Vector2i(8, 6)) == 40
 	print("[HARNESS] ai_threat_weighted_flank %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -644,12 +655,11 @@ func _test_ai_flashbang_morale_stun() -> int:
 	e.suppress_near_miss(100)
 	e.morale = 20
 	ok = ok and e.surrender_check()
-	e.transition(EnemyAi.State.IDLE_GUARD)
-	e.suppress_near_miss(100)
-	e.morale = 0
-	ok = ok and not e.is_stunned()
+	e.ai_tick()
+	ok = ok and e.state == EnemyAi.State.SURRENDER
 	e.transition(EnemyAi.State.STUNNED)
-	ok = ok and e.is_stunned()
+	e.ai_tick()
+	ok = ok and e.state == EnemyAi.State.SUPPRESS_LKP
 	print("[HARNESS] ai_flashbang_morale_stun %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 

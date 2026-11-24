@@ -38,7 +38,13 @@ func is_stunned() -> bool:
 func ai_tick() -> void:
 	if surrender_check():
 		transition(int(State.SURRENDER))
-	elif suppression >= 60:
+	elif suppression >= 80:
 		transition(int(State.SUPPRESS_LKP))
-	elif suppression > 0 and state == int(State.IDLE_GUARD):
+	elif state == int(State.STUNNED) and suppression > 0:
+		transition(int(State.TAKE_COVER))
+	elif state == int(State.SUPPRESS_LKP):
+		transition(int(State.INVESTIGATE_LKP))
+	elif state == int(State.IDLE_GUARD) and suppression > 0:
 		transition(int(State.HOLD_AMBUSH))
+	elif state == int(State.HOLD_AMBUSH) and suppression < 10:
+		transition(int(State.IDLE_GUARD))

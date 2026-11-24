@@ -31,9 +31,17 @@ func update_threats(world: SimWorld) -> void:
 		var op := _ai_op(world, k)
 		if op == null:
 			continue
-		for t in world.operatives:
-			if t.is_alive() and blackboard.cone_visible(op.pos, t.pos, op.facing_deg, true, segs):
+		var seen := false
+		for t in world.operates:
+			if not t.is_alive():
+				continue
+			if blackboard.cone_visible(op.pos, t.pos, op.facing_deg, true, segs):
 				blackboard.set_threat(k, t.id, t.pos)
+				seen = true
+			elif blackboard.has_threat(k) and blackboard.target_of(k) == t.id:
+				blackboard.escalate(k)
+		if not seen and not blackboard.has_threat(k):
+			blackboard.clear_threat(k)
 
 
 func _ai_op(world: SimWorld, ai_id: int) -> SimOperative:

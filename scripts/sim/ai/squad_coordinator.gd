@@ -10,6 +10,7 @@ enum Role { ANCHOR, SUPPRESSOR, FLANKER, RUNNER }
 
 
 var role_of: Dictionary = {}
+var sight_penalty: Dictionary = {}
 
 
 func assign_role(ai_id: int, role: int) -> void:
@@ -18,3 +19,11 @@ func assign_role(ai_id: int, role: int) -> void:
 
 func role(ai_id: int) -> int:
 	return int(role_of.get(ai_id, int(Role.ANCHOR)))
+
+
+func set_sight_penalty(cell: Vector2i, penalty: int) -> void:
+	sight_penalty[cell] = penalty
+
+
+func sight_penalty_of(cell: Vector2i) -> int:
+	return int(sight_penalty.get(cell, 0))

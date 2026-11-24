@@ -59,6 +59,10 @@ func target_of(ai_id: int) -> int:
 	return -1
 
 
+func record_acoustic(cell: Vector2i, kind: StringName, tick: int) -> void:
+	acoustic.append({"cell": cell, "kind": kind, "t": tick})
+
+
 func hearing_attenuation(walls: int) -> float:
 	return -0.35 * float(walls)
 
