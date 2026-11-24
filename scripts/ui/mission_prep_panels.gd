@@ -16,6 +16,7 @@ var kit: Control = null
 var team: Control = null
 var planning: Control = null
 var flow: MissionPrepFlow = null
+var contents: Dictionary = {}
 
 
 func load_panels() -> void:
@@ -31,6 +32,20 @@ func load_panels() -> void:
 			Panel.PLANNING: planning = p
 		add_child(p)
 	add_child(flow)
+	set_content(Panel.BRIEFING, "Mission objectives, threat background, commander notes")
+	set_content(Panel.INTEL, "Categorized dossiers (People, Organizations, Misc) + floor-plan markers")
+	set_content(Panel.ROSTER, "Synthetic operative pool (OPR_xx); 5 traits + 5 skills; select up to 4 from the unit pool")
+	set_content(Panel.KIT, "Primary + secondary weapons; 2 equipment slots; Light/Medium/Heavy armor")
+	set_content(Panel.TEAM, "Split up to 4 operatives into Red/Blue/Green/Gold squads; promote a leader")
+	set_content(Panel.PLANNING, "Color-coded routes on the 16 px grid; synchronized Go-Codes (Alpha/Bravo/Charlie/Delta); 3 ROE modes per waypoint")
+
+
+func set_content(i: int, content: String) -> void:
+	contents[i] = content
+
+
+func content(i: int) -> String:
+	return String(contents.get(i, ""))
 
 
 func panel_at(i: int) -> Control:
