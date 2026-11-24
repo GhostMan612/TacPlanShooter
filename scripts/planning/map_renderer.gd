@@ -64,11 +64,36 @@ func _draw() -> void:
 		var major := int(y / s) % 5 == 0
 		draw_line(Vector2(0, y), Vector2(total.size.x, y), c_major if major else c_grid, 1.5 if major else 0.5)
 		y += s
+	var c_red := _color("red", ZONE_RED)
 	for c in map.solid_cells.keys():
-		draw_rect(GridUtil.cell_rect_px(Vector2i(c)), c_wall, true)
+		var cell := Vector2i(c)
+		if map.door_cells.has(cell):
+			continue
+		var rect := GridUtil.cell_rect_px(cell)
+		var mat := StringName(map.wall_materials.get(cell, &"CONCRETE"))
+		if mat == &"DRY_WALL":
+			draw_rect(rect, c_wall.lerp(c_floor, 0.4), true)
+			draw_rect(rect.grow(-4.0), c_wall, true)
+		elif mat == &"ARMORED":
+			draw_rect(rect, c_wall, true)
+			draw_rect(rect.grow(-2.5), c_major, false, 1.0)
+		else:
+			draw_rect(rect, c_wall, true)
 	for c in map.door_cells.keys():
-		var is_open := bool(map.door_open.get(c, false))
-		draw_rect(GridUtil.cell_rect_px(Vector2i(c)).grow(-2.0), c_door_open if is_open else c_door_closed, true)
+		var cell := Vector2i(c)
+		var rect := GridUtil.cell_rect_px(cell)
+		var state := map.door_state(cell)
+		draw_rect(rect, c_floor, true)
+		if state == &"OPEN" or state == &"BREACHED_DESTROYED":
+			draw_rect(rect.grow(-3.0), c_door_open, false, 1.0)
+			continue
+		draw_rect(rect.grow(-2.0), c_door_closed, true)
+		if state == &"LOCKED":
+			draw_rect(Rect2(rect.get_center() - Vector2(3.0, 2.0), Vector2(6.0, 5.0)), c_floor, true)
+			draw_arc(rect.get_center() - Vector2(0.0, 2.0), 2.0, PI, TAU, 8, c_floor, 1.0)
+		elif state == &"BARRICADED":
+			draw_line(rect.position + Vector2(2, 2), rect.end - Vector2(2, 2), c_red, 1.5)
+			draw_line(Vector2(rect.end.x - 2, rect.position.y + 2), Vector2(rect.position.x + 2, rect.end.y - 2), c_red, 1.5)
 	for z in map.insertion_zones:
 		for c in z.get("cells", []):
 			draw_rect(GridUtil.cell_rect_px(Vector2i(int(c[0]), int(c[1]))), ZONE_GREEN)

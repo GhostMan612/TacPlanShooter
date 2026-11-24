@@ -81,6 +81,7 @@ func cone_visible(observer: Vector2, target: Vector2, facing_deg: float, focal: 
 	if not focal and dist > FOCAL_MAX_RANGE * PERIPHERAL_RANGE_MULT:
 		return false
 	for s in segs:
-		if Visibility._ray_hit_t(observer, d, s[0], s[1]) > 0.000001:
+		var t := Visibility._ray_hit_t(observer, d, s[0], s[1])
+		if t > 0.000001 and t < 0.999999:
 			return false
 	return true

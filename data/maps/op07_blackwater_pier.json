@@ -20,7 +20,7 @@
 	],
 	"doors": [{"id": "d01", "floor": 0, "cell": [2, 2], "orientation": "H", "state": "BARRICADED"}],
 	"stair_links": [{"from_floor": 0, "from_cell": [5, 8], "to_floor": 1, "to_cell": [5, 2]}],
-	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 11]], "vehicle_req": "BEARCAT"}],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 10]], "vehicle_req": "BEARCAT"}],
 	"extraction_zones": [{"id": "ext01", "floor": 1, "cells": [[15, 5]]}],
 	"defender_zones": [{"floor": 0, "cells": [[2, 2]]}],
 	"objectives": [{"kind": "HVT_CAPTURE", "floor": 1, "cell": [6, 8], "timer_ticks": 0}],

@@ -22,7 +22,7 @@
 		{"from_floor": 0, "from_cell": [7, 11], "to_floor": 1, "to_cell": [7, 1]},
 		{"from_floor": 1, "from_cell": [7, 10], "to_floor": 0, "to_cell": [7, 10]}
 	],
-	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 11]], "vehicle_req": "HELO"}],
+	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 10]], "vehicle_req": "HELO"}],
 	"extraction_zones": [{"id": "ext01", "floor": 1, "cells": [[13, 5]]}],
 	"defender_zones": [],
 	"objectives": [{"kind": "HOSTAGE_RESCUE", "floor": 1, "cell": [11, 6], "timer_ticks": 0}],

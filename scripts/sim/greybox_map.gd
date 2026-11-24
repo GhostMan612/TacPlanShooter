@@ -10,6 +10,8 @@ var height_cells := 12
 var solid_cells := {}
 var door_cells := {}
 var door_open := {}
+var door_states := {}
+var wall_materials := {}
 var insertion_zones := []
 var extraction_zones := []
 var defender_zones := []
@@ -34,6 +36,7 @@ static func build_default() -> GreyboxMap:
 			m.solid_cells[Vector2i(8, y)] = true
 	m.door_cells[Vector2i(8, 6)] = true
 	m.door_open[Vector2i(8, 6)] = false
+	m.door_states[Vector2i(8, 6)] = &"CLOSED_UNLOCKED"
 	return m
 
 
@@ -52,23 +55,50 @@ func is_solid(cell: Vector2i) -> bool:
 func open_door(cell: Vector2i) -> void:
 	if door_cells.has(cell):
 		door_open[cell] = true
+		if door_states.has(cell) and door_states[cell] != &"BREACHED_DESTROYED":
+			door_states[cell] = &"OPEN"
+
+
+func door_state(cell: Vector2i) -> StringName:
+	if not door_cells.has(cell):
+		return &""
+	if door_states.has(cell):
+		return door_states[cell]
+	return &"OPEN" if bool(door_open.get(cell, false)) else &"CLOSED_UNLOCKED"
+
+
+func occludes(cell: Vector2i) -> bool:
+	if not in_bounds(cell):
+		return true
+	return is_solid(cell)
 
 
 func get_wall_segments() -> Array:
 	var segs := []
-	var faces := [
-		[Vector2i(0, -1), Vector2(0.0, 0.0), Vector2(1.0, 0.0)],
-		[Vector2i(0, 1), Vector2(0.0, 1.0), Vector2(1.0, 1.0)],
-		[Vector2i(-1, 0), Vector2(0.0, 0.0), Vector2(0.0, 1.0)],
-		[Vector2i(1, 0), Vector2(1.0, 0.0), Vector2(1.0, 1.0)],
-	]
-	for c in solid_cells.keys():
-		if door_cells.has(c) and bool(door_open.get(c, false)):
-			continue
-		for f in faces:
-			var nb: Vector2i = c + f[0]
-			if not in_bounds(nb) or is_solid(nb):
-				segs.append([f[1], f[2]])
+	var w := width_cells
+	var h := height_cells
+	for y in range(1, h):
+		var run := -1
+		for x in range(w + 1):
+			var edge := x < w and occludes(Vector2i(x, y - 1)) != occludes(Vector2i(x, y))
+			if edge and run < 0:
+				run = x
+			elif not edge and run >= 0:
+				segs.append([Vector2(run, y), Vector2(x, y)])
+				run = -1
+	for x in range(1, w):
+		var run := -1
+		for y in range(h + 1):
+			var edge := y < h and occludes(Vector2i(x - 1, y)) != occludes(Vector2i(x, y))
+			if edge and run < 0:
+				run = y
+			elif not edge and run >= 0:
+				segs.append([Vector2(x, run), Vector2(x, y)])
+				run = -1
+	segs.append([Vector2(0, 0), Vector2(w, 0)])
+	segs.append([Vector2(w, 0), Vector2(w, h)])
+	segs.append([Vector2(w, h), Vector2(0, h)])
+	segs.append([Vector2(0, h), Vector2(0, 0)])
 	return segs
 
 
@@ -90,7 +120,15 @@ func to_dict() -> Dictionary:
 	var opens: Array = []
 	for k in door_open.keys():
 		opens.append([int(k.x), int(k.y), bool(door_open[k])])
+	var states: Array = []
+	for k in door_states.keys():
+		states.append([int(k.x), int(k.y), String(door_states[k])])
+	var mats: Array = []
+	for k in wall_materials.keys():
+		mats.append([int(k.x), int(k.y), String(wall_materials[k])])
 	return {
+		"door_states": states,
+		"wall_materials": mats,
 		"w": width_cells,
 		"h": height_cells,
 		"solids": solids,
@@ -116,6 +154,10 @@ static func from_dict(d: Dictionary) -> GreyboxMap:
 		m.door_cells[Vector2i(int(dc[0]), int(dc[1]))] = true
 	for os in d.get("door_open", []):
 		m.door_open[Vector2i(int(os[0]), int(os[1]))] = bool(os[2])
+	for st in d.get("door_states", []):
+		m.door_states[Vector2i(int(st[0]), int(st[1]))] = StringName(String(st[2]))
+	for mt in d.get("wall_materials", []):
+		m.wall_materials[Vector2i(int(mt[0]), int(mt[1]))] = StringName(String(mt[2]))
 	m.insertion_zones = d.get("insertion_zones", [])
 	m.extraction_zones = d.get("extraction_zones", [])
 	m.defender_zones = d.get("defender_zones", [])
