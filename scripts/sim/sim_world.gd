@@ -21,6 +21,10 @@ var tapin_player_cooldown: int = 0
 var tapin_unit_cooldowns: Dictionary = {}
 var tapin_bursts: Dictionary = {}
 var tapin_points: int = SimConstants.TAPIN_COMMAND_POINTS_MAX
+var door_system := DoorSystem.new()
+var ballistics := BallisticsSuppression.new()
+var drones: Array[SimDrone] = []
+var vehicles: Array[SimVehicle] = []
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -91,11 +95,35 @@ func step() -> void:
 	if tapin_player_cooldown > 0:
 		tapin_player_cooldown -= 1
 	_tick_down_tapin()
+	_tick_drones()
 	_process_overrides()
 	_process_pending()
 	_step_entities()
 	for o in operatives:
 		_step_operative(o)
+
+
+func _tick_drones() -> void:
+	for d in drones:
+		if not d.destroyed:
+			d.battery -= 1
+			if d.battery <= 0:
+				d.destroyed = true
+
+
+func spawn_drone(owner_op: int) -> SimDrone:
+	var d := SimDrone.new()
+	d.id = drones.size()
+	d.owner_op = owner_op
+	d.kind = SimDrone.Class.GROUND_RECON
+	drones.append(d)
+	return d
+
+
+func destroy_drone(id: int) -> void:
+	for d in drones:
+		if d.id == id:
+			d.destroyed = true
 
 
 func _tick_down_tapin() -> void:

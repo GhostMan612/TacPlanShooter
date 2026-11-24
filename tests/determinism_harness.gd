@@ -32,6 +32,10 @@ func _initialize() -> void:
 	failures += _test_faction_fields()
 	failures += _test_tapin_cooldowns()
 	failures += _test_tapin_cp_budget()
+	failures += _test_door_breach()
+	failures += _test_ballistics()
+	failures += _test_drones()
+	failures += _test_vehicles()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -539,6 +543,48 @@ func _test_tapin_cp_budget() -> int:
 	w.apply_override(oc)
 	ok = ok and w.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX - 1
 	print("[HARNESS] tapin_cp_budget %s (points=%d)" % ["PASS" if ok else "FAIL", w.tapin_points])
+	return 0 if ok else 1
+
+
+func _test_door_breach() -> int:
+	var ds := DoorSystem.new()
+	ds.add_door(Vector2i(8, 6))
+	var ok := ds.breach(Vector2i(8, 6), &"c4")
+	ok = ok and ds.state(Vector2i(8, 6)) == DoorSystem.State.BREACHED_DESTROYED
+	ok = ok and ds.breach(Vector2i(7, 5), &"none")
+	print("[HARNESS] door_breach %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ballistics() -> int:
+	var b := BallisticsSuppression.new()
+	var ok := b.damage_for(&"7.62", &"heavy_iii_iv") == 1
+	ok = ok and b.damage_for(&"7.62", &"light_iia") == 7
+	ok = ok and b.damage_for(&"9mm", &"medium_ii") == 1
+	ok = ok and b.damage_for(&"5.56", &"shield") == 3
+	print("[HARNESS] ballistics %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_drones() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var d := w.spawn_drone(0)
+	var ok := w.drones.size() == 1 and d.kind == SimDrone.Class.GROUND_RECON
+	w.destroy_drone(d.id)
+	ok = ok and d.destroyed
+	print("[HARNESS] drones %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_vehicles() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var v := SimVehicle.new()
+	v.type = SimVehicle.Type.RAID_VAN
+	w.vehicles.append(v)
+	var ok := w.vehicles.size() == 1 and v.type == SimVehicle.Type.RAID_VAN
+	print("[HARNESS] vehicles %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
 

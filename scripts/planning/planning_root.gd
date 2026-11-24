@@ -97,16 +97,22 @@ func _update_fog() -> void:
 		return
 	fog.visible = true
 	var segs := map.get_wall_segments()
-	var polys := []
+	var live_polys := []
 	for o in world.operatives:
 		if o.faction_id != local_faction_id:
 			continue
 		var poly := Visibility.compute_polygon(o.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
 		if poly.size() >= 3:
-			polys.append(poly)
+			live_polys.append(poly)
 			if fog.poly_contains(o.pos, poly):
 				fog.mark_memory(GridUtil.cell_of(o.pos))
-	fog.rebuild(polys)
+	for d in world.drones:
+		if d.destroyed:
+			continue
+		var dpoly := Visibility.compute_polygon(d.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+		if dpoly.size() >= 3:
+			live_polys.append(dpoly)
+	fog.rebuild(live_polys)
 
 
 func _setup_hud() -> void:
