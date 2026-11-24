@@ -229,13 +229,21 @@ func _test_rng_state_coverage() -> int:
 
 func _test_setup_resets() -> int:
 	var w := _build_world(5)
+	var oc := OverrideCommand.new()
+	oc.tick = 1
+	oc.op_id = 0
+	oc.aim_deg = 45.0
+	w.apply_override(oc)
 	for i in range(10):
 		w.step()
+	var spent := w.tapin_points < SimConstants.TAPIN_COMMAND_POINTS_MAX
 	w.setup(GreyboxMap.build_default(), 5)
 	w.add_operative(0, Vector2i(2, 2), _plan_op0())
 	w.add_operative(1, Vector2i(13, 2), _plan_op1())
 	var ref := _build_world(5)
 	var ok := w.operatives.size() == 2 and w.state_hash() == ref.state_hash()
+	ok = ok and spent and w.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX
+	ok = ok and w.override_stream.is_empty() and w.tapin_player_cooldown == 0 and w.entity_seq == 0
 	print("[HARNESS] setup_resets %s (ops=%d hash_match=%s)" % [
 		"PASS" if ok else "FAIL",
 		w.operatives.size(),
@@ -503,13 +511,15 @@ func _test_override_replay() -> int:
 	w.apply_override(oc)
 	for i in range(2):
 		w.step()
-	var h1 := w.state_hash()
 	var snap := w.snapshot_data()
 	var w2 := SimWorld.new()
 	w2.restore_from_data(snap)
+	var restored_equal := w2.state_hash() == w.state_hash()
 	for i in range(2):
+		w.step()
 		w2.step()
-	var ok := w2.override_stream.size() == 1 and w2.state_hash() == h1
+	var ok := restored_equal and w2.override_stream.size() == 1 and w2.state_hash() == w.state_hash()
+	ok = ok and w2.tapin_points == w.tapin_points and w2.tapin_player_cooldown == w.tapin_player_cooldown
 	print("[HARNESS] override_replay %s (stream=%d)" % ["PASS" if ok else "FAIL", w2.override_stream.size()])
 	return 0 if ok else 1
 
