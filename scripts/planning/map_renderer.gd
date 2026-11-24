@@ -46,12 +46,12 @@ func _draw() -> void:
 	var x := 0.0
 	while x <= total.size.x + 0.01:
 		var major := int(x / s) % 5 == 0
-		draw_line(Vector2(x, 0), Vector2(x, total.size.y), c_major if major else GRID_COLOR, major ? 1.5 : 0.5)
+		draw_line(Vector2(x, 0), Vector2(x, total.size.y), c_major if major else GRID_COLOR, 1.5 if major else 0.5)
 		x += s
 	var y := 0.0
 	while y <= total.size.y + 0.01:
 		var major := int(y / s) % 5 == 0
-		draw_line(Vector2(0, y), Vector2(total.size.x, y), c_major if major else GRID_COLOR, major ? 1.5 : 0.5)
+		draw_line(Vector2(0, y), Vector2(total.size.x, y), c_major if major else GRID_COLOR, 1.5 if major else 0.5)
 		y += s
 	for c in map.solid_cells.keys():
 		draw_rect(GridUtil.cell_rect_px(Vector2i(c)), SOLID_COLOR, true)
