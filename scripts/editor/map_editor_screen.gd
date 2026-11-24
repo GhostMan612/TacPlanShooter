@@ -76,15 +76,15 @@ func _ready() -> void:
 	settings = ThemeManager.load_settings()
 	palette = tm.palette()
 	var buffer: Variant = ScreenRouter.get_param(BUFFER_PARAM, null)
-	if typeof(buffer) == TYPE_STRING and String(buffer) != "":
-		state = MapEditorState.from_json(String(buffer))
-		ScreenRouter.clear_param(BUFFER_PARAM)
+	ScreenRouter.clear_param(BUFFER_PARAM)
+	if buffer is MapEditorState:
+		state = buffer as MapEditorState
 	else:
 		state.map = with_perimeter(16, 12)
 	_build_ui()
 	renderer.apply_palette(palette)
 	_rebind_map()
-	_set_tool(MapEditorState.Tool.WALL)
+	_set_tool(state.current_tool)
 	get_viewport().size_changed.connect(_layout_canvas)
 	print("[TacPlan] screen=map_editor w=%d h=%d" % [state.map.width_cells, state.map.height_cells])
 
@@ -312,7 +312,16 @@ func import_map() -> bool:
 		return false
 	var text := f.get_as_text()
 	f.close()
-	state = MapEditorState.from_json(text)
+	return _import_text(text)
+
+
+func _import_text(text: String) -> bool:
+	var imported := MapEditorState.from_json(text)
+	if imported == null:
+		_set_status("IMPORT FAILED: invalid map data")
+		return false
+	state = imported
+	_stroke.clear()
 	_rebind_map()
 	_set_tool(MapEditorState.Tool.WALL)
 	_set_status("IMPORTED: " + EXPORT_PATH)
@@ -323,12 +332,16 @@ func playtest() -> bool:
 	var flags := run_validate()
 	if not flags.is_empty():
 		return false
-	var text := state.to_json()
-	ScreenRouter.set_param(BUFFER_PARAM, text)
-	ScreenRouter.set_param("map_json", text)
+	ScreenRouter.set_param(BUFFER_PARAM, state)
+	ScreenRouter.set_param("map_json", state.to_json())
 	ScreenRouter.set_param("return_stage", int(ScreenRouter.Stage.MAP_EDITOR))
-	ScreenRouter.goto_stage(ScreenRouter.Stage.IN_MISSION)
-	return true
+	if ScreenRouter.goto_stage(ScreenRouter.Stage.IN_MISSION):
+		return true
+	ScreenRouter.clear_param(BUFFER_PARAM)
+	ScreenRouter.clear_param("map_json")
+	ScreenRouter.clear_param("return_stage")
+	_set_status("PLAYTEST FAILED")
+	return false
 
 
 func _set_status(msg: String) -> void:

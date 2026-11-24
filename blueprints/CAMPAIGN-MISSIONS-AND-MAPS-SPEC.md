@@ -48,3 +48,7 @@ Headless test validates every `data/maps/*.json`:
 2. Every `insertion_zone`, `extraction_zone`, `objective`, `ai_spawn`, and `hostage_spawn` sits inside bounds on a walkable cell.
 3. `GridPathfinder` confirms at least one valid path (allowing door breaches) from an insertion zone to every objective and extraction zone.
 4. `Visibility.compute_polygon()` executes cleanly with zero degenerate/NaN polygons from every spawn cell.
+
+## Decision D-MISSION-01 · Ground-floor mission results
+
+The ground-floor runner treats each authored objective cell as a checkpoint. Once the routes finish, success requires all checkpoints to have been reached and a surviving operative at an exit when the map defines one. The result screen shows the outcome and supports replanning with the routes retained. Operations whose objectives and exits are only on upper floors offer labeled ground-floor practice. Dedicated rescue, timed interaction, multi-floor travel, and progression rewards remain separate campaign milestones.

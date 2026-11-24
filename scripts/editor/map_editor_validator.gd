@@ -6,6 +6,83 @@ class_name MapEditorValidator
 extends RefCounted
 
 
+static func has_import_shape(data: Dictionary) -> bool:
+	var compact := data.has("w") or data.has("solids")
+	var width_key := "w" if compact else "width_cells"
+	var height_key := "h" if compact else "height_cells"
+	var walls_key := "solids" if compact else "walls"
+	var doors_key := "door_cells" if compact else "doors"
+	if not (data.has(width_key) or data.has(height_key) or data.has(walls_key) or data.has(doors_key)):
+		return false
+	if not _positive_dimension(data.get(width_key, 16)) or not _positive_dimension(data.get(height_key, 12)):
+		return false
+	if compact:
+		if not _cell_rows(data.get("solids", [])) or not _cell_rows(data.get("door_cells", [])):
+			return false
+		if not _cell_rows(data.get("door_open", []), TYPE_BOOL):
+			return false
+		if not _cell_rows(data.get("door_states", []), TYPE_STRING) or not _cell_rows(data.get("wall_materials", []), TYPE_STRING):
+			return false
+	else:
+		var walls: Variant = data.get("walls", [])
+		var doors: Variant = data.get("doors", [])
+		if not (walls is Array and doors is Array):
+			return false
+		for wall in walls:
+			if not wall is Dictionary or not _cell_row(wall.get("a")) or not _cell_row(wall.get("b")):
+				return false
+			if not _number(wall.get("floor", 0)) or not wall.get("material", "") is String:
+				return false
+		for door in doors:
+			if not door is Dictionary or not _cell_row(door.get("cell")):
+				return false
+			if not _number(door.get("floor", 0)) or not door.get("state", "") is String:
+				return false
+	for key in ["insertion_zones", "extraction_zones", "defender_zones"]:
+		var zones: Variant = data.get(key, [])
+		if not zones is Array:
+			return false
+		for zone in zones:
+			if not zone is Dictionary or not _cell_rows(zone.get("cells")):
+				return false
+			if not compact and not _number(zone.get("floor", 0)):
+				return false
+	for key in ["objectives", "ai_spawns", "hostage_spawns", "jammer_nodes"]:
+		var entries: Variant = data.get(key, [])
+		if not entries is Array:
+			return false
+		for entry in entries:
+			if entry is Dictionary:
+				if not _cell_row(entry.get("cell")) or (not compact and not _number(entry.get("floor", 0))):
+					return false
+			elif key != "jammer_nodes" or not _cell_row(entry):
+				return false
+	return true
+
+
+static func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
+
+
+static func _positive_dimension(value: Variant) -> bool:
+	return _number(value) and float(value) >= 1.0 and float(value) <= 2147483647.0 and floor(float(value)) == float(value)
+
+
+static func _cell_row(row: Variant) -> bool:
+	return row is Array and row.size() >= 2 and _number(row[0]) and _number(row[1])
+
+
+static func _cell_rows(rows: Variant, value_type: int = TYPE_NIL) -> bool:
+	if not rows is Array:
+		return false
+	for row in rows:
+		if not _cell_row(row):
+			return false
+		if value_type != TYPE_NIL and (row.size() < 3 or typeof(row[2]) != value_type):
+			return false
+	return true
+
+
 static func validate(m: GreyboxMap, require_insertion: bool = false) -> Array:
 	var out := []
 	if m == null:

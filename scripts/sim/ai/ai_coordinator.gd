@@ -26,22 +26,21 @@ func add_enemy(ai_id: int, archetype: StringName) -> void:
 
 
 func update_threats(world: SimWorld) -> void:
+	if enemies.is_empty():
+		return
 	var segs := world.map.get_wall_segments()
-	for k in enemies.keys():
-		var op := _ai_op(world, k)
-		if op == null:
+	for id in enemies:
+		var observer: SimOperative = world.enemy_actors.get(id)
+		if observer == null or not observer.is_alive():
+			blackboard.clear_threat(id)
 			continue
-		var seen := false
-		for t in world.operates:
-			if not t.is_alive():
+		for target in world.operatives:
+			if not target.is_alive() or target.faction_id == observer.faction_id:
 				continue
-			if blackboard.cone_visible(op.pos, t.pos, op.facing_deg, true, segs):
-				blackboard.set_threat(k, t.id, t.pos)
-				seen = true
-			elif blackboard.has_threat(k) and blackboard.target_of(k) == t.id:
-				blackboard.escalate(k)
-		if not seen and not blackboard.has_threat(k):
-			blackboard.clear_threat(k)
+			if blackboard.cone_visible(observer.pos, target.pos, observer.facing_deg, true, segs):
+				blackboard.set_threat(id, target.id, target.pos)
+			elif blackboard.target_of(id) == target.id:
+				blackboard.escalate(id)
 
 
 func acoustic_rings() -> Array:
@@ -53,8 +52,27 @@ func acoustic_rings() -> Array:
 	return rings
 
 
-func _ai_op(world: SimWorld, ai_id: int) -> SimOperative:
-	for o in world.operates:
-		if o.id == ai_id:
-			return o
-	return null
+func to_dict() -> Dictionary:
+	var enemy_states := {}
+	for id in enemies:
+		var enemy: EnemyAi = enemies[id]
+		enemy_states[str(id)] = {
+			"state": enemy.state,
+			"suppression": enemy.suppression,
+			"morale": enemy.morale,
+		}
+	return {"blackboard": blackboard.to_dict(), "enemies": enemy_states}
+
+
+static func from_dict(d: Dictionary) -> AiCoordinator:
+	var coordinator := AiCoordinator.new()
+	coordinator.blackboard = ThreatBlackboard.from_dict(d.get("blackboard", {}))
+	var enemy_states: Dictionary = d.get("enemies", {})
+	for id in enemy_states:
+		var state: Dictionary = enemy_states[id]
+		var enemy := EnemyAi.new()
+		enemy.state = int(state["state"])
+		enemy.suppression = int(state["suppression"])
+		enemy.morale = int(state["morale"])
+		coordinator.enemies[int(id)] = enemy
+	return coordinator

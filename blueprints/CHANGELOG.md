@@ -3,6 +3,15 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 14 — 2026-11-24 — Code audit remediation
+
+- Published the [audit of `77c064b`](../docs/TacPlanShooter_Code_Audit_77c064b.md) and a credential-free Android export preset. Route A verification compared the signed ARM64 APK contents against all ten source maps.
+- Reset now starts from the original map. Snapshots and hashes cover pending commands, overrides, and live subsystem state. Enemy detection uses registered actors. Zero-health operatives stop moving.
+- D-MISSION-01 adds a ground-floor checkpoint-and-exit loop with an on-screen result and retry. Maps without ground-floor goals are labeled practice. CP-071 still requires timeline and replay scrubbing.
+- D-PLAN-01 adds go-code waits to route cells and compiles door interactions into the plan. Invalid routes keep execution gated until redrawn.
+- Map Editor restores complete cell state on undo and redo, rejects malformed imports before replacing edits, and preserves edit history across Playtest.
+- Fog caches wall geometry and unchanged observer masks. Visited polygons are composited on the GPU, and live mask nodes are reused. Handset frame time still requires measurement.
+
 ## Session 13 — 2026-11-24 — UI/UX audit + remediation steps 1–2 (PR #1)
 
 ### Audit

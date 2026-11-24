@@ -28,7 +28,7 @@ static func describe(path: String) -> Dictionary:
 	var stem := path.get_file().get_basename()
 	var number := stem.substr(2, 2)
 	var fallback_title := stem.substr(5).replace("_", " ").capitalize()
-	var info := {"path": path, "code": "OP-" + number, "title": fallback_title, "lighting": "", "floors": 1, "rp": 0}
+	var info := {"path": path, "code": "OP-" + number, "title": fallback_title, "lighting": "", "floors": 1, "rp": 0, "practice": true}
 	if not FileAccess.file_exists(path):
 		return info
 	var f := FileAccess.open(path, FileAccess.READ)
@@ -43,6 +43,7 @@ static func describe(path: String) -> Dictionary:
 	info["lighting"] = String(d.get("lighting", "")).replace("_", " ")
 	info["floors"] = int(d.get("floors", 1))
 	info["rp"] = int(d.get("rp_reward", 0))
+	info["practice"] = MapLoader.floor_filter(d.get("objectives", []), 0).is_empty() and MapLoader.floor_filter(d.get("extraction_zones", []), 0).is_empty()
 	return info
 
 
@@ -67,6 +68,8 @@ func _ready() -> void:
 			"" if int(info["floors"]) == 1 else "s",
 			int(info["rp"]),
 		]
+		if bool(info["practice"]):
+			meta += "  ·  GROUND-FLOOR PRACTICE"
 		col.add_child(UiKit.caption(meta, pal))
 	print("[TacPlan] screen=campaign missions=%d" % missions.size())
 

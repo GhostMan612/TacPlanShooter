@@ -16,11 +16,13 @@ func _initialize() -> void:
 	failures += _test_determinism_same_seed()
 	failures += _test_rng_state_coverage()
 	failures += _test_setup_resets()
+	failures += _test_future_inputs_in_hash()
 	failures += _test_go_code_same_tick()
 	failures += _test_route_pipeline()
 	failures += _test_camera_clamp()
 	failures += _test_execution_move_adherence()
 	failures += _test_collision_halt()
+	failures += _test_depleted_health_stops_movement()
 	failures += _test_stance_table()
 	failures += _test_tactical_actions()
 	failures += _test_fof_override()
@@ -234,7 +236,21 @@ func _test_rng_state_coverage() -> int:
 
 
 func _test_setup_resets() -> int:
-	var w := _build_world(5)
+	var baseline := GreyboxMap.build_default()
+	baseline.objectives.append({"id": "start", "cell": [4, 4]})
+	var w := SimWorld.new()
+	w.setup(baseline, 5)
+	w.add_operative(0, Vector2i(2, 2), _plan_op0())
+	w.add_operative(1, Vector2i(13, 2), _plan_op1())
+	var initial_hash := w.state_hash()
+	var door := Vector2i(8, 6)
+	w.map.open_door(door)
+	w.map.objectives[0]["cell"][0] = 6
+	w.door_system.add_door(door)
+	w.ballistics.apply_suppression(0, 4)
+	w.spawn_drone(0)
+	w.add_enemy(100, Vector2i(1, 2), &"guard")
+	w.sound_event(Vector2i(2, 2), &"sprint")
 	var oc := OverrideCommand.new()
 	oc.tick = 1
 	oc.op_id = 0
@@ -243,18 +259,44 @@ func _test_setup_resets() -> int:
 	for i in range(10):
 		w.step()
 	var spent := w.tapin_points < SimConstants.TAPIN_COMMAND_POINTS_MAX
-	w.setup(GreyboxMap.build_default(), 5)
+	var baseline_intact := baseline.is_solid(door) and int(baseline.objectives[0]["cell"][0]) == 4
+	w.setup(baseline, 5)
 	w.add_operative(0, Vector2i(2, 2), _plan_op0())
 	w.add_operative(1, Vector2i(13, 2), _plan_op1())
-	var ref := _build_world(5)
-	var ok := w.operatives.size() == 2 and w.state_hash() == ref.state_hash()
+	var ok := baseline_intact and w.state_hash() == initial_hash and w.map.is_solid(door)
 	ok = ok and spent and w.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX
 	ok = ok and w.override_stream.is_empty() and w.tapin_player_cooldown == 0 and w.entity_seq == 0
 	print("[HARNESS] setup_resets %s (ops=%d hash_match=%s)" % [
 		"PASS" if ok else "FAIL",
 		w.operatives.size(),
-		str(w.state_hash() == ref.state_hash()),
+		str(w.state_hash() == initial_hash),
 	])
+	return 0 if ok else 1
+
+
+func _test_future_inputs_in_hash() -> int:
+	var a := SimWorld.new()
+	a.setup(GreyboxMap.build_default(), 11)
+	var b := SimWorld.new()
+	b.setup(GreyboxMap.build_default(), 11)
+	a.add_operative(0, Vector2i(2, 2), [_cmd_move(Vector2i(3, 2))])
+	b.add_operative(0, Vector2i(2, 2), [_cmd_move(Vector2i(4, 2))])
+	var plans_differ := a.state_hash() != b.state_hash()
+	b.restore_from_data(a.snapshot_data())
+	var first := OverrideCommand.new()
+	first.tick = 1
+	first.op_id = 0
+	first.aim_deg = 45.0
+	var second := OverrideCommand.from_dict(first.to_dict())
+	second.aim_deg = 90.0
+	a.apply_override(first)
+	b.apply_override(second)
+	var overrides_differ := a.state_hash() != b.state_hash()
+	var hash_before_mutation := a.state_hash()
+	first.aim_deg = 120.0
+	var recorded_input_unchanged := a.state_hash() == hash_before_mutation
+	var ok := plans_differ and overrides_differ and recorded_input_unchanged
+	print("[HARNESS] future_inputs_in_hash %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
 
@@ -393,6 +435,23 @@ func _test_collision_halt() -> int:
 		"PASS" if ok else "FAIL",
 		str(halted0), str(halted1), str(w.operatives[0].done),
 	])
+	return 0 if ok else 1
+
+
+func _test_depleted_health_stops_movement() -> int:
+	var world := SimWorld.new()
+	world.setup(GreyboxMap.build_default(), 11)
+	var op := world.add_operative(0, Vector2i(2, 2), [_cmd_move(Vector2i(4, 2))])
+	var original_pos := op.pos
+	op.hp = 0
+	var override := OverrideCommand.new()
+	override.tick = 1
+	override.op_id = op.id
+	override.move_dir = Vector2.RIGHT
+	world.apply_override(override)
+	world.step()
+	var ok := not op.is_alive() and op.pos == original_pos and op.active_path.is_empty()
+	print("[HARNESS] depleted_health_stops_movement %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
 
@@ -710,11 +769,40 @@ func _test_ai_hostage_lof_safety() -> int:
 
 
 func _test_ai_determinism_replay() -> int:
-	var w1 := SimWorld.new()
-	w1.setup(GreyboxMap.build_default(), 777)
-	var w2 := SimWorld.new()
-	w2.setup(GreyboxMap.build_default(), 777)
-	var ok := w1.state_hash() == w2.state_hash()
+	var a := SimWorld.new()
+	a.setup(GreyboxMap.build_default(), 777)
+	a.add_operative(0, Vector2i(2, 2), [])
+	var enemy := a.add_enemy(100, Vector2i(1, 2), &"guard", 0.0)
+	var drone := a.spawn_drone(0)
+	drone.pos = Vector2(4.5, 4.5)
+	var vehicle := SimVehicle.new()
+	vehicle.pos = Vector2(2.75, 2.0)
+	a.vehicles.append(vehicle)
+	a.sound_event(Vector2i(2, 2), &"sprint")
+	a.door_system.add_door(Vector2i(1, 1))
+	a.ballistics.apply_suppression(0, 8)
+	a.step()
+	var found_target := a.ai.blackboard.target_of(enemy.id) == 0 and a.operatives.size() == 1
+	var snap := MissionSnapshot.capture(a)
+	var b := SimWorld.new()
+	b.setup(GreyboxMap.build_default(), 31)
+	b.spawn_drone(7)
+	b.sound_event(Vector2i(2, 2), &"unused")
+	snap.restore_into(b)
+	var restored := b.state_hash() == a.state_hash()
+	restored = restored and b.drones.size() == 1 and b.drones[0].pos == drone.pos
+	restored = restored and b.vehicles.size() == 1 and b.vehicles[0].pos == vehicle.pos
+	restored = restored and b.ai.blackboard.acoustic.size() == 1 and b.ai.blackboard.target_of(enemy.id) == 0
+	for i in range(5):
+		a.step()
+		b.step()
+	var ok := found_target and restored and a.state_hash() == b.state_hash()
+	var legacy: Dictionary = snap.data.duplicate(true)
+	for key in ["ai", "enemy_actors", "drones", "vehicles", "door_system", "suppression"]:
+		legacy.erase(key)
+	b.restore_from_data(legacy)
+	ok = ok and b.drones.is_empty() and b.vehicles.is_empty() and b.enemy_actors.is_empty()
+	ok = ok and b.ai.enemies.is_empty() and b.door_system.doors.is_empty() and b.ballistics.suppression.is_empty()
 	print("[HARNESS] ai_determinism_replay %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
