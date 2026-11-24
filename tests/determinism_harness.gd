@@ -29,6 +29,9 @@ func _initialize() -> void:
 	failures += _test_delta_go_code()
 	failures += _test_team_modes()
 	failures += _test_override_replay()
+	failures += _test_faction_fields()
+	failures += _test_tapin_cooldowns()
+	failures += _test_tapin_cp_budget()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -495,6 +498,47 @@ func _test_override_replay() -> int:
 		w2.step()
 	var ok := w2.override_stream.size() == 1 and w2.state_hash() == h1
 	print("[HARNESS] override_replay %s (stream=%d)" % ["PASS" if ok else "FAIL", w2.override_stream.size()])
+	return 0 if ok else 1
+
+
+func _test_faction_fields() -> int:
+	var o := SimOperative.new()
+	var ok := o.faction_id == 0 and o.owner_peer_id == -1
+	print("[HARNESS] faction_fields %s (f=%d p=%d)" % ["PASS" if ok else "FAIL", o.faction_id, o.owner_peer_id])
+	return 0 if ok else 1
+
+
+func _test_tapin_cooldowns() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var o := SimOperative.new()
+	o.id = 0
+	o.pos = Vector2(2.5, 2.5)
+	o.queue = CommandQueue.new(0)
+	w.operatives.append(o)
+	var oc := OverrideCommand.new()
+	oc.tick = 1
+	oc.op_id = 0
+	w.apply_override(oc)
+	var ok := w.tapin_player_cooldown == SimConstants.TAPIN_HANDOFF_TICKS
+	ok = ok and w.tapin_unit_cooldowns.has(0)
+	w.step()
+	ok = ok and w.tapin_player_cooldown > 0
+	w.release_tapin(0)
+	ok = ok and w.tapin_player_cooldown == SimConstants.TAPIN_COOLDOWN_TICKS
+	print("[HARNESS] tapin_cooldowns %s (player=%d unit=%d)" % ["PASS" if ok else "FAIL", w.tapin_player_cooldown, SimConstants.TAPIN_UNIT_COOLDOWN_TICKS])
+	return 0 if ok else 1
+
+
+func _test_tapin_cp_budget() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var ok := w.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX
+	var oc := OverrideCommand.new()
+	oc.tick = 1
+	w.apply_override(oc)
+	ok = ok and w.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX - 1
+	print("[HARNESS] tapin_cp_budget %s (points=%d)" % ["PASS" if ok else "FAIL", w.tapin_points])
 	return 0 if ok else 1
 
 

@@ -17,6 +17,10 @@ var entities: Array[SimEntity] = []
 var entity_seq := 0
 var journal: Array[Dictionary] = []
 var override_stream: Array[OverrideCommand] = []
+var tapin_player_cooldown: int = 0
+var tapin_unit_cooldowns: Dictionary = {}
+var tapin_bursts: Dictionary = {}
+var tapin_points: int = SimConstants.TAPIN_COMMAND_POINTS_MAX
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -39,8 +43,27 @@ func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand])
 
 
 func apply_override(oc: OverrideCommand) -> void:
+	if tapin_player_cooldown > 0:
+		return
+	var ucd: int = int(tapin_unit_cooldowns.get(oc.op_id, 0))
+	if ucd > 0:
+		return
+	if tapin_points <= 0:
+		return
+	tapin_points -= 1
+	tapin_player_cooldown = SimConstants.TAPIN_HANDOFF_TICKS
+	tapin_unit_cooldowns[oc.op_id] = SimConstants.TAPIN_UNIT_COOLDOWN_TICKS
+	var burst: int = int(tapin_bursts.get(oc.op_id, 0))
+	if burst >= SimConstants.TAPIN_MAX_BURST_TICKS:
+		return
+	tapin_bursts[oc.op_id] = burst + 1
 	override_stream.append(oc)
 	journal.append({"t": oc.tick, "ev": &"override", "op": oc.op_id})
+
+
+func release_tapin(op_id: int) -> void:
+	tapin_player_cooldown = SimConstants.TAPIN_COOLDOWN_TICKS
+	tapin_unit_cooldowns[op_id] = SimConstants.TAPIN_UNIT_COOLDOWN_TICKS
 
 
 func _process_overrides() -> void:
@@ -65,11 +88,21 @@ func issue_go_code(code: StringName) -> void:
 
 func step() -> void:
 	tick += 1
+	if tapin_player_cooldown > 0:
+		tapin_player_cooldown -= 1
+	_tick_down_tapin()
 	_process_overrides()
 	_process_pending()
 	_step_entities()
 	for o in operatives:
 		_step_operative(o)
+
+
+func _tick_down_tapin() -> void:
+	for k in tapin_unit_cooldowns.keys():
+		tapin_unit_cooldowns[k] = int(tapin_unit_cooldowns[k]) - 1
+	for k in tapin_bursts.keys():
+		tapin_bursts[k] = int(tapin_bursts[k]) - 1
 
 
 func all_done() -> bool:
@@ -178,14 +211,17 @@ func state_hash() -> String:
 		for k in o.skills.keys():
 			ks.append("%s=%d" % [String(k), int(o.skills[k])])
 		ks.sort()
-		parts.append("X%d|%s|%s|%s|%s|%d" % [
+		parts.append("X%d|%s|%s|%s|%s|%d|%d|%d" % [
 			o.id,
 			String(o.mode_name),
 			String(o.health),
 			String(o.armor_class),
 			";".join(ks),
 			o.heartbeat_radius,
+			o.faction_id,
+			o.owner_peer_id,
 		])
+		parts.append("C%d" % tapin_points)
 	var door_parts := PackedStringArray()
 	for k in map.door_open.keys():
 		door_parts.append("%d,%d=%s" % [int(k.x), int(k.y), "1" if bool(map.door_open[k]) else "0"])

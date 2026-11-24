@@ -25,6 +25,12 @@ const STANCE_ACOUSTIC_RADIUS_MULTIPLIERS: Dictionary = {
 const GO_CODES: Array[StringName] = [&"alpha", &"bravo", &"charlie", &"delta"]
 
 const LOS_VERTEX_EPSILON_RAD: float = 0.00001
+const TAPIN_HANDOFF_TICKS: int = 30
+const TAPIN_MAX_BURST_TICKS: int = 600
+const TAPIN_COOLDOWN_TICKS: int = 480
+const TAPIN_UNIT_COOLDOWN_TICKS: int = 720
+const TAPIN_COMMAND_POINTS_MAX: int = 4
+const LOCKSTEP_INPUT_DELAY_TICKS: int = 3
 const ACTION_FUSE_TICKS: int = 45
 const ACTION_COOLDOWN_TICKS: int = 60
 const ACTION_MAX_RANGE_CELLS: int = 6

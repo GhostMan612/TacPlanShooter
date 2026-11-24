@@ -13,6 +13,7 @@ var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
+var local_faction_id: int = 0
 
 var _hud := Control.new()
 var _execute_button: Button = null
@@ -98,6 +99,8 @@ func _update_fog() -> void:
 	var segs := map.get_wall_segments()
 	var polys := []
 	for o in world.operatives:
+		if o.faction_id != local_faction_id:
+			continue
 		var poly := Visibility.compute_polygon(o.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
 		if poly.size() >= 3:
 			polys.append(poly)

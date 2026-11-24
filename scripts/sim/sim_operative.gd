@@ -25,6 +25,8 @@ var armor_class: StringName = &"light"
 var health: StringName = &"healthy"
 var mode_name: StringName = &""
 var heartbeat_radius: int = 0
+var faction_id: int = 0
+var owner_peer_id: int = -1
 
 
 func speed_cells_per_sec() -> float:
@@ -56,6 +58,8 @@ func to_dict() -> Dictionary:
 		"health": String(health),
 		"mode_name": String(mode_name),
 		"heartbeat_radius": heartbeat_radius,
+		"faction_id": faction_id,
+		"owner_peer_id": owner_peer_id,
 		"queue": queue.to_dict() if queue != null else {},
 	}
 
@@ -86,6 +90,8 @@ static func from_dict(d: Dictionary) -> SimOperative:
 	o.health = StringName(String(d.get("health", "healthy")))
 	o.mode_name = StringName(String(d.get("mode_name", "")))
 	o.heartbeat_radius = int(d.get("heartbeat_radius", 0))
+	o.faction_id = int(d.get("faction_id", 0))
+	o.owner_peer_id = int(d.get("owner_peer_id", -1))
 	o.queue = CommandQueue.from_dict(d.get("queue", {}))
 	return o
 
