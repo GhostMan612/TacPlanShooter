@@ -40,6 +40,7 @@ func _initialize() -> void:
 	failures += _test_ai_acoustic_wall_attenuation()
 	failures += _test_ai_threat_weighted_flank()
 	failures += _test_ai_flashbang_morale_stun()
+	failures += _test_ai_lkp_freeze()
 	failures += _test_ai_hostage_lof_safety()
 	failures += _test_ai_determinism_replay()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
@@ -641,12 +642,27 @@ func _test_ai_flashbang_morale_stun() -> int:
 	return 0 if ok else 1
 
 
+func _test_ai_lkp_freeze() -> int:
+	var b := ThreatBlackboard.new()
+	var ok := not b.has_threat(0)
+	b.set_threat(0, 7, Vector2(12.0, 3.0))
+	ok = ok and b.has_threat(0)
+	ok = ok and b.lkp_of(0) == Vector2(12.0, 3.0)
+	ok = ok and b.target_of(0) == 7
+	b.set_alert(0, int(ThreatBlackboard.Alert.ALERTED))
+	b.escalate(0)
+	ok = ok and int(b.alerts.get(0, 0)) == int(ThreatBlackboard.Alert.COMBAT)
+	b.clear_threat(0)
+	ok = ok and not b.has_threat(0)
+	print("[HARNESS] ai_lkp_freeze %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
 func _test_ai_hostage_lof_safety() -> int:
 	var f := FriendlyReflexAi.new()
-	var ok := f.mode == FriendlyReflexAi.RoeMode.ENGAGE
-	ok = ok and not f.snap_check([])
-	f.suppression = 100
-	ok = ok and f.snap_check([])
+	var ok := not f.lof_clear([Vector2i(8, 6)], Vector2(0.0, 100.0), Vector2(256.0, 100.0))
+	ok = ok and f.lof_clear([Vector2i(0, 0)], Vector2(0.0, 100.0), Vector2(256.0, 100.0))
+	ok = ok and f.mode == FriendlyReflexAi.RoeMode.ENGAGE
 	f.set_roe(FriendlyReflexAi.RoeMode.ADVANCE)
 	ok = ok and f.mode == FriendlyReflexAi.RoeMode.ADVANCE
 	print("[HARNESS] ai_hostage_lof_safety %s" % ("PASS" if ok else "FAIL"))

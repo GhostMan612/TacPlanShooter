@@ -14,6 +14,8 @@ func step_all() -> void:
 	for k in enemies.keys():
 		var e: EnemyAi = enemies[k]
 		e.suppress_tick_down()
+		if e.suppression > 0:
+			e.ai_tick()
 
 
 func add_enemy(ai_id: int, archetype: StringName) -> void:
