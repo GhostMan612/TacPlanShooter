@@ -86,6 +86,20 @@ func _physics_process(_delta: float) -> void:
 		_update_fog()
 
 
+func _draw() -> void:
+	if world == null or map == null:
+		return
+	var ticks := int(world.tick)
+	for ring in world.ai.acoustic_rings():
+		var age := ticks - int(ring["tick"])
+		if age > 24:
+			continue
+		var center := GridUtil.cell_center_px(ring["cell"])
+		var a := 1.0 - (float(age) / 24.0)
+		draw_circle(center, 20.0 + a * 10.0, Color(1.0, 0.7, 0.0, a * 0.8))
+		draw_circle(center, 38.0, Color(1.0, 0.4, 0.0, a * 0.5))
+
+
 func _sync_tokens() -> void:
 	if world == null or controller == null:
 		return

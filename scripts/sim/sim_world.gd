@@ -95,6 +95,10 @@ func heartbeat_radius_of(o: SimOperative) -> int:
 	return int(o.heartbeat_radius)
 
 
+func sound_event(cell: Vector2i, kind: StringName) -> void:
+	ai.blackboard.record_acoustic(cell, kind, tick)
+
+
 func step() -> void:
 	tick += 1
 	ai.step_all()

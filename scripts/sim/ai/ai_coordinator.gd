@@ -44,6 +44,15 @@ func update_threats(world: SimWorld) -> void:
 			blackboard.clear_threat(k)
 
 
+func acoustic_rings() -> Array:
+	var rings := []
+	for e in blackboard.acoustic:
+		var kind := String(e["kind"])
+		if kind == &"gunshot_unsuppressed" or kind == &"sprint":
+			rings.append({"cell": e["cell"], "tick": int(e["t"])})
+	return rings
+
+
 func _ai_op(world: SimWorld, ai_id: int) -> SimOperative:
 	for o in world.operates:
 		if o.id == ai_id:
