@@ -21,8 +21,14 @@ var local_faction_id: int = 0
 const OPERATIVE_COUNT := 2
 const GREYBOX_SOURCE := "greybox_default"
 
+const ROUTE_HINT := "Long-press an operative, then drag to draw its route."
+
 var squads := SquadConfig.new()
 var spawn_cells: Array[Vector2i] = []
+var plans := {}
+var route_cells := {}
+var _pending_go_codes: Array[StringName] = []
+var _status_label: Label = null
 var map_source := ""
 var _hud: HBoxContainer = null
 var _menu_button: Button = null
@@ -75,6 +81,9 @@ func _ready() -> void:
 	for child in get_children():
 		if child is OperativeToken:
 			controller.tokens.append(child as OperativeToken)
+	for i in range(spawn_cells.size()):
+		controller.op_colors[i] = PlanBoard.squad_color(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()])
+	controller.route_committed.connect(_on_route_committed)
 	add_child(controller)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	world = SimWorld.new()
@@ -112,6 +121,9 @@ func _on_viewport_resized() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if world != null and SimClock.phase == SimClock.Phase.EXECUTION:
+		for code in _pending_go_codes:
+			world.schedule_go_code(code)
+		_pending_go_codes.clear()
 		world.step()
 		_sync_tokens()
 		_update_fog()
@@ -210,12 +222,20 @@ func _setup_hud() -> void:
 	_reset_button.size_flags_stretch_ratio = 1.6
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		_hud.add_child(b)
+	_status_label = Label.new()
+	_status_label.name = "Status"
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_label.text = ROUTE_HINT
+	_hud_canvas.add_child(_status_label)
+	_set_phase_controls(false)
 	squad_hud = SquadHud.new()
 	squad_hud.squads = squads
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
-	for c in [_menu_button, _hud, squad_hud]:
+	for c in [_menu_button, _hud, squad_hud, _status_label]:
 		(c as Control).theme = _tm.applied_theme
 	_place_hud()
 
@@ -231,6 +251,9 @@ func _place_hud() -> void:
 	if _menu_button != null:
 		_menu_button.position = Vector2(margin, 72.0)
 		_menu_button.size = Vector2(280.0, bar_h)
+	if _status_label != null:
+		_status_label.position = Vector2(margin * 2.0 + 280.0, 72.0)
+		_status_label.size = Vector2(vp.x - margin * 3.0 - 280.0, bar_h)
 	if squad_hud != null:
 		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(vp.x - margin * 2.0, SquadHud.HEIGHT_PX)))
 
@@ -255,49 +278,96 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _on_execute_pressed() -> void:
 	if world == null or SimClock.phase != SimClock.Phase.PLANNING:
 		return
+	_pending_go_codes.clear()
 	SimClock.start_execution()
-	_execute_button.disabled = true
+	_set_phase_controls(true)
+	var routed := 0
+	for k in plans.keys():
+		if not (plans[k] as Array).is_empty():
+			routed += 1
+	_set_status("EXECUTING: %d of %d operatives routed" % [routed, spawn_cells.size()])
+
+
+func _queue_go_code(code: StringName) -> void:
+	if world == null or SimClock.phase != SimClock.Phase.EXECUTION:
+		return
+	if not _pending_go_codes.has(code):
+		_pending_go_codes.append(code)
+	_set_status("GO-CODE " + String(code).to_upper() + " sent")
 
 
 func _on_alpha_pressed() -> void:
-	if world != null:
-		world.issue_go_code(&"alpha")
-		print("[TacPlan] go_code issued: alpha")
+	_queue_go_code(&"alpha")
 
 
 func _on_bravo_pressed() -> void:
-	if world != null:
-		world.issue_go_code(&"bravo")
-		print("[TacPlan] go_code issued: bravo")
+	_queue_go_code(&"bravo")
 
 
 func _on_charlie_pressed() -> void:
-	if world != null:
-		world.issue_go_code(&"charlie")
-		print("[TacPlan] go_code issued: charlie")
+	_queue_go_code(&"charlie")
 
 
 func _on_delta_pressed() -> void:
-	if world != null:
-		world.issue_go_code(&"delta")
-		print("[TacPlan] go_code issued: delta")
+	_queue_go_code(&"delta")
 
 
 func _on_reset_pressed() -> void:
 	if world == null:
 		return
+	_pending_go_codes.clear()
+	SimClock.reset_to_planning()
+	_rebuild_world()
+	_set_phase_controls(false)
+	fog.reset_fog()
+	fog.visible = false
+	_set_status(ROUTE_HINT if plans.is_empty() else "RESET: routes kept, ready to execute")
+
+
+func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
+	if SimClock.phase != SimClock.Phase.PLANNING or op_id < 0 or op_id >= spawn_cells.size():
+		return
+	var start: Vector2i = spawn_cells[op_id]
+	var result := RoutePlanner.plan(map, start, waypoints)
+	var cells: Array[Vector2i] = result["cells"]
+	var commands: Array[AgentCommand] = result["commands"]
+	var blocked: Vector2i = result["blocked_at"]
+	plans[op_id] = commands
+	route_cells[op_id] = cells
+	controller.show_route(op_id, RoutePlanner.path_points_px(start, cells))
+	_rebuild_world()
+	var who := squad_hud.callsign(op_id) if squad_hud != null else "OP%d" % op_id
+	if blocked != RoutePlanner.NO_CELL:
+		_set_status("%s ROUTE BLOCKED AT %s%02d (%d cells kept)" % [who, MapRenderer.col_letter(blocked.x), blocked.y + 1, cells.size()])
+	else:
+		_set_status("%s ROUTE SET: %d cells" % [who, cells.size()])
+
+
+func _rebuild_world() -> void:
 	world.setup(map, DEV_SEED)
 	_populate_world()
-	SimClock.reset_to_planning()
-	_execute_button.disabled = false
-	fog.reset_fog()
 	_sync_tokens()
 	if squad_hud != null:
 		squad_hud.refresh(world)
 
 
+func _set_phase_controls(executing: bool) -> void:
+	if _execute_button != null:
+		_execute_button.disabled = executing
+	for b in [_alpha_button, _bravo_button, _charlie_button, _delta_button]:
+		if b != null:
+			(b as Button).disabled = not executing
+	if controller != null:
+		controller.routing_enabled = not executing
+
+
+func _set_status(msg: String) -> void:
+	if _status_label != null:
+		_status_label.text = msg
+
+
 func _maybe_aar() -> void:
-	if world == null:
+	if world == null or world.operatives.is_empty():
 		return
 	var all_down := true
 	for o in world.operatives:
@@ -310,44 +380,18 @@ func _maybe_aar() -> void:
 	aar.world = world
 	add_child(aar)
 	SimClock.reset_to_planning()
-	if _execute_button != null:
-		_execute_button.disabled = false
-	fog.reset_fog()
+	_set_phase_controls(false)
+	_set_status("ALL OPERATIVES DOWN")
 	_sync_tokens()
-
-
-func _demo_cmd_move(t: Vector2i) -> AgentCommand:
-	var c := AgentCommand.new()
-	c.command_type = AgentCommand.CommandType.MOVE_TO_CELL
-	c.target_cell = t
-	return c
-
-
-func _demo_cmd_stance(s: StringName) -> AgentCommand:
-	var c := AgentCommand.new()
-	c.command_type = AgentCommand.CommandType.SET_STANCE
-	c.stance_name = s
-	return c
-
-
-func _demo_cmd_wait(g: StringName) -> AgentCommand:
-	var c := AgentCommand.new()
-	c.command_type = AgentCommand.CommandType.WAIT_GO_CODE
-	c.go_code = g
-	return c
-
-
-func _demo_cmd_breach(t: Vector2i) -> AgentCommand:
-	var c := AgentCommand.new()
-	c.command_type = AgentCommand.CommandType.PERFORM_ACTION
-	c.target_cell = t
-	c.action_kind = AgentCommand.ActionKind.BREACH_CHARGE
-	return c
 
 
 func _populate_world() -> void:
 	for i in range(spawn_cells.size()):
-		world.add_operative(i, spawn_cells[i], demo_plan_for(i))
+		var plan: Array[AgentCommand] = []
+		if plans.has(i):
+			for cmd in plans[i]:
+				plan.append(cmd)
+		world.add_operative(i, spawn_cells[i], plan)
 
 
 static func spawn_cells_for(m: GreyboxMap, greybox: bool, count: int) -> Array[Vector2i]:
@@ -381,50 +425,3 @@ static func spawn_cells_for(m: GreyboxMap, greybox: bool, count: int) -> Array[V
 				if out.size() < count and not out.has(n):
 					out.append(n)
 	return out
-
-
-func demo_plan_for(op_index: int) -> Array[AgentCommand]:
-	if map_source == GREYBOX_SOURCE:
-		return _demo_plan_op0() if op_index == 0 else _demo_plan_op1()
-	var plan: Array[AgentCommand] = []
-	var objective := _first_walkable(map.objectives)
-	var extraction := Vector2i(-1, -1)
-	for z in map.extraction_zones:
-		var cells: Array = z.get("cells", [])
-		if extraction.x < 0 and not cells.is_empty():
-			extraction = MapEditorValidator.cell_of(cells[0])
-	if op_index == 0:
-		plan.append(_demo_cmd_stance(&"cautious"))
-		if objective.x >= 0:
-			plan.append(_demo_cmd_move(objective))
-	else:
-		plan.append(_demo_cmd_wait(&"alpha"))
-		var goal := extraction if extraction.x >= 0 else objective
-		if goal.x >= 0:
-			plan.append(_demo_cmd_move(goal))
-	return plan
-
-
-func _first_walkable(entries: Array) -> Vector2i:
-	for e in entries:
-		var c := MapEditorValidator.cell_of(e)
-		if map.in_bounds(c) and not map.is_solid(c):
-			return c
-	return Vector2i(-1, -1)
-
-
-func _demo_plan_op0() -> Array[AgentCommand]:
-	return [
-		_demo_cmd_move(Vector2i(7, 2)),
-		_demo_cmd_stance(&"cautious"),
-		_demo_cmd_move(Vector2i(7, 4)),
-	]
-
-
-func _demo_plan_op1() -> Array[AgentCommand]:
-	return [
-		_demo_cmd_move(Vector2i(13, 6)),
-		_demo_cmd_breach(Vector2i(8, 6)),
-		_demo_cmd_wait(&"alpha"),
-		_demo_cmd_move(Vector2i(2, 6)),
-	]

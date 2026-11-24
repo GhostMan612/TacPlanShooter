@@ -40,7 +40,7 @@ func _run() -> void:
 		for i in range(4):
 			await get_tree().process_frame
 		_check(inst.get_child_count() > 0, "builds children " + path)
-		_inspect(path, inst)
+		await _inspect(path, inst)
 		get_tree().root.remove_child(inst)
 		inst.queue_free()
 		await get_tree().process_frame
@@ -78,7 +78,7 @@ func _inspect(path: String, inst: Node) -> void:
 	elif inst is MapEditorScreen:
 		_inspect_editor(inst as MapEditorScreen)
 	elif inst is PlanningRoot:
-		_inspect_planning(inst as PlanningRoot)
+		await _inspect_planning(inst as PlanningRoot)
 
 
 func _inspect_editor(ed: MapEditorScreen) -> void:
@@ -108,3 +108,22 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_check(not bar.intersects(hud), "squad hud does not cover the action bar")
 	_check(pr.squad_hud.mouse_filter == Control.MOUSE_FILTER_IGNORE, "squad hud root ignores input")
 	_check(pr._execute_button.get_global_rect().size.y >= float(ThemeManager.TOUCH_MIN_STANDARD) - 1.0, "execute button touch height")
+	_check(pr._alpha_button.disabled and pr.controller.routing_enabled, "go-codes locked and routing open while planning")
+	var start: Vector2i = pr.spawn_cells[0]
+	var step_x := Vector2i(1, 0) if RoutePlanner.walkable(pr.map, start + Vector2i(1, 0)) else Vector2i(0, 1)
+	var wps: Array[Vector2i] = [start, start + step_x, start + step_x * 2]
+	pr._on_route_committed(0, wps)
+	var queued: int = pr.world.operatives[0].queue.commands.size()
+	_check(queued >= 1, "drawn route reaches the sim queue (%d commands)" % queued)
+	var line := pr.controller.route_line(0)
+	_check(line != null and line.points.size() == queued + 1, "committed route line matches the executable cells")
+	pr._on_execute_pressed()
+	_check(SimClock.phase == SimClock.Phase.EXECUTION and not pr._alpha_button.disabled and not pr.controller.routing_enabled, "execute unlocks go-codes and locks routing")
+	pr._on_alpha_pressed()
+	for i in range(40):
+		await get_tree().physics_frame
+	_check(pr.world.tick > 0 and GridUtil.cell_of(pr.world.operatives[0].pos) != start, "operative moves along the drawn route")
+	_check(pr.world.go_codes_issued.has(&"alpha"), "go-code button reaches the sim via the tick stream")
+	pr._on_reset_pressed()
+	_check(SimClock.phase == SimClock.Phase.PLANNING and pr.world.tick == 0, "reset returns to planning")
+	_check(GridUtil.cell_of(pr.world.operatives[0].pos) == start and pr.world.operatives[0].queue.commands.size() == queued, "reset keeps the route and restores the spawn")

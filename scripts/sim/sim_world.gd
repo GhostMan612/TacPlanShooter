@@ -11,6 +11,7 @@ var map: GreyboxMap = null
 var rng := RandomNumberGenerator.new()
 var tick := 0
 var go_codes_issued := {}
+var go_code_stream: Array[Dictionary] = []
 var operatives: Array[SimOperative] = []
 var pending: Array[Dictionary] = []
 var entities: Array[SimEntity] = []
@@ -33,6 +34,7 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	rng.seed = seed_value
 	tick = 0
 	go_codes_issued.clear()
+	go_code_stream.clear()
 	operatives.clear()
 	pending.clear()
 	journal.clear()
@@ -93,6 +95,16 @@ func _process_overrides() -> void:
 				o.pos += oc.move_dir.normalized() * SimConstants.BASE_SPEED_CELLS_PER_SEC * o.speed_cells_per_sec() * (1.0 / 60.0)
 
 
+func schedule_go_code(code: StringName) -> void:
+	go_code_stream.append({"t": tick + 1, "code": String(code)})
+
+
+func _process_go_code_stream() -> void:
+	for e in go_code_stream:
+		if int(e["t"]) == tick:
+			issue_go_code(StringName(String(e["code"])))
+
+
 func issue_go_code(code: StringName) -> void:
 	if go_codes_issued.has(code):
 		return
@@ -110,6 +122,7 @@ func sound_event(cell: Vector2i, kind: StringName) -> void:
 
 func step() -> void:
 	tick += 1
+	_process_go_code_stream()
 	ai.step_all()
 	ai.update_threats(self)
 	if tapin_player_cooldown > 0:
@@ -197,6 +210,7 @@ func snapshot_data() -> Dictionary:
 		"operatives": ops_arr,
 		"journal": journal.duplicate(true),
 		"entity_seq": entity_seq,
+		"go_code_stream": go_code_stream.duplicate(true),
 		"tapin_points": tapin_points,
 		"tapin_player_cooldown": tapin_player_cooldown,
 		"tapin_unit_cooldowns": _int_dict_pairs(tapin_unit_cooldowns),
@@ -247,6 +261,9 @@ func restore_from_data(d: Dictionary) -> void:
 	for od in d.get("override_stream", []):
 		override_stream.append(OverrideCommand.from_dict(od))
 	entity_seq = int(d.get("entity_seq", entities.size()))
+	go_code_stream.clear()
+	for g in d.get("go_code_stream", []):
+		go_code_stream.append({"t": int(g["t"]), "code": String(g["code"])})
 	tapin_points = int(d.get("tapin_points", SimConstants.TAPIN_COMMAND_POINTS_MAX))
 	tapin_player_cooldown = int(d.get("tapin_player_cooldown", 0))
 	tapin_unit_cooldowns = _pairs_to_int_dict(d.get("tapin_unit_cooldowns", []))
@@ -306,6 +323,9 @@ func state_hash() -> String:
 		gc.append(String(k))
 	gc.sort()
 	parts.append("G" + ";".join(gc))
+	for g in go_code_stream:
+		if int(g["t"]) > tick:
+			parts.append("Q%d:%s" % [int(g["t"]), String(g["code"])])
 	for e in pending:
 		parts.append("P" + _canon(e))
 	var ent_parts := PackedStringArray()
@@ -452,9 +472,10 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 			o.facing_deg = rad_to_deg(heading.angle())
 	if committed and o.path_index >= o.active_path.size() - 1:
 		o.active_path = PackedVector2Array()
-		o.move_carry = 0.0
 		journal.append({"t": tick, "ev": &"move_end", "op": o.id, "px": o.pos.x, "py": o.pos.y})
 		o.queue.advance_cursor()
+		var nxt := o.queue.peek_next()
+		o.move_carry = remaining if nxt != null and nxt.command_type == AgentCommand.CommandType.MOVE_TO_CELL else 0.0
 	if committed:
 		_check_collision(o)
 
