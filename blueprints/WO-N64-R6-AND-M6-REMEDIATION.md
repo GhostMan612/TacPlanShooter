@@ -16,6 +16,17 @@ Requirements:
 2. `scripts/planning/fog_layer.gd` + `fog_mask.gdshader`: Replace per-cell `Polygon2D` node churn and `_map_cells()` CPU loops with two offscreen `SubViewport` masks (`msaa_2d = Viewport.MSAA_DISABLED` on both): `live_vp` (`CLEAR_MODE_ALWAYS`) and `memory_vp` (`CLEAR_MODE_NEVER`, reset via `reset_fog()`), composited by one full-map `ColorRect` shader (`live > 0.5` -> alpha `0.0`, `memory > 0.5` -> `0.50` opacity fog, unseen -> `0.85` opacity fog).
 3. `scripts/planning/planning_root.gd`: Mount `_hud` inside a `CanvasLayer`; wire `Execute`, `Alpha`, `Bravo`, `Charlie`, `Delta`, and `Reset` buttons to fit portrait `1080px` width; cache `map.get_wall_segments()` (invalidate on breach/reset); pass `SimConstants.LOS_VERTEX_EPSILON_RAD`; call `fog.reset_fog()` on setup and reset.
 4. `.github/workflows/headless-ci.yml`: Zero-artifact workflow on `push`/`pull_request` to `main` using cached Godot 4.0.4-stable Linux headless binary; run two-pass `--import`, boot smoke filtered for `ERROR|SCRIPT ERROR|Parse` (ignoring Godot 4.0 `--quit` exit code 1), `determinism_harness.gd`, and `simclock_probe.tscn`.
+## PHASE A2 — Re-Audit Fixes (Fix Before Phase H/I)
+Target files:
+- MODIFY: `scripts/planning/fog_layer.gd`
+- MODIFY: `scripts/planning/planning_root.gd`
+- MODIFY: `scripts/net/lockstep_session.gd`
+- MOVE: `scripts/sim/acoustic_bus.gd` -> `scripts/audio/tactical_audio.gd`
+
+Requirements:
+1. `scripts/planning/fog_layer.gd` + `scripts/planning/planning_root.gd`: Fix shader path (`res://scripts/planning/fog_mask.gdshader`), switch `live_vp`/`memory_vp` to `UPDATE_ONCE` triggered only on change, and render full visibility polygons into `memory_vp` (not just the single operative cell) so visited rooms stay at 50% opacity.
+2. `scripts/net/lockstep_session.gd`: Call `peer.poll()` inside `poll()`, advance `ticks_since_sync` every tick (even when `pending_inputs` is empty), and apply `SimConstants.LOCKSTEP_INPUT_DELAY_TICKS` on outgoing/queued inputs.
+3. Move `scripts/sim/acoustic_bus.gd` out of `scripts/sim/` into `scripts/audio/tactical_audio.gd` (keeping `scripts/sim/` pure) and call `queue_redraw()` in `planning_root.gd` when acoustic rings update.
 
 ## PHASE B — N64 R6 Data & Squad Architecture
 Target files:
@@ -87,6 +98,21 @@ Target files:
 - CREATE: `data/maps/op01_glass_house.json` through `data/maps/op10_sovereign_citadel.json` (10-operation campaign pack supporting Solo, 2-Player Co-op, and 2-Player PvP)
 - CREATE: `tests/map_validation_harness.gd` (enforce all 4 headless map validation checks: schema/bounds parsing, walkable spawn/zone placement, `GridPathfinder` reachability, and `Visibility.compute_polygon()` safety)
 
+## PHASE I — Full UI/UX Polish, Themes, Screens, Icons, SFX/BGM & VFX
+Spec: `blueprints/UI-UX-POLISH-THEMES-AV-SPEC.md`
+Target files:
+- CREATE: `scripts/ui/theme_manager.gd` (runtime-switchable Dark Tactical, Light Blueprint, Night-Ops/NVG themes + Large Touch Targets scaling persisted in `user://settings.json`)
+- CREATE: `scripts/ui/screen_router.gd` (full screen navigation flow across splash, title, loading, mission prep, in-mission, and AAR)
+- CREATE: `scenes/splash.tscn` (1.8s animated studio/title emblem, tap-to-skip, pre-warms `ThemeManager` & `TacticalAudio`)
+- CREATE: `scenes/title.tscn` (animated blueprint backdrop, Campaign, Quick Operation, 2-Player, HQ & Armory, Settings, Credits)
+- CREATE: `scenes/loading.tscn` (async threaded scene/map loader with blueprint scanline progress bar and rotating CQB tips)
+- CREATE: `scenes/aar.tscn` (animated mission grade, RP/XP breakdown, KIA/Wounded roster summary, Replay, Retry, Next Operation)
+- MODIFY: `scripts/ui/mission_prep_flow.gd` (full interactive Control panels for Briefing, Intel, Roster, Kit, Team, Planning with breadcrumb bar)
+- CREATE: `scripts/ui/icon_registry.gd` (unified UI texture atlas for stances, ROE modes, Go-Codes, actions, CQB roles, equipment, objectives, and settings glyphs)
+- CREATE: `scripts/audio/tactical_audio.gd` (`AudioServer` bus graph, procedural `AudioStreamGenerator` SFX fallback + asset hooks, dynamic mix ducking/stress heartbeat)
+- CREATE: `scripts/audio/adaptive_bgm.gd` (MGS-inspired adaptive BGM states: `PLANNING_STEALTH`, `CAUTION_INVESTIGATE`, `COMBAT_ALERT`, `AAR_VICTORY`/`AAR_DEFEAT`)
+- CREATE: `scripts/vfx/tactical_vfx.gd` (mobile-safe MSAA-off batched muzzle flashes, tracers, breach shockwaves, flashbang bloom, smoke, acoustic/heartbeat rings)
+- CREATE: `tests/ui_audio_smoke.gd` (headless smoke test verifying themes, screen router, icon registry, audio bus graph, adaptive BGM, and VFX hooks)
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
