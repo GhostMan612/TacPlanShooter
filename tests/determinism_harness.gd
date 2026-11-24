@@ -27,6 +27,11 @@ func _initialize() -> void:
 	failures += _test_visibility_sweepline_ioi()
 	failures += _test_visibility_west_corner_wrap()
 	failures += _test_wall_faces_occlude()
+	failures += _test_route_plan_adherence()
+	failures += _test_route_plan_blocked()
+	failures += _test_route_plan_corner_rule()
+	failures += _test_move_carry_continuity()
+	failures += _test_go_code_stream_replay()
 	failures += _test_delta_go_code()
 	failures += _test_team_modes()
 	failures += _test_override_replay()
@@ -843,4 +848,133 @@ func _test_wall_faces_occlude() -> int:
 	ok = ok and Geometry2D.is_point_in_polygon(right, open_poly)
 	ok = ok and not Geometry2D.is_point_in_polygon(Vector2(10.5, 3.5), open_poly)
 	print("[HARNESS] wall_faces_occlude %s (segs=%d closed=%d open=%d)" % ["PASS" if ok else "FAIL", segs.size(), closed_poly.size(), open_poly.size()])
+	return 0 if ok else 1
+
+
+func _run_until_done(w: SimWorld, budget: int) -> Array[Vector2i]:
+	var visited: Array[Vector2i] = [GridUtil.cell_of(w.operatives[0].pos)]
+	for i in range(budget):
+		w.step()
+		var c := GridUtil.cell_of(w.operatives[0].pos)
+		if c != visited[visited.size() - 1]:
+			visited.append(c)
+		var all_done := true
+		for o in w.operatives:
+			if not o.done and not o.halted:
+				all_done = false
+		if all_done:
+			break
+	return visited
+
+
+func _test_route_plan_adherence() -> int:
+	var m := GreyboxMap.build_default()
+	var start := Vector2i(2, 2)
+	var waypoints: Array[Vector2i] = [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 3), Vector2i(5, 4), Vector2i(5, 5), Vector2i(6, 7), Vector2i(4, 9)]
+	var res := RoutePlanner.plan(m, start, waypoints)
+	var cells: Array[Vector2i] = res["cells"]
+	var commands: Array[AgentCommand] = res["commands"]
+	var w := SimWorld.new()
+	w.setup(m, 21)
+	w.add_operative(0, start, commands)
+	var visited := _run_until_done(w, TICK_BUDGET)
+	var expected: Array[Vector2i] = [start]
+	for c in cells:
+		expected.append(c)
+	var ok: bool = res["blocked_at"] == RoutePlanner.NO_CELL and commands.size() == cells.size()
+	ok = ok and visited == expected and w.operatives[0].done and not w.operatives[0].halted
+	for i in range(1, expected.size()):
+		var d := expected[i] - expected[i - 1]
+		ok = ok and absi(d.x) + absi(d.y) == 1
+	print("[HARNESS] route_plan_adherence %s (cells=%d visited=%d tick=%d)" % ["PASS" if ok else "FAIL", cells.size(), visited.size(), w.tick])
+	return 0 if ok else 1
+
+
+func _test_route_plan_blocked() -> int:
+	var m := GreyboxMap.build_default()
+	var waypoints: Array[Vector2i] = [Vector2i(6, 3), Vector2i(7, 3), Vector2i(8, 3), Vector2i(9, 3), Vector2i(10, 3)]
+	var res := RoutePlanner.plan(m, Vector2i(5, 3), waypoints)
+	var cells: Array[Vector2i] = res["cells"]
+	var ok: bool = res["blocked_at"] == Vector2i(8, 3)
+	ok = ok and cells == [Vector2i(6, 3), Vector2i(7, 3)]
+	var through_door: Array[Vector2i] = [Vector2i(7, 6), Vector2i(8, 6), Vector2i(9, 6)]
+	var door_res := RoutePlanner.plan(m, Vector2i(6, 6), through_door)
+	var door_cells: Array[Vector2i] = door_res["cells"]
+	ok = ok and door_res["blocked_at"] == RoutePlanner.NO_CELL and door_cells.size() == 3
+	print("[HARNESS] route_plan_blocked %s (kept=%d)" % ["PASS" if ok else "FAIL", cells.size()])
+	return 0 if ok else 1
+
+
+func _test_route_plan_corner_rule() -> int:
+	var m := GreyboxMap.build_default()
+	m.solid_cells[Vector2i(3, 4)] = true
+	var diag: Array[Vector2i] = [Vector2i(3, 5)]
+	var res := RoutePlanner.plan(m, Vector2i(2, 4), diag)
+	var cells: Array[Vector2i] = res["cells"]
+	var ok := cells == [Vector2i(2, 5), Vector2i(3, 5)]
+	var diag_open: Array[Vector2i] = [Vector2i(5, 3)]
+	var open_res := RoutePlanner.plan(m, Vector2i(4, 2), diag_open)
+	var open_cells: Array[Vector2i] = open_res["cells"]
+	ok = ok and open_cells == [Vector2i(5, 2), Vector2i(5, 3)]
+	m.solid_cells[Vector2i(2, 5)] = true
+	var boxed := RoutePlanner.plan(m, Vector2i(2, 4), diag)
+	var boxed_cells: Array[Vector2i] = boxed["cells"]
+	ok = ok and boxed["blocked_at"] == Vector2i(3, 5) and boxed_cells.is_empty()
+	print("[HARNESS] route_plan_corner_rule %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_move_carry_continuity() -> int:
+	var m := GreyboxMap.build_default()
+	var single := SimWorld.new()
+	single.setup(m, 3)
+	var one: Array[AgentCommand] = [_cmd_stance(&"blitz"), _cmd_move(Vector2i(7, 2))]
+	single.add_operative(0, Vector2i(2, 2), one)
+	_run_until_done(single, TICK_BUDGET)
+	var stepped := SimWorld.new()
+	stepped.setup(GreyboxMap.build_default(), 3)
+	var many: Array[AgentCommand] = [_cmd_stance(&"blitz")]
+	for x in range(3, 8):
+		many.append(_cmd_move(Vector2i(x, 2)))
+	stepped.add_operative(0, Vector2i(2, 2), many)
+	_run_until_done(stepped, TICK_BUDGET)
+	var ok := single.operatives[0].done and stepped.operatives[0].done
+	ok = ok and absi(single.tick - stepped.tick) <= 1
+	ok = ok and single.operatives[0].pos.distance_to(stepped.operatives[0].pos) < 0.0001
+	print("[HARNESS] move_carry_continuity %s (single=%d stepped=%d)" % ["PASS" if ok else "FAIL", single.tick, stepped.tick])
+	return 0 if ok else 1
+
+
+func _test_go_code_stream_replay() -> int:
+	var plan: Array[AgentCommand] = [_cmd_wait(&"alpha"), _cmd_move(Vector2i(5, 2))]
+	var a := SimWorld.new()
+	a.setup(GreyboxMap.build_default(), 9)
+	a.add_operative(0, Vector2i(2, 2), plan)
+	for i in range(20):
+		a.step()
+	var waiting := not a.operatives[0].done and a.operatives[0].pos.distance_to(Vector2(2.5, 2.5)) < 0.0001
+	var hash_before := a.state_hash()
+	a.schedule_go_code(&"alpha")
+	var pending_hash_differs := a.state_hash() != hash_before
+	var snap := a.snapshot_data()
+	for i in range(200):
+		a.step()
+	var b := SimWorld.new()
+	b.setup(GreyboxMap.build_default(), 9)
+	b.add_operative(0, Vector2i(2, 2), plan)
+	b.go_code_stream = a.go_code_stream.duplicate(true)
+	for i in range(220):
+		b.step()
+	var c := SimWorld.new()
+	c.restore_from_data(snap)
+	for i in range(200):
+		c.step()
+	var ok := waiting and a.operatives[0].done and a.go_codes_issued.has(&"alpha")
+	ok = ok and a.state_hash() == b.state_hash() and a.state_hash() == c.state_hash()
+	var released := -1
+	for e in a.journal:
+		if StringName(e["ev"]) == &"go_issued":
+			released = int(e["t"])
+	ok = ok and released == 21 and pending_hash_differs
+	print("[HARNESS] go_code_stream_replay %s (issued_tick=%d)" % ["PASS" if ok else "FAIL", released])
 	return 0 if ok else 1

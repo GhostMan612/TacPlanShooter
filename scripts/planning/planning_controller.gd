@@ -22,6 +22,8 @@ var tokens: Array[OperativeToken] = []
 var board := PlanBoard.new()
 var line_container: Node2D = null
 var mode := Mode.OBSERVATION
+var routing_enabled := true
+var op_colors := {}
 
 var _touches := {}
 var _press_time := {}
@@ -132,6 +134,8 @@ func _extend_route(world: Vector2) -> void:
 
 
 func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
+	if not routing_enabled:
+		return
 	var world := _to_world(vp_pos)
 	var zoom_x: float = camera.zoom.x if camera != null else 1.0
 	var best: OperativeToken = null
@@ -191,10 +195,20 @@ func _ensure_preview() -> void:
 		_preview = _make_line(3.0, PREVIEW_COLOR)
 
 
+func show_route(op_id: int, pts: PackedVector2Array) -> void:
+	_line_for(op_id).points = pts
+
+
+func route_line(op_id: int) -> Line2D:
+	return _route_lines.get(op_id, null)
+
+
 func _line_for(op_id: int) -> Line2D:
 	if _route_lines.has(op_id):
 		return _route_lines[op_id]
-	var line := _make_line(2.0, COMMITTED_COLOR)
+	var color: Color = op_colors.get(op_id, COMMITTED_COLOR)
+	color.a = 0.85
+	var line := _make_line(2.0, color)
 	_route_lines[op_id] = line
 	return line
 
