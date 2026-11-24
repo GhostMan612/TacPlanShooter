@@ -38,8 +38,8 @@ func apply_palette(pal: Dictionary) -> void:
 func _draw() -> void:
 	if map == null:
 		return
-	var c_floor := palette.get(&"bg", FLOOR_COLOR)
-	var c_major := palette.get(&"accent", MAJOR_COLOR)
+	var c_floor: Color = palette.get(&"bg", FLOOR_COLOR)
+	var c_major: Color = palette.get(&"accent", MAJOR_COLOR)
 	var s := float(SimConstants.GRID_CELL_SIZE_PX)
 	var total := Rect2(Vector2.ZERO, Vector2(map.width_cells, map.height_cells) * s)
 	draw_rect(total, c_floor, true)
@@ -70,7 +70,7 @@ func _draw() -> void:
 	for i in range(map.width_cells):
 		draw_string(font, Vector2(i * s + 3.0, -16.0), _col_letter(i), 0)
 	for i in range(map.height_cells):
-		draw_string(font, Vector2(-26.0, i * s + 3.0), String(i + 1).pad_zeros(2), 0)
+		draw_string(font, Vector2(-26.0, i * s + 3.0), str(i + 1).pad_zeros(2), 0)
 
 
 func _col_letter(x: int) -> String:
