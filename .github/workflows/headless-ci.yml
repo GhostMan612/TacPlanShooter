@@ -35,4 +35,4 @@ jobs:
       - name: SimClock probe
         run: ./bin/godot --headless --path . res://tests/simclock_probe.tscn --quit 2>&1 | grep -E "ERROR|SCRIPT ERROR|Parse" || true
       - name: Meta progression harness
-      run: ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd 2>&1 | grep -E "FAIL|ERROR|SCRIPT ERROR|PASS" || true
+        run: ./bin/godot --headless --path . -s res://tests/meta_progression_harness.gd 2>&1 | grep -E "FAIL|ERROR|SCRIPT ERROR|PASS" || true
