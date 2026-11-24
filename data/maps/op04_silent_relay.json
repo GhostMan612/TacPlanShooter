@@ -22,5 +22,5 @@
 	"objectives": [{"kind": "INTEL_EXTRACT", "floor": 0, "cell": [12, 2], "timer_ticks": 0}],
 	"ai_spawns": [],
 	"hostage_spawns": [],
-	"jammer_nodes": [{"id": "jm01", "floor": 0, "cell": [7, 6], "radius_cells": 3}]
+	"jammer_nodes": [{"id": "jm01", "floor": 0, "cell": [6, 6], "radius_cells": 3}]
 }

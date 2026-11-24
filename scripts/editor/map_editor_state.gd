@@ -163,6 +163,8 @@ func snapshot_cell(c: Vector2i) -> Dictionary:
 		"solid": map.solid_cells.has(c),
 		"door": map.door_cells.has(c),
 		"door_open": bool(map.door_open.get(c, false)),
+		"door_state": String(map.door_states.get(c, "")),
+		"material": String(map.wall_materials.get(c, "")),
 		"objectives": _without_cell(map.objectives, c, true),
 		"ai_spawns": _without_cell(map.ai_spawns, c, true),
 		"hostage_spawns": _without_cell(map.hostage_spawns, c, true),
@@ -200,6 +202,8 @@ func _clear_cell(c: Vector2i) -> void:
 	map.solid_cells.erase(c)
 	map.door_cells.erase(c)
 	map.door_open.erase(c)
+	map.door_states.erase(c)
+	map.wall_materials.erase(c)
 	map.objectives = _without_cell(map.objectives, c, false)
 	map.ai_spawns = _without_cell(map.ai_spawns, c, false)
 	map.hostage_spawns = _without_cell(map.hostage_spawns, c, false)
@@ -215,6 +219,10 @@ func _restore_cell(c: Vector2i, before: Dictionary) -> void:
 	if bool(before["door"]):
 		map.door_cells[c] = true
 		map.door_open[c] = bool(before["door_open"])
+	if String(before["door_state"]) != "":
+		map.door_states[c] = StringName(String(before["door_state"]))
+	if String(before["material"]) != "":
+		map.wall_materials[c] = StringName(String(before["material"]))
 	map.objectives = map.objectives + before["objectives"]
 	map.ai_spawns = map.ai_spawns + before["ai_spawns"]
 	map.hostage_spawns = map.hostage_spawns + before["hostage_spawns"]

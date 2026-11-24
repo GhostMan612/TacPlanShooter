@@ -26,6 +26,7 @@ func _initialize() -> void:
 	failures += _test_fof_override()
 	failures += _test_visibility_sweepline_ioi()
 	failures += _test_visibility_west_corner_wrap()
+	failures += _test_wall_faces_occlude()
 	failures += _test_delta_go_code()
 	failures += _test_team_modes()
 	failures += _test_override_replay()
@@ -611,10 +612,11 @@ func _test_vehicles() -> int:
 func _test_ai_cone_vision() -> int:
 	var b := ThreatBlackboard.new()
 	var segs := GreyboxMap.build_default().get_wall_segments()
-	var ok := b.cone_visible(Vector2(80.0, 80.0), Vector2(96.0, 80.0), 0.0, true, segs)
-	ok = ok and b.cone_visible(Vector2(80.0, 80.0), Vector2(96.0, 80.0), -90.0, false, segs) == false
-	ok = ok and b.cone_visible(Vector2(80.0, 80.0), Vector2(96.0, 80.0), 0.0, false, segs)
-	ok = ok and not b.cone_visible(Vector2(80.0, 80.0), Vector2(500.0, 80.0), 0.0, true, segs)
+	var ok := b.cone_visible(Vector2(2.5, 2.5), Vector2(5.5, 2.5), 0.0, true, segs)
+	ok = ok and b.cone_visible(Vector2(2.5, 2.5), Vector2(5.5, 2.5), -90.0, false, segs) == false
+	ok = ok and b.cone_visible(Vector2(2.5, 2.5), Vector2(5.5, 2.5), 0.0, false, segs)
+	ok = ok and not b.cone_visible(Vector2(2.5, 2.5), Vector2(500.0, 2.5), 0.0, true, segs)
+	ok = ok and not b.cone_visible(Vector2(6.5, 3.5), Vector2(10.5, 3.5), 0.0, true, segs)
 	print("[HARNESS] ai_cone_vision %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
@@ -818,4 +820,27 @@ func _test_visibility_west_corner_wrap() -> int:
 			ok = false
 	ok = ok and vertex_hit and absf(graze_t - 5.0) < 0.001
 	print("[HARNESS] visibility_west_corner_wrap %s (poly=%d t=%.4f)" % ["PASS" if ok else "FAIL", poly.size(), graze_t])
+	return 0 if ok else 1
+
+
+func _test_wall_faces_occlude() -> int:
+	var m := GreyboxMap.build_default()
+	var segs := m.get_wall_segments()
+	var ok := segs.size() >= 8
+	for s in segs:
+		var a: Vector2 = s[0]
+		var b: Vector2 = s[1]
+		ok = ok and (a.x == b.x or a.y == b.y)
+		ok = ok and a.x >= 0.0 and a.y >= 0.0 and a.x <= 16.0 and a.y <= 12.0 and b.x <= 16.0 and b.y <= 12.0
+	var left := Vector2(6.5, 6.5)
+	var right := Vector2(10.5, 6.5)
+	var closed_poly := Visibility.compute_polygon(left, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
+	ok = ok and not Geometry2D.is_point_in_polygon(right, closed_poly)
+	ok = ok and not Geometry2D.is_point_in_polygon(Vector2(10.5, 3.5), closed_poly)
+	ok = ok and Geometry2D.is_point_in_polygon(Vector2(4.5, 6.5), closed_poly)
+	m.open_door(Vector2i(8, 6))
+	var open_poly := Visibility.compute_polygon(left, m.get_wall_segments(), SimConstants.LOS_VERTEX_EPSILON_RAD)
+	ok = ok and Geometry2D.is_point_in_polygon(right, open_poly)
+	ok = ok and not Geometry2D.is_point_in_polygon(Vector2(10.5, 3.5), open_poly)
+	print("[HARNESS] wall_faces_occlude %s (segs=%d closed=%d open=%d)" % ["PASS" if ok else "FAIL", segs.size(), closed_poly.size(), open_poly.size()])
 	return 0 if ok else 1

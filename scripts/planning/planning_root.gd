@@ -18,7 +18,11 @@ var fog: FogLayer = null
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 
+const OPERATIVE_COUNT := 2
+const GREYBOX_SOURCE := "greybox_default"
+
 var squads := SquadConfig.new()
+var spawn_cells: Array[Vector2i] = []
 var map_source := ""
 var _hud: HBoxContainer = null
 var _menu_button: Button = null
@@ -52,9 +56,10 @@ func _ready() -> void:
 	fog.visible = false
 	prep_flow = MissionPrepFlow.new()
 	add_child(prep_flow)
-	for spec in [[0, Vector2i(2, 2)], [1, Vector2i(13, 2)]]:
-		var token := OperativeToken.new(int(spec[0]))
-		token.position = GridUtil.cell_center_px(Vector2i(spec[1]))
+	spawn_cells = spawn_cells_for(map, map_source == GREYBOX_SOURCE, OPERATIVE_COUNT)
+	for i in range(spawn_cells.size()):
+		var token := OperativeToken.new(i)
+		token.position = GridUtil.cell_center_px(spawn_cells[i])
 		token.z_index = 1
 		add_child(token)
 	camera = MissionCamera.new()
@@ -74,10 +79,9 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	world = SimWorld.new()
 	world.setup(map, DEV_SEED)
-	world.add_operative(0, Vector2i(2, 2), _demo_plan_op0())
-	world.add_operative(1, Vector2i(13, 2), _demo_plan_op1())
-	squads.add_member(&"red", 0)
-	squads.add_member(&"blue", 1)
+	_populate_world()
+	for i in range(spawn_cells.size()):
+		squads.add_member(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()], i)
 	_setup_hud()
 	print("[TacPlan] planning map=%s size=%dx%d" % [map_source, map.width_cells, map.height_cells])
 
@@ -96,7 +100,7 @@ func _load_selected_map() -> GreyboxMap:
 		if loaded.width_cells > 0 and loaded.height_cells > 0:
 			map_source = path
 			return loaded
-	map_source = "greybox_default"
+	map_source = GREYBOX_SOURCE
 	return GreyboxMap.build_default()
 
 
@@ -147,20 +151,30 @@ func _update_fog() -> void:
 	var segs := map.get_wall_segments()
 	var live_polys := []
 	for o in world.operatives:
-		if o.faction_id != local_faction_id:
+		if o.faction_id != local_faction_id or not o.is_alive():
 			continue
 		var poly := Visibility.compute_polygon(o.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
 		if poly.size() >= 3:
-			live_polys.append(poly)
-			if fog.poly_contains(o.pos, poly):
-				fog.mark_visible(poly)
+			var px_poly := _cells_to_px(poly)
+			live_polys.append(px_poly)
+			fog.mark_visible(px_poly)
 	for d in world.drones:
 		if d.destroyed:
 			continue
 		var dpoly := Visibility.compute_polygon(d.pos, segs, SimConstants.LOS_VERTEX_EPSILON_RAD)
 		if dpoly.size() >= 3:
-			live_polys.append(dpoly)
+			var px_dpoly := _cells_to_px(dpoly)
+			live_polys.append(px_dpoly)
+			fog.mark_visible(px_dpoly)
 	fog.rebuild(live_polys)
+
+
+static func _cells_to_px(poly: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var s := float(SimConstants.GRID_CELL_SIZE_PX)
+	for p in poly:
+		out.append(p * s)
+	return out
 
 
 func _apply_theme() -> void:
@@ -273,8 +287,7 @@ func _on_reset_pressed() -> void:
 	if world == null:
 		return
 	world.setup(map, DEV_SEED)
-	world.add_operative(0, Vector2i(2, 2), _demo_plan_op0())
-	world.add_operative(1, Vector2i(13, 2), _demo_plan_op1())
+	_populate_world()
 	SimClock.reset_to_planning()
 	_execute_button.disabled = false
 	fog.reset_fog()
@@ -330,6 +343,74 @@ func _demo_cmd_breach(t: Vector2i) -> AgentCommand:
 	c.target_cell = t
 	c.action_kind = AgentCommand.ActionKind.BREACH_CHARGE
 	return c
+
+
+func _populate_world() -> void:
+	for i in range(spawn_cells.size()):
+		world.add_operative(i, spawn_cells[i], demo_plan_for(i))
+
+
+static func spawn_cells_for(m: GreyboxMap, greybox: bool, count: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if greybox:
+		out.append(Vector2i(2, 2))
+		out.append(Vector2i(13, 2))
+		return out
+	for z in m.insertion_zones:
+		for c in z.get("cells", []):
+			var cell := MapEditorValidator.cell_of(c)
+			if out.size() < count and m.in_bounds(cell) and not m.is_solid(cell) and not out.has(cell):
+				out.append(cell)
+	if out.is_empty():
+		for y in range(m.height_cells):
+			for x in range(m.width_cells):
+				if out.is_empty() and not m.is_solid(Vector2i(x, y)):
+					out.append(Vector2i(x, y))
+	if out.is_empty():
+		return out
+	var queue: Array[Vector2i] = [out[0]]
+	var seen := {out[0]: true}
+	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]
+	while out.size() < count and not queue.is_empty():
+		var cur: Vector2i = queue.pop_front()
+		for d in dirs:
+			var n: Vector2i = cur + d
+			if m.in_bounds(n) and not m.is_solid(n) and not seen.has(n):
+				seen[n] = true
+				queue.append(n)
+				if out.size() < count and not out.has(n):
+					out.append(n)
+	return out
+
+
+func demo_plan_for(op_index: int) -> Array[AgentCommand]:
+	if map_source == GREYBOX_SOURCE:
+		return _demo_plan_op0() if op_index == 0 else _demo_plan_op1()
+	var plan: Array[AgentCommand] = []
+	var objective := _first_walkable(map.objectives)
+	var extraction := Vector2i(-1, -1)
+	for z in map.extraction_zones:
+		var cells: Array = z.get("cells", [])
+		if extraction.x < 0 and not cells.is_empty():
+			extraction = MapEditorValidator.cell_of(cells[0])
+	if op_index == 0:
+		plan.append(_demo_cmd_stance(&"cautious"))
+		if objective.x >= 0:
+			plan.append(_demo_cmd_move(objective))
+	else:
+		plan.append(_demo_cmd_wait(&"alpha"))
+		var goal := extraction if extraction.x >= 0 else objective
+		if goal.x >= 0:
+			plan.append(_demo_cmd_move(goal))
+	return plan
+
+
+func _first_walkable(entries: Array) -> Vector2i:
+	for e in entries:
+		var c := MapEditorValidator.cell_of(e)
+		if map.in_bounds(c) and not map.is_solid(c):
+			return c
+	return Vector2i(-1, -1)
 
 
 func _demo_plan_op0() -> Array[AgentCommand]:
