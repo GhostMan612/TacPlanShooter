@@ -113,6 +113,21 @@ Target files:
 - CREATE: `scripts/audio/adaptive_bgm.gd` (MGS-inspired adaptive BGM states: `PLANNING_STEALTH`, `CAUTION_INVESTIGATE`, `COMBAT_ALERT`, `AAR_VICTORY`/`AAR_DEFEAT`)
 - CREATE: `scripts/vfx/tactical_vfx.gd` (mobile-safe MSAA-off batched muzzle flashes, tracers, breach shockwaves, flashbang bloom, smoke, acoustic/heartbeat rings)
 - CREATE: `tests/ui_audio_smoke.gd` (headless smoke test verifying themes, screen router, icon registry, audio bus graph, adaptive BGM, and VFX hooks)
+
+## PHASE J — N64 R6 Mirror Tactical Map, MIL-STD C4I UI/UX & RTS-RPG Polish
+Spec: `blueprints/N64-R6-MILSTD-UI-UX-RTS-RPG-SPEC.md`
+Target files:
+- MODIFY: `scripts/ui/theme_manager.gd`
+- MODIFY: `scripts/planning/map_renderer.gd`
+- MODIFY: `scripts/planning/plan_board.gd`
+- MODIFY: `scripts/planning/operative_token.gd`
+- MODIFY: `scripts/planning/squad_hud.gd`
+- MODIFY: `scripts/ui/execution_hud.gd`
+- MODIFY: `scripts/ui/roster_roles_screen.gd`
+- MODIFY: `scripts/ui/hq_armory_screen.gd`
+- MODIFY: `scripts/ui/mission_prep_panels.gd`
+- CREATE: `tests/ui_polish_audit.gd`
+
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
