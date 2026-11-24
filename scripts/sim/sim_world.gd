@@ -25,6 +25,7 @@ var door_system := DoorSystem.new()
 var ballistics := BallisticsSuppression.new()
 var drones: Array[SimDrone] = []
 var vehicles: Array[SimVehicle] = []
+var ai := AiCoordinator.new()
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -92,6 +93,7 @@ func issue_go_code(code: StringName) -> void:
 
 func step() -> void:
 	tick += 1
+	ai.step_all()
 	if tapin_player_cooldown > 0:
 		tapin_player_cooldown -= 1
 	_tick_down_tapin()

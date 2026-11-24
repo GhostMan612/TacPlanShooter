@@ -36,6 +36,12 @@ func _initialize() -> void:
 	failures += _test_ballistics()
 	failures += _test_drones()
 	failures += _test_vehicles()
+	failures += _test_ai_no_wallhack_lkp()
+	failures += _test_ai_acoustic_wall_attenuation()
+	failures += _test_ai_threat_weighted_flank()
+	failures += _test_ai_flashbang_morale_stun()
+	failures += _test_ai_hostage_lof_safety()
+	failures += _test_ai_determinism_replay()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -585,6 +591,75 @@ func _test_vehicles() -> int:
 	w.vehicles.append(v)
 	var ok := w.vehicles.size() == 1 and v.type == SimVehicle.Type.RAID_VAN
 	print("[HARNESS] vehicles %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_no_wallhack_lkp() -> int:
+	var b := ThreatBlackboard.new()
+	var ok := not b.has_threat(0)
+	b.set_threat(0, 5, Vector2(3.0, 4.0))
+	ok = ok and b.has_threat(0)
+	b.clear_threat(0)
+	ok = ok and not b.has_threat(0)
+	print("[HARNESS] ai_no_wallhack_lkp %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_acoustic_wall_attenuation() -> int:
+	var b := ThreatBlackboard.new()
+	var ok := b.hearing_attenuation(0) == 0.0
+	ok = ok and b.hearing_attenuation(1) == -0.35
+	ok = ok and b.hearing_attenuation(3) == -1.05
+	print("[HARNESS] ai_acoustic_wall_attenuation %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_threat_weighted_flank() -> int:
+	var sc := SquadCoordinator.new()
+	sc.assign_role(0, SquadCoordinator.Role.FLANKER)
+	var ok := sc.role(0) == SquadCoordinator.Role.FLANKER
+	sc.assign_role(1, SquadCoordinator.Role.ANCHOR)
+	ok = ok and sc.role(1) == SquadCoordinator.Role.ANCHOR
+	print("[HARNESS] ai_threat_weighted_flank %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_flashbang_morale_stun() -> int:
+	var e := EnemyAi.new()
+	e.transition(EnemyAi.State.SUPPRESS_LKP)
+	var ok := not e.surrender_check()
+	e.suppress_near_miss(100)
+	e.morale = 20
+	ok = ok and e.surrender_check()
+	e.transition(EnemyAi.State.IDLE_GUARD)
+	e.suppress_near_miss(100)
+	e.morale = 0
+	ok = ok and not e.is_stunned()
+	e.transition(EnemyAi.State.STUNNED)
+	ok = ok and e.is_stunned()
+	print("[HARNESS] ai_flashbang_morale_stun %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_hostage_lof_safety() -> int:
+	var f := FriendlyReflexAi.new()
+	var ok := f.mode == FriendlyReflexAi.RoeMode.ENGAGE
+	ok = ok and not f.snap_check([])
+	f.suppression = 100
+	ok = ok and f.snap_check([])
+	f.set_roe(FriendlyReflexAi.RoeMode.ADVANCE)
+	ok = ok and f.mode == FriendlyReflexAi.RoeMode.ADVANCE
+	print("[HARNESS] ai_hostage_lof_safety %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_ai_determinism_replay() -> int:
+	var w1 := SimWorld.new()
+	w1.setup(GreyboxMap.build_default(), 777)
+	var w2 := SimWorld.new()
+	w2.setup(GreyboxMap.build_default(), 777)
+	var ok := w1.state_hash() == w2.state_hash()
+	print("[HARNESS] ai_determinism_replay %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 
 
