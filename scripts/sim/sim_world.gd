@@ -16,6 +16,7 @@ var pending: Array[Dictionary] = []
 var entities: Array[SimEntity] = []
 var entity_seq := 0
 var journal: Array[Dictionary] = []
+var override_stream: Array[OverrideCommand] = []
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -37,6 +38,24 @@ func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand])
 	operatives.append(o)
 
 
+func apply_override(oc: OverrideCommand) -> void:
+	override_stream.append(oc)
+	journal.append({"t": oc.tick, "ev": &"override", "op": oc.op_id})
+
+
+func _process_overrides() -> void:
+	for oc in override_stream:
+		if oc.tick != tick:
+			continue
+		for o in operatives:
+			if o.id != oc.op_id:
+				continue
+			if oc.aim_deg != 0.0:
+				o.facing_deg = oc.aim_deg
+			if oc.move_dir.length() > 0.000001:
+				o.pos += oc.move_dir.normalized() * SimConstants.BASE_SPEED_CELLS_PER_SEC * o.speed_cells_per_sec() * (1.0 / 60.0)
+
+
 func issue_go_code(code: StringName) -> void:
 	if go_codes_issued.has(code):
 		return
@@ -46,6 +65,7 @@ func issue_go_code(code: StringName) -> void:
 
 func step() -> void:
 	tick += 1
+	_process_overrides()
 	_process_pending()
 	_step_entities()
 	for o in operatives:
@@ -57,6 +77,13 @@ func all_done() -> bool:
 		if not o.done:
 			return false
 	return true
+
+
+func _overrides_arr() -> Array:
+	var arr := []
+	for oc in override_stream:
+		arr.append(oc.to_dict())
+	return arr
 
 
 func snapshot_data() -> Dictionary:
@@ -85,6 +112,7 @@ func snapshot_data() -> Dictionary:
 		"map": map.to_dict(),
 		"pending": pending_arr,
 		"entities": entities_arr,
+		"override_stream": _overrides_arr(),
 		"operatives": ops_arr,
 		"journal": journal.duplicate(true),
 	}
@@ -113,6 +141,9 @@ func restore_from_data(d: Dictionary) -> void:
 	for od in d.get("operatives", []):
 		operatives.append(SimOperative.from_dict(od))
 	journal = d.get("journal", []).duplicate(true)
+	override_stream.clear()
+	for od in d.get("override_stream", []):
+		override_stream.append(OverrideCommand.from_dict(od))
 
 
 func state_hash() -> String:

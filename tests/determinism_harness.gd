@@ -26,6 +26,9 @@ func _initialize() -> void:
 	failures += _test_fof_override()
 	failures += _test_visibility_sweepline_ioi()
 	failures += _test_visibility_west_corner_wrap()
+	failures += _test_delta_go_code()
+	failures += _test_team_modes()
+	failures += _test_override_replay()
 	print("[HARNESS] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -435,6 +438,63 @@ func _test_tactical_actions() -> int:
 		"PASS" if ok else "FAIL",
 		spawned_kinds.size(), effect_count, str(cooldown_seen), w.operatives[0].hp, w.operatives[1].hp,
 	])
+	return 0 if ok else 1
+
+
+func _test_delta_go_code() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	w.issue_go_code(&"delta")
+	var ok := w.go_codes_issued.has(&"delta")
+	print("[HARNESS] delta_go_code %s" % ("PASS" if ok else "FAIL"))
+	return 0 if ok else 1
+
+
+func _test_team_modes() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var o := SimOperative.new()
+	o.id = 7
+	o.queue = CommandQueue.new(7)
+	var c0 := AgentCommand.new()
+	c0.command_type = AgentCommand.CommandType.WAIT_GO_CODE
+	c0.go_code = &"alpha"
+	var c1 := AgentCommand.new()
+	c1.command_type = AgentCommand.CommandType.SET_MODE
+	c1.mode_name = &"engage"
+	o.queue.reset([c0, c1])
+	w.operatives.append(o)
+	w.issue_go_code(&"alpha")
+	for i in range(3):
+		w.step()
+	var ok := o.mode_name == &"engage"
+	print("[HARNESS] team_modes %s (mode=%s)" % ["PASS" if ok else "FAIL", String(o.mode_name)])
+	return 0 if ok else 1
+
+
+func _test_override_replay() -> int:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), 1337)
+	var o := SimOperative.new()
+	o.id = 0
+	o.pos = Vector2(2.5, 2.5)
+	o.queue = CommandQueue.new(0)
+	w.operatives.append(o)
+	var oc := OverrideCommand.new()
+	oc.tick = 1
+	oc.op_id = 0
+	oc.aim_deg = 90.0
+	w.apply_override(oc)
+	for i in range(2):
+		w.step()
+	var h1 := w.state_hash()
+	var snap := w.snapshot_data()
+	var w2 := SimWorld.new()
+	w2.restore_from_data(snap)
+	for i in range(2):
+		w2.step()
+	var ok := w2.override_stream.size() == 1 and w2.state_hash() == h1
+	print("[HARNESS] override_replay %s (stream=%d)" % ["PASS" if ok else "FAIL", w2.override_stream.size()])
 	return 0 if ok else 1
 
 
