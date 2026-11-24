@@ -128,6 +128,16 @@ Target files:
 - MODIFY: `scripts/ui/mission_prep_panels.gd`
 - CREATE: `tests/ui_polish_audit.gd`
 
+## PHASE K — Touch-First In-Game CQB Map Editor
+Spec: `blueprints/IN-GAME-MAP-EDITOR-SPEC.md`
+Target files:
+- CREATE: `scripts/editor/map_editor_state.gd`
+- CREATE: `scripts/editor/map_editor_validator.gd`
+- CREATE: `scripts/editor/map_editor_screen.gd`
+- CREATE: `scenes/map_editor.tscn`
+- MODIFY: `scripts/ui/title_screen.gd` (add `MAP EDITOR` menu button)
+- CREATE: `tests/map_editor_harness.gd`
+- 
 ## VERIFICATION COMMANDS (local before commit)
 - `godot --headless --path . --quit 2>&1 | Select-String "ERROR|SCRIPT ERROR|Parse"` -> empty
 - `godot --headless --path . -s res://tests/determinism_harness.gd 2>&1 | Select-String "FAIL|ERROR|SCRIPT ERROR|PASS"` -> all PASS, zero FAIL/ERROR
