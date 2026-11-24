@@ -44,7 +44,8 @@ func _paint_wall(c: Vector2i) -> void:
 	map.solid_cells[c] = true
 
 
-func _apply_door(c: Vector2i, had: bool) -> void:	if had:
+func _apply_door(c: Vector2i, had: bool) -> void:
+	if had:
 		map.door_cells[c] = true
 		map.door_open[c] = true
 	else:
@@ -72,10 +73,14 @@ func paint_zone(ztype: StringName, cells: Array) -> void:
 
 func _apply_zone(ztype: StringName, cells: Array, added: bool) -> void:
 	var arr := _zone_arr(ztype, cells)
+	var lst := _zone_list(map, ztype)
 	if added:
-		_zone_list(map, ztype).append(arr)
+		lst.append(arr)
 	else:
-		_zone_list(map, ztype).erase(arr)
+		for z in lst:
+			if z == arr:
+				lst.erase(z)
+				return
 
 
 func _zone_arr(ztype: StringName, cells: Array) -> Dictionary:

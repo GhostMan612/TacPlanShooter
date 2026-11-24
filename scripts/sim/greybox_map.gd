@@ -72,7 +72,7 @@ func get_wall_segments() -> Array:
 	return segs
 
 
-	static func load_from_json(path: String) -> GreyboxMap:
+static func load_from_json(path: String) -> GreyboxMap:
 	return MapLoader.load_from_json(path)
 
 

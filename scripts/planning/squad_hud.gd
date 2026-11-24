@@ -8,6 +8,8 @@ extends Control
 
 var world: SimWorld = null
 var selected_op: int = -1
+var _cp_labels: Array = []
+var _health_dots: Array = []
 
 
 func _ready() -> void:
@@ -20,27 +22,30 @@ func _ready() -> void:
 		box.size = Vector2(128.0, 104.0)
 		var header := Label.new()
 		header.text = String(squad)
-		header.add_theme_color_override("color", PlanBoard.squad_color(squad))
+		header.add_theme_color_override("font_color", PlanBoard.squad_color(squad))
 		box.add_child(header)
 		for o in world_ops_of(squad):
 			var row := Button.new()
 			row.text = "R" + str(o.id)
 			row.size = Vector2(110.0, 30.0)
-			row.add_theme_color_override("text_color", PlanBoard.squad_color(squad))
+			row.add_theme_color_override("font_color", PlanBoard.squad_color(squad))
 			row.button_down.connect(_on_row.bind(o.id))
 			box.add_child(row)
 			var dot := Label.new()
 			dot.text = "●"
-			dot.modulate = _health_dot_color(o)
-			dot.add_theme_color_override("color", _health_dot_color(o))
 			dot.position = Vector2(30.0, 8.0)
+			dot.modulate = _health_dot_color(o)
+			dot.add_theme_color_override("font_color", _health_dot_color(o))
+			_health_dots.push_back(dot)
+			_health_ops.push_back(o)
 			row.add_child(dot)
 		var cp := Label.new()
-		cp.text = "CP: " + str(world_tapin_points())
 		cp.position = Vector2(8.0, 56.0)
+		_cp_labels.push_back(cp)
 		box.add_child(cp)
 		add_child(box)
 		x += 140.0
+	_update_live()
 
 
 func _on_row(op_id: int) -> void:
@@ -63,6 +68,19 @@ func _health_dot_color(o: SimOperative) -> Color:
 
 func refresh(w: SimWorld) -> void:
 	world = w
+	_update_live()
+
+
+func _update_live() -> void:
+	for cpl in _cp_labels:
+		cpl.text = "CP: " + str(world_tapin_points())
+	for i in range(int(_health_dots.size())):
+		var o := _health_ops[i]
+		_health_dots[i].modulate = _health_dot_color(o)
+		_health_dots[i].add_theme_color_override("font_color", _health_dot_color(o))
+
+
+var _health_ops: Array = []
 
 
 func touch_operative(op_id: int) -> void:
