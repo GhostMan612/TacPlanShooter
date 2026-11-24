@@ -44,3 +44,7 @@
 - During `EXECUTION`, the player may tap any living operative (on the map or Squad HUD) to take direct top-down control.
 - **Control Scheme (Mobile Portrait 1080x1920):** Virtual left-thumb move pad + right-thumb aim/fire/action trigger (or tap-to-move + drag-to-aim) while keeping the bird's-eye camera centered or follow-locked on the controlled operative. Tapping "Release / AI" returns the operative to their next queued waypoint.
 - **Determinism Guarantee:** Live player inputs NEVER mutate `SimOperative` directly from `_process()` or input callbacks. Instead, each physics tick (60 Hz) serializes active tap-in input into a deterministic `OverrideCommand` (`tick`, `operative_id`, `move_dir_q`, `aim_deg_q`, `fire_pressed`, `use_slot`) appended to `SimWorld`'s command journal. Replaying `MissionSnapshot` + initial plans + recorded `OverrideCommand` stream reproduces the exact outcome frame-for-frame.
+
+## Decision D-PLAN-01 · Route commands for the ground-floor runner
+
+A route through a closed game door queues the existing door action before its movement command. The planner reports the number of added actions. Tap a committed route cell, then tap a go-code button to assign a wait at that cell. Tap the same code again to clear it. During execution the same controls issue the recorded go-codes through the tick stream. This provides touch access to waits while the full waypoint editor remains in the blueprint.

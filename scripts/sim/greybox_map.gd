@@ -110,21 +110,27 @@ static func load_from_string(text: String) -> GreyboxMap:
 	return MapLoader.load_from_string(text)
 
 
+static func sorted_cells(cells: Dictionary) -> Array:
+	var keys := cells.keys()
+	keys.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	return keys
+
+
 func to_dict() -> Dictionary:
 	var solids: Array = []
-	for k in solid_cells.keys():
+	for k in sorted_cells(solid_cells):
 		solids.append([int(k.x), int(k.y)])
 	var doors: Array = []
-	for k in door_cells.keys():
+	for k in sorted_cells(door_cells):
 		doors.append([int(k.x), int(k.y)])
 	var opens: Array = []
-	for k in door_open.keys():
+	for k in sorted_cells(door_open):
 		opens.append([int(k.x), int(k.y), bool(door_open[k])])
 	var states: Array = []
-	for k in door_states.keys():
+	for k in sorted_cells(door_states):
 		states.append([int(k.x), int(k.y), String(door_states[k])])
 	var mats: Array = []
-	for k in wall_materials.keys():
+	for k in sorted_cells(wall_materials):
 		mats.append([int(k.x), int(k.y), String(wall_materials[k])])
 	return {
 		"door_states": states,
@@ -134,13 +140,13 @@ func to_dict() -> Dictionary:
 		"solids": solids,
 		"door_cells": doors,
 		"door_open": opens,
-		"insertion_zones": insertion_zones,
-		"extraction_zones": extraction_zones,
-		"defender_zones": defender_zones,
-		"objectives": objectives,
-		"ai_spawns": ai_spawns,
-		"hostage_spawns": hostage_spawns,
-		"jammer_nodes": jammer_nodes,
+		"insertion_zones": insertion_zones.duplicate(true),
+		"extraction_zones": extraction_zones.duplicate(true),
+		"defender_zones": defender_zones.duplicate(true),
+		"objectives": objectives.duplicate(true),
+		"ai_spawns": ai_spawns.duplicate(true),
+		"hostage_spawns": hostage_spawns.duplicate(true),
+		"jammer_nodes": jammer_nodes.duplicate(true),
 	}
 
 
@@ -158,11 +164,11 @@ static func from_dict(d: Dictionary) -> GreyboxMap:
 		m.door_states[Vector2i(int(st[0]), int(st[1]))] = StringName(String(st[2]))
 	for mt in d.get("wall_materials", []):
 		m.wall_materials[Vector2i(int(mt[0]), int(mt[1]))] = StringName(String(mt[2]))
-	m.insertion_zones = d.get("insertion_zones", [])
-	m.extraction_zones = d.get("extraction_zones", [])
-	m.defender_zones = d.get("defender_zones", [])
-	m.objectives = d.get("objectives", [])
-	m.ai_spawns = d.get("ai_spawns", [])
-	m.hostage_spawns = d.get("hostage_spawns", [])
-	m.jammer_nodes = d.get("jammer_nodes", [])
+	m.insertion_zones = (d.get("insertion_zones", []) as Array).duplicate(true)
+	m.extraction_zones = (d.get("extraction_zones", []) as Array).duplicate(true)
+	m.defender_zones = (d.get("defender_zones", []) as Array).duplicate(true)
+	m.objectives = (d.get("objectives", []) as Array).duplicate(true)
+	m.ai_spawns = (d.get("ai_spawns", []) as Array).duplicate(true)
+	m.hostage_spawns = (d.get("hostage_spawns", []) as Array).duplicate(true)
+	m.jammer_nodes = (d.get("jammer_nodes", []) as Array).duplicate(true)
 	return m

@@ -97,7 +97,7 @@ static func from_dict(d: Dictionary) -> SimOperative:
 
 
 func is_alive() -> bool:
-	return health != &"kia"
+	return hp > 0 and health != &"kia"
 
 
 func _skills_list() -> Array:

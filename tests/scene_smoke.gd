@@ -44,6 +44,7 @@ func _run() -> void:
 		get_tree().root.remove_child(inst)
 		inst.queue_free()
 		await get_tree().process_frame
+	_check_door_route()
 	print("[SMOKE] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -117,8 +118,17 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_check(queued >= 1, "drawn route reaches the sim queue (%d commands)" % queued)
 	var line := pr.controller.route_line(0)
 	_check(line != null and line.points.size() == queued + 1, "committed route line matches the executable cells")
+	_check(pr.world.ai.enemies.size() == pr.map.ai_spawns.size(), "mission initializes map AI spawns outside the squad")
+	pr.controller.cell_tapped.emit(start)
+	_check(not pr._alpha_button.disabled, "route node enables planning go-code buttons")
+	pr._on_alpha_pressed()
+	queued += 1
+	_check(pr.world.operatives[0].queue.peek_next().command_type == AgentCommand.CommandType.WAIT_GO_CODE, "assigned go-code enters the plan")
 	pr._on_execute_pressed()
 	_check(SimClock.phase == SimClock.Phase.EXECUTION and not pr._alpha_button.disabled and not pr.controller.routing_enabled, "execute unlocks go-codes and locks routing")
+	for i in range(3):
+		await get_tree().physics_frame
+	_check(pr.world.operatives[0].wait_code == &"alpha" and GridUtil.cell_of(pr.world.operatives[0].pos) == start, "operative waits at the selected route node")
 	pr._on_alpha_pressed()
 	for i in range(40):
 		await get_tree().physics_frame
@@ -127,3 +137,51 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	pr._on_reset_pressed()
 	_check(SimClock.phase == SimClock.Phase.PLANNING and pr.world.tick == 0, "reset returns to planning")
 	_check(GridUtil.cell_of(pr.world.operatives[0].pos) == start and pr.world.operatives[0].queue.commands.size() == queued, "reset keeps the route and restores the spawn")
+
+	pr.set_physics_process(false)
+	pr._on_execute_pressed()
+	for i in range(3):
+		pr._physics_process(SimWorld.DT)
+	_check(pr.world.tick > 0, "retained plan can be executed again")
+	pr._on_alpha_pressed()
+	for i in range(120):
+		pr._physics_process(SimWorld.DT)
+		if pr._result_view != null:
+			break
+	_check(pr._result_view != null and not bool(pr._result_view.result["completed"]), "route ending before the checkpoint reports failure")
+	if pr._result_view != null:
+		pr._result_view.retry_requested.emit()
+	_check(pr._result_view == null and SimClock.phase == SimClock.Phase.PLANNING, "result replan clears the overlay and restores planning")
+
+	var checkpoint := MapEditorValidator.cell_of(pr.map.objectives[0])
+	var exit_cell := MapEditorValidator.cell_of(pr.map.extraction_zones[0]["cells"][0])
+	var mission_route: Array[Vector2i] = [start, checkpoint, exit_cell]
+	pr._on_route_committed(0, mission_route)
+	pr._on_execute_pressed()
+	for i in range(1200):
+		pr._physics_process(SimWorld.DT)
+		if pr._result_view != null:
+			break
+	_check(pr._result_view != null and bool(pr._result_view.result["completed"]), "authored campaign checkpoint and exit complete the mission")
+	if pr._result_view != null:
+		var title := pr._result_view.find_child("ResultTitle", true, false) as Label
+		_check(title != null and title.text == "OPERATION COMPLETE", "successful operation renders a result screen")
+
+
+func _check_door_route() -> void:
+	var map := GreyboxMap.build_default()
+	var start := Vector2i(7, 6)
+	var door := Vector2i(8, 6)
+	var goal := Vector2i(9, 6)
+	var waypoints: Array[Vector2i] = [door, goal]
+	var route := RoutePlanner.plan(map, start, waypoints)
+	var commands: Array[AgentCommand] = route["commands"]
+	_check(commands.size() == 3 and commands[0].command_type == AgentCommand.CommandType.PERFORM_ACTION, "closed-door route queues an action before moving")
+	var sim := SimWorld.new()
+	sim.setup(map, 1)
+	sim.add_operative(0, start, commands)
+	for i in range(250):
+		sim.step()
+		if sim.operatives[0].done:
+			break
+	_check(sim.operatives[0].done and GridUtil.cell_of(sim.operatives[0].pos) == goal, "closed-door route reaches the far side")

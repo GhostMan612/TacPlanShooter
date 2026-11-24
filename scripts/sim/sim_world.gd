@@ -13,6 +13,7 @@ var tick := 0
 var go_codes_issued := {}
 var go_code_stream: Array[Dictionary] = []
 var operatives: Array[SimOperative] = []
+var enemy_actors: Dictionary = {}
 var pending: Array[Dictionary] = []
 var entities: Array[SimEntity] = []
 var entity_seq := 0
@@ -30,7 +31,7 @@ var ai := AiCoordinator.new()
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
-	map = p_map
+	map = GreyboxMap.from_dict(p_map.to_dict())
 	rng.seed = seed_value
 	tick = 0
 	go_codes_issued.clear()
@@ -47,15 +48,32 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	tapin_bursts.clear()
 	drones.clear()
 	vehicles.clear()
+	enemy_actors.clear()
+	ai = AiCoordinator.new()
+	door_system = DoorSystem.new()
+	ballistics = BallisticsSuppression.new()
 
 
-func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand]) -> void:
+func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand]) -> SimOperative:
 	var o := SimOperative.new()
 	o.id = id
 	o.pos = Vector2(spawn_cell) + Vector2(0.5, 0.5)
 	o.queue = CommandQueue.new(id)
 	o.queue.reset(commands)
 	operatives.append(o)
+	return o
+
+
+func add_enemy(id: int, spawn_cell: Vector2i, archetype: StringName, facing_deg: float = 0.0) -> SimOperative:
+	var o := SimOperative.new()
+	o.id = id
+	o.pos = Vector2(spawn_cell) + Vector2(0.5, 0.5)
+	o.facing_deg = facing_deg
+	o.queue = CommandQueue.new(id)
+	o.faction_id = 1
+	enemy_actors[id] = o
+	ai.add_enemy(id, archetype)
+	return o
 
 
 func apply_override(oc: OverrideCommand) -> void:
@@ -73,7 +91,7 @@ func apply_override(oc: OverrideCommand) -> void:
 	if burst >= SimConstants.TAPIN_MAX_BURST_TICKS:
 		return
 	tapin_bursts[oc.op_id] = burst + 1
-	override_stream.append(oc)
+	override_stream.append(OverrideCommand.from_dict(oc.to_dict()))
 	journal.append({"t": oc.tick, "ev": &"override", "op": oc.op_id})
 
 
@@ -87,7 +105,7 @@ func _process_overrides() -> void:
 		if oc.tick != tick:
 			continue
 		for o in operatives:
-			if o.id != oc.op_id:
+			if o.id != oc.op_id or not o.is_alive():
 				continue
 			if oc.aim_deg != 0.0:
 				o.facing_deg = oc.aim_deg
@@ -181,9 +199,10 @@ func _overrides_arr() -> Array:
 
 
 func snapshot_data() -> Dictionary:
-	var issued_arr: Array = []
+	var issued_arr: Array[String] = []
 	for k in go_codes_issued.keys():
 		issued_arr.append(String(k))
+	issued_arr.sort()
 	var ops_arr: Array = []
 	for o in operatives:
 		ops_arr.append(o.to_dict())
@@ -198,6 +217,17 @@ func snapshot_data() -> Dictionary:
 	var entities_arr: Array = []
 	for e in entities:
 		entities_arr.append(e.to_dict())
+	var enemies_arr: Array = []
+	var enemy_ids: Array = enemy_actors.keys()
+	enemy_ids.sort()
+	for id in enemy_ids:
+		enemies_arr.append((enemy_actors[id] as SimOperative).to_dict())
+	var drones_arr: Array = []
+	for drone in drones:
+		drones_arr.append(drone.to_dict())
+	var vehicles_arr: Array = []
+	for vehicle in vehicles:
+		vehicles_arr.append(vehicle.to_dict())
 	return {
 		"tick": tick,
 		"rng_seed": rng.seed,
@@ -208,6 +238,12 @@ func snapshot_data() -> Dictionary:
 		"entities": entities_arr,
 		"override_stream": _overrides_arr(),
 		"operatives": ops_arr,
+		"enemy_actors": enemies_arr,
+		"ai": ai.to_dict(),
+		"drones": drones_arr,
+		"vehicles": vehicles_arr,
+		"door_system": door_system.to_array(),
+		"suppression": _int_dict_pairs(ballistics.suppression),
 		"journal": journal.duplicate(true),
 		"entity_seq": entity_seq,
 		"go_code_stream": go_code_stream.duplicate(true),
@@ -269,86 +305,24 @@ func restore_from_data(d: Dictionary) -> void:
 	tapin_unit_cooldowns = _pairs_to_int_dict(d.get("tapin_unit_cooldowns", []))
 	tapin_bursts = _pairs_to_int_dict(d.get("tapin_bursts", []))
 
+	drones.clear()
+	for dd in d.get("drones", []):
+		drones.append(SimDrone.from_dict(dd))
+	vehicles.clear()
+	for vd in d.get("vehicles", []):
+		vehicles.append(SimVehicle.from_dict(vd))
+	enemy_actors.clear()
+	for ed in d.get("enemy_actors", []):
+		var enemy := SimOperative.from_dict(ed)
+		enemy_actors[enemy.id] = enemy
+	ai = AiCoordinator.from_dict(d.get("ai", {}))
+	door_system = DoorSystem.from_array(d.get("door_system", []))
+	ballistics = BallisticsSuppression.new()
+	ballistics.suppression = _pairs_to_int_dict(d.get("suppression", []))
+
 
 func state_hash() -> String:
-	var parts := PackedStringArray()
-	parts.append("T%d" % tick)
-	parts.append("R%d|%d" % [int(rng.seed), int(rng.state)])
-	for o in operatives:
-		var path_parts := PackedStringArray()
-		for p in o.active_path:
-			var pv: Vector2 = p
-			path_parts.append("%.9f,%.9f" % [pv.x, pv.y])
-		parts.append("O%d|%.9f|%.9f|%d|%s|%d|%d|%d|%s|%d|%d|%d|%.9f|%d|%d|%s" % [
-			o.id,
-			o.pos.x,
-			o.pos.y,
-			int(round(o.facing_deg)),
-			String(o.stance),
-			o.hp,
-			o.cooldown_ticks,
-			o.field_of_fire_deg,
-			String(o.wait_code),
-			o.queue.cursor,
-			o.path_index,
-			1 if o.done else 0,
-			o.move_carry,
-			1 if o.halted else 0,
-			int(o.move_blocked_from),
-			";".join(path_parts),
-		])
-	for o in operatives:
-		var ks := PackedStringArray()
-		for k in o.skills.keys():
-			ks.append("%s=%d" % [String(k), int(o.skills[k])])
-		ks.sort()
-		parts.append("X%d|%s|%s|%s|%s|%d|%d|%d" % [
-			o.id,
-			String(o.mode_name),
-			String(o.health),
-			String(o.armor_class),
-			";".join(ks),
-			o.heartbeat_radius,
-			o.faction_id,
-			o.owner_peer_id,
-		])
-		parts.append("C%d" % tapin_points)
-	var door_parts := PackedStringArray()
-	for k in map.door_open.keys():
-		door_parts.append("%d,%d=%s" % [int(k.x), int(k.y), "1" if bool(map.door_open[k]) else "0"])
-	door_parts.sort()
-	parts.append("D" + ";".join(door_parts))
-	var gc := PackedStringArray()
-	for k in go_codes_issued.keys():
-		gc.append(String(k))
-	gc.sort()
-	parts.append("G" + ";".join(gc))
-	for g in go_code_stream:
-		if int(g["t"]) > tick:
-			parts.append("Q%d:%s" % [int(g["t"]), String(g["code"])])
-	for e in pending:
-		parts.append("P" + _canon(e))
-	var ent_parts := PackedStringArray()
-	for e in entities:
-		ent_parts.append("E%d|%.9f|%.9f|%d|%d|%d" % [e.id, e.pos.x, e.pos.y, e.spawned_tick, e.due_tick, e.kind])
-	ent_parts.sort()
-	parts.append("Q" + ";".join(ent_parts))
-	for e in journal:
-		parts.append("J" + _canon(e))
-	return "\n".join(parts).sha256_text()
-
-
-static func _canon(d: Dictionary) -> String:
-	var keys := d.keys()
-	keys.sort()
-	var out := PackedStringArray()
-	for k in keys:
-		var v: Variant = d[k]
-		if typeof(v) == TYPE_FLOAT:
-			out.append("%s=%.9f" % [str(k), v])
-		else:
-			out.append("%s=%s" % [str(k), str(v)])
-	return "{" + ",".join(out) + "}"
+	return JSON.stringify(snapshot_data(), "", true, true).sha256_text()
 
 
 func _process_pending() -> void:
@@ -363,7 +337,7 @@ func _process_pending() -> void:
 
 
 func _step_operative(o: SimOperative) -> void:
-	if o.done or o.halted:
+	if o.done or o.halted or not o.is_alive():
 		return
 	if o.cooldown_ticks > 0:
 		o.cooldown_ticks -= 1
@@ -558,7 +532,7 @@ func _apply_entity_effect(e: SimEntity) -> void:
 func _check_collision(o: SimOperative) -> void:
 	var plan := _collision_plan(o)
 	for p in operatives:
-		if p == o or p.done:
+		if p == o or p.done or not p.is_alive():
 			continue
 		if _polyline_intersects(plan, _collision_plan(p)):
 			o.halted = true

@@ -23,6 +23,8 @@ func to_dict() -> Dictionary:
 		"id": id,
 		"owner_op": owner_op,
 		"kind": kind,
+		"px": pos.x,
+		"py": pos.y,
 		"battery": battery,
 		"signal_strength": signal_strength,
 		"destroyed": destroyed,
@@ -34,6 +36,7 @@ static func from_dict(d: Dictionary) -> SimDrone:
 	v.id = int(d.get("id", -1))
 	v.owner_op = int(d.get("owner_op", -1))
 	v.kind = int(d.get("kind", int(Class.GROUND_RECON)))
+	v.pos = Vector2(float(d.get("px", 0.0)), float(d.get("py", 0.0)))
 	v.battery = int(d.get("battery", 100))
 	v.signal_strength = int(d.get("signal_strength", 100))
 	v.destroyed = bool(d.get("destroyed", false))
