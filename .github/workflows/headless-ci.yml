@@ -24,6 +24,19 @@ jobs:
           curl -sSL -o bin/Godot_v4.0.4-stable_linux.x86_64.zip https://github.com/godotengine/godot/releases/download/4.0.4-stable/Godot_v4.0.4-stable_linux.x86_64.zip
           (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
+      - name: Parser hang probe (each script alone)
+        run: |
+          hung=0
+          for f in $(git ls-files '*.gd'); do
+            timeout 20 ./bin/godot --headless --check-only --script "$f" > /dev/null 2>&1
+            rc=$?
+            if [ "$rc" -eq 124 ]; then
+              echo "::error::parser hang: $f"
+              hung=1
+            fi
+          done
+          echo "parser hang probe done (hung=$hung)"
+          test "$hung" -eq 0
       - name: Import pass 1 (warms global class cache)
         run: |
           timeout 90 stdbuf -oL -eL ./bin/godot --headless --path . --editor --quit 2>&1 | tee import1.log || true
