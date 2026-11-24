@@ -10,6 +10,13 @@ var world: SimWorld = null
 var selected_op: int = -1
 var _cp_labels: Array = []
 var _health_dots: Array = []
+var palette := ThemeManager.PALETTES[&"dark_tactical"]
+
+
+func apply_palette(p: Dictionary) -> void:
+	palette = p
+	for cpl in _cp_labels:
+		cpl.add_theme_color_override("color", palette.get(&"ink", palette[&"accent"]))
 
 
 func _ready() -> void:

@@ -9,6 +9,8 @@ const DEV_SEED := 1337
 
 var map: GreyboxMap = null
 var renderer: MapRenderer = null
+var squad_hud: SquadHud = null
+var _tm: ThemeManager = null
 var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
@@ -35,7 +37,10 @@ func _ready() -> void:
 		method,
 		Engine.physics_ticks_per_second,
 	])
-	map = GreyboxMap.build_default()
+	map = MapLoader.load_from_json("res://data/maps/op01_glass_house.json")
+	if map.width_cells < 1 or map.height_cells < 1:
+		map = GreyboxMap.build_default()
+	_apply_theme()
 	renderer = MapRenderer.new()
 	renderer.setup(map)
 	add_child(renderer)
@@ -84,6 +89,7 @@ func _physics_process(_delta: float) -> void:
 		world.step()
 		_sync_tokens()
 		_update_fog()
+		_maybe_aar()
 
 
 func _draw() -> void:
@@ -133,6 +139,18 @@ func _update_fog() -> void:
 	fog.rebuild(live_polys)
 
 
+func _apply_theme() -> void:
+	_tm = ThemeManager.new()
+	_tm.theme_changed.connect(_on_theme_changed)
+	_tm.apply()
+	_on_theme_changed(_tm._palette())
+
+
+func _on_theme_changed(pal: Dictionary) -> void:
+	if squad_hud != null:
+		squad_hud.apply_palette(pal)
+
+
 func _setup_hud() -> void:
 	_execute_button = Button.new()
 	_execute_button.text = "Execute"
@@ -157,6 +175,9 @@ func _setup_hud() -> void:
 	_hud_canvas = CanvasLayer.new()
 	_hud_canvas.add_child(_hud)
 	add_child(_hud_canvas)
+	squad_hud = SquadHud.new()
+	_hud_canvas.add_child(squad_hud)
+	squad_hud.refresh(world)
 	_place_hud()
 
 
@@ -212,6 +233,28 @@ func _on_reset_pressed() -> void:
 	world.add_operative(1, Vector2i(13, 2), _demo_plan_op1())
 	SimClock.reset_to_planning()
 	_execute_button.disabled = false
+	fog.reset_fog()
+	_sync_tokens()
+	if squad_hud != null:
+		squad_hud.refresh(world)
+
+
+func _maybe_aar() -> void:
+	if world == null:
+		return
+	var all_down := true
+	for o in world.operatives:
+		if o.is_alive():
+			all_down = false
+			break
+	if not all_down:
+		return
+	var aar := AarScreen.new()
+	aar.world = world
+	add_child(aar)
+	SimClock.reset_to_planning()
+	if _execute_button != null:
+		_execute_button.disabled = false
 	fog.reset_fog()
 	_sync_tokens()
 
