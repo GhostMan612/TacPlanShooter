@@ -188,6 +188,9 @@ func _exit_routing() -> void:
 
 
 func _handle_tap(pos: Vector2) -> void:
+	if camera != null:
+		var off := pos - camera.get_viewport_rect().size * 0.5
+		camera.pan_by(-off * 0.5)
 	if routing_enabled:
 		cell_tapped.emit(GridUtil.px_to_cell(_to_world(pos)))
 

@@ -9,6 +9,13 @@ const MIN_ZOOM := 1.0
 const MAX_ZOOM := 8.0
 
 var _viewport_px := Vector2(1080, 1920)
+var _finger_offset := Vector2.ZERO
+
+
+func set_finger_offset(v: Vector2) -> void:
+	_finger_offset = v
+	pan_by(-v)
+	clamp_to_limits()
 
 
 func configure_for_map(map_px: Vector2, viewport_px: Vector2, padding := 48.0) -> void:

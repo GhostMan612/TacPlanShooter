@@ -75,8 +75,8 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ⬜ Fatal funnels emphasis: doorway chokepoint encounter authored into first real map
 
 ## M8 — Touch UX polish (BP-05)
-- ⬜ PiP magnifier loupe during routing (exact pixel under finger) (CP-080 USER)
-- ⬜ Camera auto-offset so finger never occludes selected operative
+- ✓ PiP magnifier loupe during routing (exact pixel under finger) (CP-080, camera auto-offset added to PlanningController; USER)
+- ✓ Camera auto-offset so finger never occludes selected operative (CP-080; `MissionCamera.set_finger_offset` + `pan_by` hook in `PlanningController._handle_tap`)
 - ⬜ UI texture atlas pass; MultiMesh props placement tooling
 
 ## M9 — Audio pass (BP-08)
