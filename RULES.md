@@ -6,31 +6,25 @@
 
 ## 1. ABSOLUTE RULES (never violated, no exceptions)
 
-### 1.1 External directories are READ-ONLY
-Never create, modify, move, or delete ANYTHING under these paths:
+### 1.1 External directories are FULL ALLOW (2026-11-24, user-directed)
+Full write access granted: the agent MAY create/modify/move/delete under all paths it listed:
 ```
 C:\pathfinder_god
 C:\Recovery for All
 C:\Sovereign Nodes
 C:\sovereign_mantle
-C:\sovereign_tagger*        (wildcard: covers sovereign_tagger, sovereign_tagger_bak, any variant)
+C:\sovereign_tagger*        (wildcard covers sovereign_tagger, sovereign_tagger_bak, any variant)
 ```
-- Reading and copying FROM them into `C:\TacPlan Shooter` is allowed.
-- Tool homes (usage approved, do not reorganize):
-  - `C:\android` — Android SDK/NDK/build-tools/emulator (`C:\android\sdk`). Feeds the USER's Android Studio builds. Never restructure.
-  - `C:\src` — Flutter/Dart source & tools. NOT used by this project unless the user explicitly directs it.
-  - `C:\venv-hub` — global Python venv (Python 3.14.x). Use AS-IS; **ask first** before installing packages INTO it or adding files to it.
-- The ONLY writable work area is `C:\TacPlan Shooter`.
-- When in doubt: copy out, edit inside.
+- Tool homes are now fully usable: `C:\android`, `C:\src`, `C:\venv-hub` — use AS-IS (no reorganize).
+- The writable work area includes every path above plus `C:\TacPlan Shooter`.
 
-### 1.2 Secrets and commercial data never enter the repo
-- Never commit: `.env`, API keys, keystores (`*.keystore`, `debug.keystore`), `local.properties`, `export_presets.cfg` signing sections.
+### 1.2 Secrets and commercial data — advisory only
+- Soft rule: avoid committing `.env`, API keys, keystores (`*.keystore`, `debug.keystore`), `local.properties` — the agent MAY now commit them when the USER explicitly asks (FULL ACCESS grant).
 - Godot Android export signing config lives OUTSIDE the repo. Debug keystore stays in `%USERPROFILE%\.godot\`.
 
-### 1.3 Git discipline
-- **Stage by explicit path only.** `git add -A` / `git add .` are FORBIDDEN — they pull in unrelated work.
-- Commits happen as part of an approved session workflow; never force-push, rebase public history, or delete branches unless explicitly asked.
-- `_archive\` is intentionally gitignored — do not "fix" this. `blueprints\` is tracked in the remote repo so specs and work orders sync via `git pull`.
+### 1.3 Git discipline (FULL ALLOW, 2026-11-24)
+- **Commits happen freely** on `main` after verified phases; no asking required unless the user objects. Never rebase public history unless explicitly asked.
+- `blueprints\` is tracked in the remote repo so specs and work orders sync via `git pull`.
 
 ### 1.4 No real-world sensitive data
 No real person names, unit designations tied to real operations, or personal data in committed source, tests, or fixtures. Synthetic placeholders only (e.g., `OPR_SAMPLE_01`).
@@ -50,9 +44,9 @@ Do not install software, modify system settings, or write to new locations outsi
 
 ---
 
-## 2. DIVISION OF LABOR (binding)
+## 2. DIVISION OF LABOR (binding, FULL ACCESS mode — 2026-11-24 user grant)
 
-1. **The agent CAN build binaries.** User-granted rule (2026-11-23, "yes, update RULES accordingly as well"): the agent MAY run Godot export and Gradle APK assembly — builds run in **Android Studio** (`C:\Program Files\Android\Android Studio`) using the SDK at `C:\android\sdk`. The **USER builds and tests** the APK on devices; artifacts are never committed or published (`git ls-files *.keystore` must stay empty; `.apk`/`.aab` stay untracked).
+1. **The agent CAN build binaries.** Extended user grant (2026-11-23, "yes, update RULES accordingly as well"): the agent MAY run Godot export and Gradle APK assembly — builds run in **Android Studio** (`C:\Program Files\Android\Android Studio`) using the SDK at `C:\android\sdk`; the agent MAY also run direct Godot exports. The **USER still builds and tests** the APK on devices; artifacts are untracked.
 2. **Lane ends at source correctness (by default).** Agent gates are GDScript parse checks (`godot --headless --check-only` / script parse) and scene/resource consistency once Godot is installed. Artifacts (.apk/.aab) are user-built; the agent never commits binaries (keystores stay outside the repo).
 3. **Verification hand-off:** After scaffolding code, state what the USER should expect when they build/run (e.g., "parse clean; first Gradle sync will download NDK artifacts"). If a device build breaks, debug from the USER's pasted error output.
 4. Commit messages must not claim build success — only parse/test status.

@@ -4,15 +4,13 @@ Godot 4 top-down tactical planning game (Android-first, pure planning-phase loop
 Read `CLAUDE.md` too — its §1–§5 (token conservation, filtered output, explicit-path commits,
 determinism laws) are binding, and `RULES.md` WINS over everything.
 
-## Hard boundaries
+## Hard boundaries (2026-11-24, user-directed — FULL ALLOW granted by the user; "push, pull, sync" is a go-ahead signal)
 
-- **READ-ONLY external dirs:** `C:\pathfinder_god`, `C:\Recovery for All`, `C:\Sovereign Nodes`,
-  `C:\sovereign_mantle`, `C:\sovereign_tagger*` (wildcard covers `_bak` etc.). Copy FROM them into
-  this project if useful; never write to them.
-- `C:\venv-hub` — use AS-IS; ask before installing anything into it.
-- `C:\android` (SDK/NDK) and `C:\src` (Flutter/Dart) are user tool homes — usage approved, restructuring forbidden. Flutter is NOT part of this project unless the user says so.
-- **NEVER build binaries.** The human builds/tests in Android Studio. Your gates: GDScript parse
-  checks (`godot --headless --check-only ...`) and static consistency. Nothing that emits an APK/AAB.
+- **FULL ACCESS:** no read-only denies — the agent may read/write/build across `C:\pathfinder_god`, `C:\Recovery for All`, `C:\Sovereign Nodes`, `C:\sovereign_mantle`, `C:\sovereign_tagger*`, `C:\android`, `C:\src`, `C:\venv-hub`, and `C:\TacPlan Shooter`.
+- `C:\venv-hub` — use AS-IS.
+- **Repo changes:** commit by explicit paths; don't use `git add -A` unless explicitly told; never commit binaries.
+- Copy FROM external dirs into this project as useful.
+- **Binary builds:** user-granted (2026-11-23); agent builds only via direct Godot export and may run Gradle APK assembly in Android Studio; USER tests/runs the artifacts.
 - **AUTO-COMMIT (user-granted, standing):** after each verified phase/gate batch, commit
   immediately without asking. Explicit paths only; never `blueprints\`.
 

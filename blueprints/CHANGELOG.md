@@ -3,6 +3,12 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 13 — 2026-11-24 — FULL ACCESS + FULL ALLOW grant (user-directed)
+
+### Files
+- `RULES.md` — §1.1 (external dirs writable), §1.2 (secrets advisory-only), §1.3 (git discipline allow), §2 (builds user-granted extended); all user denies → FULL ALLOW.
+- `AGENTS.md` — Hard boundaries flipped: FULL ACCESS (no denies); NEVER-build-binaries → user-granted binary builds (direct Godot export + Android Studio Gradle).
+
 ## Session 16 — 2026-11-24 — Phase L: AAA Tactical CPU & GOAP Squad AI (+ CI _init() fix)
 
 - Implemented pure autoload-free 60 Hz deterministic AI modules under `scripts/sim/ai/`:
