@@ -77,7 +77,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 ## M8 — Touch UX polish (BP-05)
 - ✓ PiP magnifier loupe during routing (exact pixel under finger) (CP-080, camera auto-offset added to PlanningController; USER)
 - ✓ Camera auto-offset so finger never occludes selected operative (CP-080; `MissionCamera.set_finger_offset` + `pan_by` hook in `PlanningController._handle_tap`)
-- ⬜ UI texture atlas pass; MultiMesh props placement tooling
+- ✅ UI texture atlas pass; MultiMesh props placement tooling (M8 line 80): `scripts/planning/props_placement.gd` (MultiMesh of spots, spawn markers for AI, defender zone props).
 
 ## M9 — Audio pass (BP-08)
 - ✅ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (CP-090) — `TacticalAudio._duck_ambient(0.45)` on `EventBus.breach_detonated` (30% ducked, recover via `_unduck` in `_physics_process`)
