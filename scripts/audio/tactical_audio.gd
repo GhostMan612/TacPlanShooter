@@ -12,6 +12,7 @@ signal heartbeat_intensity(0.0..1.0)
 
 const DUCK_SECONDS: float = 3.0
 var _duck_until := -1
+var _duck_factor := 1.0
 var _ambient_bus_idx := 0
 var _heartbeat_hp_peak := 1.0
 
@@ -59,8 +60,19 @@ func play_blip(name: StringName) -> void:
 
 
 func _on_breach(_pos: Vector2) -> void:
-	_duck_ambient()
+	_duck_ambient(0.45)
 	_play_squelch(&"ui_squelch_strong")
+
+
+func _duck_ambient(factor: float) -> void:
+	AudioServer.set_bus_mute(_ambient_bus_idx, true)
+	_duck_factor = factor
+	_duck_until = Time.get_ticks_msec() + int(DUCK_SECONDS * 1000.0)
+
+
+func _unduck() -> void:
+	_duck_factor = 1.0
+	AudioServer.set_bus_mute(_ambient_bus_idx, false)
 
 
 func _on_operative_damaged(_op_id: int, remaining_hp: int) -> void:
@@ -71,23 +83,26 @@ func _on_operative_damaged(_op_id: int, remaining_hp: int) -> void:
 	emit_signal(heartbeat_intensity, _heartbeat_hp_peak)
 
 
-func _duck_ambient() -> void:
+func _duck_ambient(factor: float) -> void:
 	AudioServer.set_bus_mute(_ambient_bus_idx, true)
+	_duck_factor = factor
 	_duck_until = Time.get_ticks_msec() + int(DUCK_SECONDS * 1000.0)
-	call_deferred("_unduck")
 
 
 func _unduck() -> void:
+	_duck_factor = 1.0
 	AudioServer.set_bus_mute(_ambient_bus_idx, false)
 
 
 func _physics_process(_delta: float) -> void:
+	if Time.get_ticks_msec() > _duck_until and _duck_factor >= 1.0:
+		_unduck()
 	if _heartbeat_time_left > 0:
 		_heartbeat_time_left -= _delta
 		if _heartbeat_time_left <= 0:
 			_play_squelch(&"ui_heartbeat")
-	if Time.get_ticks_msec() > _duck_until:
-		AudioServer.set_bus_mute(_ambient_bus_idx, false)
+	if _duck_factor < 0.9:
+		AudioServer.set_bus_mute(_ambient_bus_idx, true)
 
 
 func _play_squelch(name: StringName) -> void:

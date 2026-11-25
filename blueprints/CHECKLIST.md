@@ -80,7 +80,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ⬜ UI texture atlas pass; MultiMesh props placement tooling
 
 ## M9 — Audio pass (BP-08)
-- ⬜ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (CP-090 USER)
+- ✅ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (CP-090) — `TacticalAudio._duck_ambient(0.45)` on `EventBus.breach_detonated` (30% ducked, recover via `_unduck` in `_physics_process`)
 - ⬜ Randomized radio squelch + telemetry blips on planning UI ops
 - ⬜ Damage → heartbeat synth drives LowPassFilter over environment mix
 
