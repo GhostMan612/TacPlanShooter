@@ -7,6 +7,7 @@ extends RefCounted
 
 
 const NO_CELL := Vector2i(-1, -1)
+const ACTION_LOOKAHEAD_CELLS := 3
 
 
 static func walkable(m: GreyboxMap, c: Vector2i) -> bool:
@@ -32,12 +33,14 @@ static func plan(m: GreyboxMap, start: Vector2i, waypoints: Array[Vector2i]) -> 
 	return {"cells": cells, "commands": compile_commands(m, start, cells), "blocked_at": blocked}
 
 
-static func compile_commands(m: GreyboxMap, start: Vector2i, cells: Array[Vector2i], waits: Dictionary = {}) -> Array[AgentCommand]:
+static func compile_commands(m: GreyboxMap, start: Vector2i, cells: Array[Vector2i], waits: Dictionary = {}, orders: Dictionary = {}) -> Array[AgentCommand]:
 	var commands: Array[AgentCommand] = []
 	var door_actions := {}
 	var pending_waits := waits.duplicate()
-	_append_wait(commands, pending_waits, start)
-	for cell in cells:
+	var pending_orders := orders.duplicate(true)
+	_append_node(m, commands, pending_waits, pending_orders, start, cells, -1)
+	for i in range(cells.size()):
+		var cell := cells[i]
 		if m.door_cells.has(cell) and m.is_solid(cell) and not door_actions.has(cell):
 			var action := AgentCommand.new()
 			action.command_type = AgentCommand.CommandType.PERFORM_ACTION
@@ -46,8 +49,45 @@ static func compile_commands(m: GreyboxMap, start: Vector2i, cells: Array[Vector
 			commands.append(action)
 			door_actions[cell] = true
 		commands.append(move_cmd(cell))
-		_append_wait(commands, pending_waits, cell)
+		_append_node(m, commands, pending_waits, pending_orders, cell, cells, i)
 	return commands
+
+
+static func _append_node(m: GreyboxMap, commands: Array[AgentCommand], waits: Dictionary, orders: Dictionary, cell: Vector2i, cells: Array[Vector2i], index: int) -> void:
+	var order: Dictionary = orders.get(cell, {})
+	orders.erase(cell)
+	if order.has("stance"):
+		var stance := AgentCommand.new()
+		stance.command_type = AgentCommand.CommandType.SET_STANCE
+		stance.stance_name = StringName(order["stance"])
+		commands.append(stance)
+	if order.has("mode"):
+		var mode := AgentCommand.new()
+		mode.command_type = AgentCommand.CommandType.SET_MODE
+		mode.mode_name = StringName(order["mode"])
+		commands.append(mode)
+	if order.has("fof"):
+		var fof := AgentCommand.new()
+		fof.command_type = AgentCommand.CommandType.SET_FIELD_OF_FIRE
+		fof.bearing_deg = int(order["fof"])
+		commands.append(fof)
+	_append_wait(commands, waits, cell)
+	if order.has("action") and int(order["action"]) != int(AgentCommand.ActionKind.NONE):
+		var throw := AgentCommand.new()
+		throw.command_type = AgentCommand.CommandType.PERFORM_ACTION
+		throw.action_kind = order["action"]
+		throw.target_cell = action_target(m, cell, cells, index)
+		commands.append(throw)
+
+
+static func action_target(m: GreyboxMap, cell: Vector2i, cells: Array[Vector2i], index: int) -> Vector2i:
+	var best := cell
+	var last := mini(index + ACTION_LOOKAHEAD_CELLS, cells.size() - 1)
+	for j in range(index + 1, last + 1):
+		var c := cells[j]
+		if m.in_bounds(c) and not m.is_solid(c):
+			best = c
+	return best
 
 
 static func _append_wait(commands: Array[AgentCommand], waits: Dictionary, cell: Vector2i) -> void:
