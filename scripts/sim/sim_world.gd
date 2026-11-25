@@ -362,6 +362,8 @@ func _step_operative(o: SimOperative) -> void:
 		o.wait_code = &""
 		o.queue.advance_cursor()
 		journal.append({"t": tick, "ev": &"go_released", "op": o.id})
+	if combat.holds_position(o):
+		return
 	while true:
 		var cmd := o.queue.peek_next()
 		if cmd == null:
@@ -376,7 +378,8 @@ func _step_operative(o: SimOperative) -> void:
 				o.queue.advance_cursor()
 			AgentCommand.CommandType.SET_FIELD_OF_FIRE:
 				o.field_of_fire_deg = cmd.bearing_deg
-				o.facing_deg = cmd.bearing_deg
+				if cmd.bearing_deg >= 0:
+					o.facing_deg = cmd.bearing_deg
 				journal.append({"t": tick, "ev": &"fof_set", "op": o.id, "bearing": cmd.bearing_deg})
 				o.queue.advance_cursor()
 			AgentCommand.CommandType.WAIT_GO_CODE:

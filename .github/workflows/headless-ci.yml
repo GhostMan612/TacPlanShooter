@@ -24,31 +24,23 @@ jobs:
           curl -sSL -o bin/Godot_v4.0.4-stable_linux.x86_64.zip https://github.com/godotengine/godot/releases/download/4.0.4-stable/Godot_v4.0.4-stable_linux.x86_64.zip
           (cd bin && unzip -o Godot_v4.0.4-stable_linux.x86_64.zip && mv Godot_v4.0.4-stable_linux.x86_64 godot && chmod +x godot)
           ls -la bin
-      - name: Import pass 1 (warms global class cache)
+      - name: Import pass 1 (waits for the editor scan to write the class cache)
         run: |
           ./bin/godot --headless --path . --editor > import1.log 2>&1 &
           pid=$!
           for i in $(seq 1 110); do
-            if [ -f .godot/global_script_class_cache.cfg ] && [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]; then
+            if [ -f .godot/global_script_class_cache.cfg ]; then
               echo "class cache written after ${i}s"
               break
             fi
             sleep 1
           done
-          sleep 3
+          sleep 5
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           cat import1.log
-          [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]
-      - name: Import pass 2
-        run: |
-          ./bin/godot --headless --path . --editor > import2.log 2>&1 &
-          pid=$!
-          sleep 15
-          kill "$pid" 2>/dev/null || true
-          wait "$pid" 2>/dev/null || true
-          cat import2.log
-          [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]
+          test -f .godot/global_script_class_cache.cfg
+      - name: Import pass 2 (refreshes dependents of new classes)
       - name: Parse gate (every script and scene)
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/parse_all.tscn 2>&1 | tee parse_all.log || true

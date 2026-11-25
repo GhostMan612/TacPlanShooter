@@ -209,14 +209,14 @@ func show_waits(op_id: int, waits: Dictionary) -> void:
 	for cell in waits:
 		var mark := Label.new()
 		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		mark.text = String(waits[cell]).substr(0, 1).to_upper()
+		mark.text = String(waits[cell]).to_upper()
 		mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		mark.add_theme_font_size_override("font_size", 9)
 		mark.add_theme_color_override("font_outline_color", Color.BLACK)
 		mark.add_theme_constant_override("outline_size", 3)
-		mark.position = GridUtil.cell_center_px(cell) - Vector2(6.0, 8.0)
-		mark.size = Vector2(12.0, 16.0)
+		mark.position = GridUtil.cell_center_px(cell) - Vector2(9.0, 8.0)
+		mark.size = Vector2(18.0, 16.0)
 		line.add_child(mark)
 
 

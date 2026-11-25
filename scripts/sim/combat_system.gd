@@ -34,6 +34,10 @@ const ARMOR_KEYS := {
 	&"heavy": &"heavy_iii_iv",
 	&"shield": &"shield",
 }
+const MODE_ENGAGE := &"engage"
+const MODE_ADVANCE := &"advance"
+const MODE_ESCORT := &"escort"
+const MODES: Array[StringName] = [&"engage", &"advance", &"escort"]
 const STANCE_ACCURACY := {
 	&"cautious": 0.75,
 	&"normal": 0.6,
@@ -79,6 +83,16 @@ static func line_clear(a: Vector2, b: Vector2, segs: Array) -> bool:
 	return true
 
 
+static func mode_of(o: SimOperative) -> StringName:
+	if o.faction_id != 0 or o.mode_name == &"":
+		return MODE_ENGAGE
+	return o.mode_name
+
+
+func holds_position(o: SimOperative) -> bool:
+	return o.faction_id == 0 and mode_of(o) == MODE_ENGAGE and sight.has(o.id)
+
+
 func register_enemy(id: int, archetype: StringName) -> void:
 	calibers[id] = StringName(ENEMY_CALIBERS.get(archetype, &"9mm"))
 	reactions[id] = int(AiArchetypes.by_name(archetype)["reaction_ticks"])
@@ -118,6 +132,8 @@ func can_fire(world: SimWorld, o: SimOperative) -> bool:
 		var brain: EnemyAi = world.ai.enemies[o.id]
 		if brain.is_stunned() or brain.state == int(EnemyAi.State.SURRENDER) or brain.reload_ticks_left > 0 or brain.ammo <= 0:
 			return false
+	if mode_of(o) == MODE_ESCORT and world.ballistics.suppressed_ticks(o.id) <= 0:
+		return false
 	return true
 
 

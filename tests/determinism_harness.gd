@@ -52,6 +52,8 @@ func _initialize() -> void:
 	failures += _test_combat_walls_and_cone_block()
 	failures += _test_combat_armor_and_kia()
 	failures += _test_combat_snapshot_replay()
+	failures += _test_roe_modes()
+	failures += _test_node_orders_compile_and_run()
 	failures += _test_delta_go_code()
 	failures += _test_team_modes()
 	failures += _test_override_replay()
@@ -1200,4 +1202,102 @@ func _test_combat_snapshot_replay() -> int:
 		c.step()
 	var ok := restored_equal and a.state_hash() == c.state_hash() and _shots(a).size() == _shots(c).size() and _shots(a).size() > 0
 	print("[HARNESS] combat_snapshot_replay %s (shots=%d)" % ["PASS" if ok else "FAIL", _shots(a).size()])
+	return 0 if ok else 1
+
+
+func _roe_world(mode: StringName, seed_value: int) -> SimWorld:
+	var w := SimWorld.new()
+	w.setup(GreyboxMap.build_default(), seed_value)
+	var plan: Array[AgentCommand] = []
+	if mode != &"":
+		var set_mode := AgentCommand.new()
+		set_mode.command_type = AgentCommand.CommandType.SET_MODE
+		set_mode.mode_name = mode
+		plan.append(set_mode)
+	for x in range(3, 6):
+		plan.append(_cmd_move(Vector2i(x, 5)))
+	var op := w.add_operative(0, Vector2i(2, 5), plan)
+	op.armor_class = &"heavy"
+	w.add_enemy(10, Vector2i(6, 3), &"patrol_sentry", 180.0)
+	return w
+
+
+func _first_shot(w: SimWorld, shooter: int) -> int:
+	for e in _shots(w):
+		if int(e["op"]) == shooter:
+			return int(e["t"])
+	return -1
+
+
+func _test_roe_modes() -> int:
+	var engage := _roe_world(&"engage", 77)
+	var default_mode := _roe_world(&"", 77)
+	var advance := _roe_world(&"advance", 77)
+	var escort := _roe_world(&"escort", 77)
+	for i in range(20):
+		engage.step()
+		default_mode.step()
+		advance.step()
+		escort.step()
+	var ok := engage.operatives[0].pos.x < 2.6 and default_mode.operatives[0].pos.x < 2.6
+	ok = ok and advance.operatives[0].pos.x > 3.5
+	ok = ok and _first_shot(engage, 0) == 1 + CombatSystem.FRIENDLY_REACTION_TICKS and _first_shot(advance, 0) == 1 + CombatSystem.FRIENDLY_REACTION_TICKS
+	ok = ok and _first_shot(escort, 0) == -1
+	for i in range(100):
+		advance.step()
+		escort.step()
+	ok = ok and GridUtil.cell_of(advance.operatives[0].pos) == Vector2i(5, 5)
+	var escort_first := _first_shot(escort, 0)
+	var enemy_first := _first_shot(escort, 10)
+	ok = ok and enemy_first > 0 and escort_first > enemy_first and escort.operatives[0].is_alive()
+	print("[HARNESS] roe_modes %s (engage_x=%.2f advance_x=%.2f escort_first=%d enemy_first=%d)" % [
+		"PASS" if ok else "FAIL", engage.operatives[0].pos.x, advance.operatives[0].pos.x, escort_first, enemy_first,
+	])
+	return 0 if ok else 1
+
+
+func _test_node_orders_compile_and_run() -> int:
+	var m := GreyboxMap.build_default()
+	var start := Vector2i(2, 2)
+	var cells: Array[Vector2i] = [Vector2i(3, 2), Vector2i(4, 2), Vector2i(5, 2), Vector2i(6, 2), Vector2i(7, 2)]
+	var node := Vector2i(4, 2)
+	var orders := {
+		node: {"stance": &"blitz", "mode": &"advance", "fof": 90, "action": AgentCommand.ActionKind.FLASHBANG},
+		Vector2i(6, 2): {"fof": -1},
+	}
+	var waits := {node: &"alpha"}
+	var cmds := RoutePlanner.compile_commands(m, start, cells, waits, orders)
+	var types: Array[int] = []
+	for c in cmds:
+		types.append(int(c.command_type))
+	var mv := int(AgentCommand.CommandType.MOVE_TO_CELL)
+	var st := int(AgentCommand.CommandType.SET_STANCE)
+	var md := int(AgentCommand.CommandType.SET_MODE)
+	var ff := int(AgentCommand.CommandType.SET_FIELD_OF_FIRE)
+	var wt := int(AgentCommand.CommandType.WAIT_GO_CODE)
+	var ac := int(AgentCommand.CommandType.PERFORM_ACTION)
+	var expected: Array[int] = [mv, mv, st, md, ff, wt, ac, mv, mv, ff, mv]
+	var ok := types == expected
+	ok = ok and cmds[2].stance_name == &"blitz" and cmds[3].mode_name == &"advance" and cmds[4].bearing_deg == 90
+	ok = ok and cmds[5].go_code == &"alpha" and int(cmds[6].action_kind) == int(AgentCommand.ActionKind.FLASHBANG) and cmds[6].target_cell == Vector2i(7, 2)
+	ok = ok and cmds[9].bearing_deg == -1
+	var w := SimWorld.new()
+	w.setup(m, 12)
+	var op := w.add_operative(0, start, cmds)
+	var facing_at_wait := -999.0
+	for i in range(400):
+		if i == 60:
+			facing_at_wait = op.facing_deg
+			w.schedule_go_code(&"alpha")
+		w.step()
+		if op.done:
+			break
+	var evs := {}
+	for e in w.journal:
+		evs[StringName(e["ev"])] = true
+	ok = ok and op.done and GridUtil.cell_of(op.pos) == Vector2i(7, 2)
+	ok = ok and op.stance == &"blitz" and op.mode_name == &"advance" and op.field_of_fire_deg == -1
+	ok = ok and is_equal_approx(facing_at_wait, 90.0) and is_equal_approx(op.facing_deg, 0.0)
+	ok = ok and evs.has(&"go_released") and evs.has(&"entity_spawned")
+	print("[HARNESS] node_orders_compile_and_run %s (cmds=%d facing_at_wait=%.1f final_facing=%.1f)" % ["PASS" if ok else "FAIL", cmds.size(), facing_at_wait, op.facing_deg])
 	return 0 if ok else 1
