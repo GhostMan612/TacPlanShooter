@@ -146,6 +146,42 @@ func sound_event(cell: Vector2i, kind: StringName) -> void:
 	ai.blackboard.record_acoustic(cell, kind, tick)
 
 
+func check_mission() -> Dictionary:
+	var dead := 0
+	var alive := 0
+	var objectives_left := 0
+	for o in operatives:
+		if o.is_alive():
+			alive += 1
+		else:
+			dead += 1
+	for z in map.insertion_zones:
+		for c in z.get("cells", []):
+			if _has_ops_at(Vector2i(int(c[0]), int(c[1]))) or _has_spawns_at(Vector2i(int(c[0]), int(c[1]))):
+				objectives_left += 1
+	var objectives_empty := true
+	for o in map.objectives:
+		if _has_ops_at(Vector2i(int(o["cell"][0]), int(o["cell"][1]))) or not map.is_solid(Vector2i(int(o["cell"][0]), int(o["cell"][1]))):
+			objectives_empty = false
+	if objectives_empty:
+		objectives_left = 0
+	return {"complete": objectives_empty or dead == len(operatives), "dead": dead, "alive": alive, "objectives_left": objectives_left}
+
+
+func _has_ops_at(c: Vector2i) -> bool:
+	for o in operatives:
+		if o.is_alive() and GridUtil.cell_of(o.pos) == c:
+			return true
+	return false
+
+
+func _has_spawns_at(c: Vector2i) -> bool:
+	for o in ai.spawns:
+		if GridUtil.cell_of(o.pos) == c and not o.destroyed:
+			return true
+	return false
+
+
 func step() -> void:
 	tick += 1
 	_process_go_code_stream()

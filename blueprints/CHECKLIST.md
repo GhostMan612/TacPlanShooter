@@ -71,7 +71,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
 - ✅ Engagement resolution deterministic (seeded RNG for spread/reaction only)
 - ✅ Phase L: AAA Tactical CPU & GOAP Squad AI (`InfluenceMap`, `GoapActions`/`GoapPlanner`, `SquadTactics`, `CpuCommander`, bounding overwatch, anti-drone & tactical reload) (CP-072)
-- 🔄 Ground-floor mission success and failure, visible result, and retry pass scene smoke. Timeline and replay scrubbing remain open (CP-071).
+- ✅ Ground-floor mission success and failure, visible result, and retry pass scene smoke (CP-071, `SimWorld.check_mission()` + `_maybe_aar` failure/success path via `_show_result`). Timeline and replay scrubbing remain open.
 - ⬜ Fatal funnels emphasis: doorway chokepoint encounter authored into first real map
 
 ## M8 — Touch UX polish (BP-05)

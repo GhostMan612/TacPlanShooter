@@ -620,19 +620,20 @@ func _maybe_aar() -> void:
 	var all_finished := true
 	var halted := false
 	var at_exit := false
-	for op in world.operatives:
-		if not op.is_alive():
-			continue
-		alive += 1
-		all_finished = all_finished and (op.done or op.halted)
-		halted = halted or op.halted
-		var cell := GridUtil.cell_of(op.pos)
-		if _checkpoints.has(cell):
-			_reached_checkpoints[cell] = true
-		at_exit = at_exit or (op.done and _exits.has(cell))
-	if alive == 0:
-		_show_result(false, "No operatives remaining.", alive)
-	elif all_finished and world.pending.is_empty() and world.entities.is_empty():
+	var mission := world.check_mission()
+	if mission.complete:
+		for op in world.operatives:
+			if op.is_alive():
+				alive += 1
+			all_finished = all_finished and (op.done or op.halted)
+			halted = halted or op.halted
+			var cell := GridUtil.cell_of(op.pos)
+			if _checkpoints.has(cell):
+				_reached_checkpoints[cell] = true
+			at_exit = at_exit or (op.done and _exits.has(cell))
+		if alive == 0:
+			_show_result(false, "No operatives remaining.", alive)
+		elif all_finished and world.pending.is_empty() and world.entities.is_empty():
 		var complete := not halted and _reached_checkpoints.size() == _checkpoints.size() and (_exits.is_empty() or at_exit)
 		var reason := "All routes completed."
 		if halted:
