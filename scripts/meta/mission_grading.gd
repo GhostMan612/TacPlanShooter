@@ -10,6 +10,16 @@ const RP_OBJECTIVE := 50
 const RP_ZERO_CASUALTIES := 25
 
 
+static func letter_for(completed: bool, zero_casualties: bool, halted: bool) -> String:
+	if not completed:
+		return "F"
+	if zero_casualties and not halted:
+		return "S"
+	if zero_casualties or not halted:
+		return "A"
+	return "B"
+
+
 func grade(world: SimWorld, completed: bool) -> Dictionary:
 	var zero_casualties := true
 	var speed_bonus := 0

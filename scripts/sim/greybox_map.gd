@@ -7,6 +7,8 @@ extends RefCounted
 
 var width_cells := 16
 var height_cells := 12
+var floor_index := 0
+var floor_count := 1
 var solid_cells := {}
 var door_cells := {}
 var door_open := {}
@@ -20,6 +22,8 @@ var objectives := []
 var ai_spawns := []
 var hostage_spawns := []
 var jammer_nodes := []
+var stair_links := []
+var floor_slices := []
 
 
 static func build_default() -> GreyboxMap:
@@ -126,7 +130,33 @@ static func sorted_cells(cells: Dictionary) -> Array:
 	return keys
 
 
-func to_dict() -> Dictionary:
+func slice_map(f: int) -> GreyboxMap:
+	if f <= 0 or floor_slices.is_empty():
+		return self
+	var idx := clampi(f, 0, floor_slices.size() - 1)
+	if idx == 0:
+		return self
+	return GreyboxMap.from_dict(floor_slices[idx])
+
+
+func stairs_from_floor(f: int) -> Array:
+	var out := []
+	for s in stair_links:
+		if int(s.get("from_floor", -1)) == f:
+			out.append(s)
+	return out
+
+
+func stair_at(f: int, cell: Vector2i) -> Dictionary:
+	for s in stair_links:
+		if int(s.get("from_floor", -1)) == f:
+			var fc: Array = s.get("from_cell", [])
+			if fc.size() >= 2 and int(fc[0]) == cell.x and int(fc[1]) == cell.y:
+				return s
+	return {}
+
+
+func to_slice_dict() -> Dictionary:
 	var solids: Array = []
 	for k in sorted_cells(solid_cells):
 		solids.append([int(k.x), int(k.y)])
@@ -147,6 +177,8 @@ func to_dict() -> Dictionary:
 		"wall_materials": mats,
 		"w": width_cells,
 		"h": height_cells,
+		"floor_index": floor_index,
+		"floor_count": floor_count,
 		"solids": solids,
 		"door_cells": doors,
 		"door_open": opens,
@@ -158,13 +190,22 @@ func to_dict() -> Dictionary:
 		"ai_spawns": ai_spawns.duplicate(true),
 		"hostage_spawns": hostage_spawns.duplicate(true),
 		"jammer_nodes": jammer_nodes.duplicate(true),
+		"stair_links": stair_links.duplicate(true),
 	}
+
+
+func to_dict() -> Dictionary:
+	var d := to_slice_dict()
+	d["floor_slices"] = floor_slices.duplicate(true)
+	return d
 
 
 static func from_dict(d: Dictionary) -> GreyboxMap:
 	var m := GreyboxMap.new()
 	m.width_cells = int(d.get("w", 16))
 	m.height_cells = int(d.get("h", 12))
+	m.floor_index = int(d.get("floor_index", 0))
+	m.floor_count = int(d.get("floor_count", 1))
 	for s in d.get("solids", []):
 		m.solid_cells[Vector2i(int(s[0]), int(s[1]))] = true
 	for dc in d.get("door_cells", []):
@@ -183,4 +224,6 @@ static func from_dict(d: Dictionary) -> GreyboxMap:
 	m.ai_spawns = (d.get("ai_spawns", []) as Array).duplicate(true)
 	m.hostage_spawns = (d.get("hostage_spawns", []) as Array).duplicate(true)
 	m.jammer_nodes = (d.get("jammer_nodes", []) as Array).duplicate(true)
+	m.stair_links = (d.get("stair_links", []) as Array).duplicate(true)
+	m.floor_slices = (d.get("floor_slices", []) as Array).duplicate(true)
 	return m

@@ -8,6 +8,7 @@ extends RefCounted
 const DT := 1.0 / 60.0
 
 var map: GreyboxMap = null
+var floor_maps: Array[GreyboxMap] = []
 var rng := RandomNumberGenerator.new()
 var tick := 0
 var go_codes_issued := {}
@@ -37,6 +38,10 @@ var _funnel_visited: Dictionary = {}
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	map = GreyboxMap.from_dict(p_map.to_dict())
+	floor_maps.clear()
+	floor_maps.append(map)
+	for fl in range(1, map.floor_count):
+		floor_maps.append(map.slice_map(fl))
 	rng.seed = seed_value
 	tick = 0
 	go_codes_issued.clear()
@@ -65,20 +70,28 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	ballistics = BallisticsSuppression.new()
 
 
-func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand]) -> SimOperative:
+func map_on_floor(f: int) -> GreyboxMap:
+	if f >= 0 and f < floor_maps.size():
+		return floor_maps[f]
+	return map
+
+
+func add_operative(id: int, spawn_cell: Vector2i, commands: Array[AgentCommand], p_floor: int = 0) -> SimOperative:
 	var o := SimOperative.new()
 	o.id = id
 	o.pos = Vector2(spawn_cell) + Vector2(0.5, 0.5)
+	o.floor_idx = p_floor
 	o.queue = CommandQueue.new(id)
 	o.queue.reset(commands)
 	operatives.append(o)
 	return o
 
 
-func add_enemy(id: int, spawn_cell: Vector2i, archetype: StringName, facing_deg: float = 0.0) -> SimOperative:
+func add_enemy(id: int, spawn_cell: Vector2i, archetype: StringName, facing_deg: float = 0.0, p_floor: int = 0) -> SimOperative:
 	var o := SimOperative.new()
 	o.id = id
 	o.pos = Vector2(spawn_cell) + Vector2(0.5, 0.5)
+	o.floor_idx = p_floor
 	o.facing_deg = facing_deg
 	o.queue = CommandQueue.new(id)
 	o.faction_id = 1
@@ -165,13 +178,22 @@ func check_mission() -> Dictionary:
 		else:
 			dead += 1
 		all_finished = all_finished and (o.done or o.halted or not o.is_alive())
-	for obj in map.objectives:
-		var cell := CpuCommander._cell_from_entry(obj)
-		if map.in_bounds(cell) and not _has_ops_at(cell):
-			objectives_left += 1
+	for fl in range(floor_maps.size()):
+		var fm: GreyboxMap = floor_maps[fl]
+		for obj in fm.objectives:
+			var cell := CpuCommander._cell_from_entry(obj)
+			if fm.in_bounds(cell) and not _has_ops_at_floor(cell, fl):
+				objectives_left += 1
 	var all_dead := not operatives.is_empty() and dead == operatives.size()
 	var complete := all_dead or (all_finished and pending.is_empty() and entities.is_empty())
 	return {"complete": complete, "dead": dead, "alive": alive, "objectives_left": objectives_left}
+
+
+func _has_ops_at_floor(c: Vector2i, f: int) -> bool:
+	for o in operatives:
+		if o.is_alive() and o.floor_idx == f and GridUtil.cell_of(o.pos) == c:
+			return true
+	return false
 
 
 func _has_ops_at(c: Vector2i) -> bool:
@@ -268,8 +290,12 @@ func snapshot_data() -> Dictionary:
 			"due": int(e["due"]),
 			"cx": int(e["cx"]),
 			"cy": int(e["cy"]),
+			"floor": int(e.get("floor", 0)),
 			"op": int(e["op"]),
 		})
+	var extra_floors: Array = []
+	for fl in range(1, floor_maps.size()):
+		extra_floors.append(floor_maps[fl].to_slice_dict())
 	var entities_arr: Array = []
 	for e in entities:
 		entities_arr.append(e.to_dict())
@@ -290,6 +316,7 @@ func snapshot_data() -> Dictionary:
 		"rng_state": rng.state,
 		"go_issued": issued_arr,
 		"map": map.to_dict(),
+		"floor_maps": extra_floors,
 		"pending": pending_arr,
 		"entities": entities_arr,
 		"override_stream": _overrides_arr(),
@@ -346,12 +373,22 @@ func restore_from_data(d: Dictionary) -> void:
 	for s in d.get("go_issued", []):
 		go_codes_issued[StringName(String(s))] = true
 	map = GreyboxMap.from_dict(d.get("map", {}))
+	floor_maps.clear()
+	floor_maps.append(map)
+	var extra: Array = d.get("floor_maps", [])
+	if not extra.is_empty():
+		for fd in extra:
+			floor_maps.append(GreyboxMap.from_dict(fd))
+	else:
+		for fl in range(1, map.floor_count):
+			floor_maps.append(map.slice_map(fl))
 	pending.clear()
 	for e in d.get("pending", []):
 		pending.append({
 			"due": int(e["due"]),
 			"cx": int(e["cx"]),
 			"cy": int(e["cy"]),
+			"floor": int(e.get("floor", 0)),
 			"op": int(e["op"]),
 		})
 	entities.clear()
@@ -405,9 +442,10 @@ func _process_pending() -> void:
 	for e in pending:
 		if int(e["due"]) <= tick:
 			var cell := Vector2i(int(e["cx"]), int(e["cy"]))
-			map.open_door(cell)
+			var fl := int(e.get("floor", 0))
+			map_on_floor(fl).open_door(cell)
 			sound_event(cell, &"door_breach")
-			journal.append({"t": tick, "ev": &"breach_opened", "cx": cell.x, "cy": cell.y})
+			journal.append({"t": tick, "ev": &"breach_opened", "cx": cell.x, "cy": cell.y, "floor": fl})
 		else:
 			keep.append(e)
 	pending = keep
@@ -460,6 +498,14 @@ func _step_operative(o: SimOperative) -> void:
 				o.mode_name = cmd.mode_name
 				journal.append({"t": tick, "ev": &"mode_set", "op": o.id, "mode": String(cmd.mode_name)})
 				o.queue.advance_cursor()
+			AgentCommand.CommandType.USE_STAIRS:
+				o.floor_idx = clampi(cmd.target_floor, 0, maxi(floor_maps.size() - 1, 0))
+				o.pos = Vector2(cmd.target_cell) + Vector2(0.5, 0.5)
+				o.active_path = PackedVector2Array()
+				o.path_index = 0
+				o.move_carry = 0.0
+				journal.append({"t": tick, "ev": &"stairs_used", "op": o.id, "floor": o.floor_idx, "cx": cmd.target_cell.x, "cy": cmd.target_cell.y})
+				o.queue.advance_cursor()
 			AgentCommand.CommandType.PERFORM_ACTION:
 				o.move_carry = 0.0
 				_step_action(o, cmd)
@@ -469,14 +515,15 @@ func _step_operative(o: SimOperative) -> void:
 
 
 func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
+	var fmap := map_on_floor(o.floor_idx)
 	if o.active_path.size() == 0:
 		var start := GridUtil.cell_of(o.pos)
 		var goal := cmd.target_cell
-		if not map.in_bounds(goal):
+		if not fmap.in_bounds(goal):
 			journal.append({"t": tick, "ev": &"move_rejected", "op": o.id, "tx": int(goal.x), "ty": int(goal.y)})
 			o.queue.advance_cursor()
 			return
-		var path := GridPathfinder.find_path(map, start, goal)
+		var path := GridPathfinder.find_path(fmap, start, goal)
 		if path.size() <= 1:
 			o.queue.advance_cursor()
 			return
@@ -509,7 +556,7 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 			next_idx = o.path_index
 			rem_after = 0.0
 		var cell := GridUtil.cell_of(cand)
-		if not map.in_bounds(cell) or map.is_solid(cell):
+		if not fmap.in_bounds(cell) or fmap.is_solid(cell):
 			if o.move_blocked_from == 0:
 				o.move_blocked_from = tick
 				journal.append({"t": tick, "ev": &"move_blocked", "op": o.id, "x": cand.x, "y": cand.y})
@@ -531,12 +578,12 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 		var nxt := o.queue.peek_next()
 		o.move_carry = remaining if nxt != null and nxt.command_type == AgentCommand.CommandType.MOVE_TO_CELL else 0.0
 	if committed:
-		if not map.chokepoints.is_empty():
+		if not fmap.chokepoints.is_empty():
 			var c_now := GridUtil.cell_of(o.pos)
-			for cp in map.chokepoints:
+			for cp in fmap.chokepoints:
 				var cp_cell := CpuCommander._cell_from_entry(cp)
 				if cp_cell == c_now:
-					var fk := "%d:%d,%d" % [o.id, cp_cell.x, cp_cell.y]
+					var fk := "%d:%d,%d,%d" % [o.id, o.floor_idx, cp_cell.x, cp_cell.y]
 					if not _funnel_visited.has(fk):
 						_funnel_visited[fk] = true
 						record_funnel_encounter(cp_cell, o.id)
@@ -544,15 +591,16 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 
 
 func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
+	var fmap := map_on_floor(o.floor_idx)
 	var target := cmd.target_cell
 	var target_center := Vector2(target) + Vector2(0.5, 0.5)
 	var in_range := o.pos.distance_to(target_center) <= float(SimConstants.ACTION_MAX_RANGE_CELLS)
-	var is_door := map.door_cells.has(target)
-	var valid := map.in_bounds(target) and in_range
+	var is_door := fmap.door_cells.has(target)
+	var valid := fmap.in_bounds(target) and in_range
 	if cmd.action_kind == AgentCommand.ActionKind.BREACH_CHARGE:
 		valid = valid and is_door
 	else:
-		valid = valid and not map.is_solid(target)
+		valid = valid and not fmap.is_solid(target)
 	if not valid:
 		journal.append({
 			"t": tick,
@@ -580,6 +628,7 @@ func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
 			"due": tick + fuse,
 			"cx": int(target.x),
 			"cy": int(target.y),
+			"floor": o.floor_idx,
 			"op": o.id,
 		})
 	elif cmd.action_kind != AgentCommand.ActionKind.NONE:
@@ -588,11 +637,12 @@ func _step_action(o: SimOperative, cmd: AgentCommand) -> void:
 		e.kind = int(cmd.action_kind)
 		e.op_id = o.id
 		e.pos = target_center
+		e.floor_idx = o.floor_idx
 		e.spawned_tick = tick
 		e.due_tick = tick + SimConstants.ACTION_ENTITY_LIFE_TICKS
 		entities.append(e)
 		entity_seq += 1
-		journal.append({"t": tick, "ev": &"entity_spawned", "id": e.id, "op": o.id, "kind": e.kind, "tx": int(target.x), "ty": int(target.y)})
+		journal.append({"t": tick, "ev": &"entity_spawned", "id": e.id, "op": o.id, "kind": e.kind, "tx": int(target.x), "ty": int(target.y), "floor": o.floor_idx})
 	o.queue.advance_cursor()
 
 
@@ -604,7 +654,7 @@ func _step_entities() -> void:
 			continue
 		e.done = true
 		_apply_entity_effect(e)
-		journal.append({"t": tick, "ev": &"entity_effect", "id": e.id, "op": e.op_id, "kind": e.kind, "tx": int(e.pos.x), "ty": int(e.pos.y)})
+		journal.append({"t": tick, "ev": &"entity_effect", "id": e.id, "op": e.op_id, "kind": e.kind, "tx": int(e.pos.x), "ty": int(e.pos.y), "floor": e.floor_idx})
 	entities = keep
 
 
@@ -613,9 +663,9 @@ func _apply_entity_effect(e: SimEntity) -> void:
 		ai.influence.add_smoke_zone(GridUtil.cell_of(e.pos), 2, tick + 240)
 		return
 	if e.kind == int(AgentCommand.ActionKind.FLASHBANG):
-		var segs: Array = map.get_wall_segments()
+		var segs: Array = map_on_floor(e.floor_idx).get_wall_segments()
 		for op in combat.actors(self):
-			if op.done or not op.is_alive():
+			if op.done or not op.is_alive() or op.floor_idx != e.floor_idx:
 				continue
 			if op.pos.distance_to(e.pos) <= 2.5 and CombatSystem.line_clear(e.pos, op.pos, segs):
 				ballistics.apply_suppression(op.id, 60)
@@ -629,7 +679,7 @@ func _apply_entity_effect(e: SimEntity) -> void:
 	if e.kind != int(AgentCommand.ActionKind.FRAG):
 		return
 	for op in combat.actors(self):
-		if op.id == e.op_id or op.done or not op.is_alive():
+		if op.id == e.op_id or op.done or not op.is_alive() or op.floor_idx != e.floor_idx:
 			continue
 		if op.pos.distance_to(e.pos) <= float(SimConstants.FRAG_RADIUS_CELLS):
 			op.hp = maxi(op.hp - SimConstants.FRAG_DAMAGE, 0)
@@ -643,7 +693,7 @@ func _apply_entity_effect(e: SimEntity) -> void:
 func _check_collision(o: SimOperative) -> void:
 	var plan := _collision_plan(o)
 	for p in operatives:
-		if p == o or p.done or not p.is_alive():
+		if p == o or p.floor_idx != o.floor_idx or p.done or not p.is_alive():
 			continue
 		if _polyline_intersects(plan, _collision_plan(p)):
 			o.halted = true

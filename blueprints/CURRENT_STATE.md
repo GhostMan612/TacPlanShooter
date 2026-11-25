@@ -1,5 +1,5 @@
 # CURRENT_STATE.md — Component Inventory Snapshot
-**Snapshot date:** 2026-11-24 (Session 18 — BLU B160V Android 14 hardware QA, 720x1612 HUD layout fix & WAV header fix)
+**Snapshot date:** 2026-11-24 (Session 19 — Touch UX de-clunking, Multi-Floor Stair Links OP-05..OP-10, TacticalVfx & Translucent Replay AAR)
 
 ## Repo layout (`C:\TacPlan Shooter\`)
 
@@ -55,13 +55,13 @@
 | Governance docs | 🟢 synced S3 | none |
 | Godot project skeleton | 🟢 flat root clean; renderer/60Hz/MSAA=0 locked | none |
 | **Deterministic sim core** | 🟢 43-case harness passes, including live replay state, pending commands, and reset isolation | Replay scrub UI |
-| **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + per-op lines + clamped/centered camera + compact 720px ActionBar + resize wired | CP-030 ✅ PASS on BLU B160V (`PipLoupe` feel CP-080 subjective USER check) |
-| **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 slice 1: `GridPathfinder` A* movement + adherence + collision-halt + wall/door/bounds + action range; `PlanningRoot` Execute/Go-Code Alpha/Reset HUD + live token sync | CP-050/051/052 ✅ PASS; live execution verified on BLU B160V |
-| Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware GPU masks with live and last-seen map contacts | CP-061 ✅ PASS on BLU B160V (`PowerVR Rogue GE8300`, `median_ms=33.67`) |
-| **Tests & harnesses** | 🟢 12 headless gates green (`parse_all` 92 scripts / 13 scenes, `aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `scene_smoke` replay scrub PASS) | Multi-floor & LAN milestones next |
-| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander, `check_mission()`, AAR timeline + `ReplayScrubber` deterministic rewind | Multi-floor objectives |
-| Audio pass (M9/BP-08) | 🟢 `TacticalAudio` autoload (`Ambient` bus ducking, LP heartbeat on damage, seeded squelch/blips); 16-bit PCM WAVs (`0` import errors); `ui_audio_smoke` PASS | Subjective speaker listen (`CP-090` USER) |
-| **Android export track (M10/BP-10)** | 🟢 Route A APK verified clean (`CP-100`) & installed/tested on physical BLU `B160V` Android 14 (`CP-101` ✅ PASS) | Store release signing & optional Route B JDK11/NDK23 |
+| **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + wall-graze repair + `DRAW`/`TAP` mode + `0.28s` hold + compact above-map `NodeMenu` + `F1/N` switcher | CP-030 & CP-080 ✅ PASS on BLU B160V |
+| **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 `GridPathfinder` A* movement + `USE_STAIRS` multi-floor traversal + adherence + collision-halt + `TacticalVfx` tracers/flashes/rings | CP-050/051/052 & CP-073 ✅ PASS on BLU B160V |
+| Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware per-floor GPU masks with live and last-seen map contacts | CP-061 ✅ PASS on BLU B160V (`PowerVR Rogue GE8300`, `median_ms=33.67`) |
+| **Tests & harnesses** | 🟢 All 12 headless gates green (`parse_all`, `aaa_ai_harness`, `determinism_harness`, expanded `scene_smoke`, `map_validation_harness`, etc.) | LAN lockstep & Mission Prep integration |
+| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander across all floors, `OP-05..OP-10` stair links, `MissionGrading` + `ProgressionSave`, translucent `AarScreen` + `ReplayScrubber` | 2-Player LAN lockstep UI wiring |
+| Audio pass (M9/BP-08) | 🟢 `TacticalAudio` autoload (`Ambient` bus ducking, LP heartbeat on damage, seeded squelch/blips); 16-bit PCM WAVs (`0` import errors); `ui_audio_smoke` PASS | CP-090 ✅ PASS |
+| **Android export track (M10/BP-10)** | 🟢 Route A APK verified clean (`CP-100`) & tested end-to-end on physical BLU `B160V` Android 14 (`CP-101` ✅ PASS) | Store release signing & optional Route B JDK11/NDK23 |
 
 ## Known unknowns / open decisions
 

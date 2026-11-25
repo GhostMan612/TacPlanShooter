@@ -73,14 +73,16 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Phase L: AAA Tactical CPU & GOAP Squad AI (`InfluenceMap`, `GoapActions`/`GoapPlanner`, `SquadTactics`, `CpuCommander`, bounding overwatch, anti-drone & tactical reload) (CP-072)
 - ✅ Timeline & replay scrubbing (CP-071): `AarScreen` journal timeline + `ReplayScrubber` HSlider + `PlanningRoot.scrub_replay_to_tick()`, verified in `scene_smoke.tscn` (CP-071)
 - ✅ Fatal funnels emphasis: doorway chokepoint encounters authored into map data (`op01_glass_house.json` `[5, 2]`, loaded by `MapLoader`) + `SimWorld.record_funnel_encounter()` journal entries (M7 line 75).
+- ✅ Multi-floor stair links & upper-floor combat/AI/fog (`OP-05`–`OP-10`, CP-073): `GreyboxMap` floor slices, `MapLoader` bidirectional `stair_links`, `AgentCommand.USE_STAIRS`, `SimWorld`/`CombatSystem`/`AiCoordinator` floor isolation, `PlanningRoot` `F1/N` switcher + auto-ascend (`scene_smoke` + BLU `B160V` `OP-05` verified).
 
 ## M8 — Touch UX polish (BP-05)
-- ✅ PiP magnifier loupe during routing (`PipLoupe` 3x under-finger magnifier mounted on HUD canvas, logic wired — CP-080 USER feel check open)
+- ✅ PiP magnifier loupe during routing (`PipLoupe` 3x under-finger magnifier mounted on HUD canvas — CP-080 USER verified on BLU `B160V`)
 - ✅ Camera auto-offset so finger never occludes selected operative (`MissionCamera.set_finger_offset` + edge nudge on routing start; CP-080)
+- ✅ Touch UX de-clunking: `0.28 s` hold / `24 px` hold slop, `RoutePlanner.repair_freehand_waypoints`, `DRAW`/`TAP` mode toggle, compact above-map `_node_menu` (`CLEAR NODE` + `DONE`), `TacticalVfx` live tracers/flashes/rings, and translucent replay `AarScreen` (`GRADE` + `+RP` + `NEXT OPERATION`).
 - ✅ UI texture atlas pass; MultiMesh props placement tooling (M8 line 80): `scripts/planning/props_placement.gd` (`MultiMeshInstance2D` + `QuadMesh`, spawn/defender markers, `rebuild()`).
 
 ## M9 — Audio pass (BP-08)
-- ✅ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (`CP-090` logic PASS — `TacticalAudio._duck_ambient(0.45)` on `EventBus.breach_detonated`, recovers via `_unduck`)
+- ✅ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (`CP-090` PASS — `TacticalAudio._duck_ambient(0.45)` on `EventBus.breach_detonated`, recovers via `_unduck`)
 - ✅ Randomized radio squelch + telemetry blips on planning UI ops (`TacticalAudio.play_blip` / `_play_squelch`, verified in `ui_audio_smoke.gd`)
 - ✅ Damage → heartbeat synth drives LowPassFilter over `Ambient` bus (`TacticalAudio._on_operative_damaged`, cutoff scaled by HP peak, verified in `ui_audio_smoke.gd`)
 

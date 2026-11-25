@@ -43,7 +43,12 @@ static func describe(path: String) -> Dictionary:
 	info["lighting"] = String(d.get("lighting", "")).replace("_", " ")
 	info["floors"] = int(d.get("floors", 1))
 	info["rp"] = int(d.get("rp_reward", 0))
-	info["practice"] = MapLoader.floor_filter(d.get("objectives", []), 0).is_empty() and MapLoader.floor_filter(d.get("extraction_zones", []), 0).is_empty()
+	var has_obj := false
+	for fl in range(maxi(1, int(info["floors"]))):
+		if not MapLoader.floor_filter(d.get("objectives", []), fl).is_empty() or not MapLoader.floor_filter(d.get("extraction_zones", []), fl).is_empty():
+			has_obj = true
+			break
+	info["practice"] = not has_obj
 	return info
 
 
@@ -54,7 +59,7 @@ func _ready() -> void:
 	var col := UiKit.build_screen(self, pal)
 	col.add_child(UiKit.button("< BACK", _go_back, settings))
 	col.add_child(UiKit.heading("CAMPAIGN", pal))
-	col.add_child(UiKit.caption("Select an operation. Multi-floor operations currently load their ground floor only.", pal))
+	col.add_child(UiKit.caption("Select an operation. Multi-floor buildings use stair links between floors.", pal))
 	for p in MISSION_PATHS:
 		var info := describe(p)
 		missions.append(info)

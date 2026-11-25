@@ -7,6 +7,7 @@ extends RefCounted
 
 var id: int = -1
 var pos := Vector2.ZERO
+var floor_idx: int = 0
 var facing_deg := 0.0
 var stance := &"normal"
 var hp := 100
@@ -41,6 +42,7 @@ func to_dict() -> Dictionary:
 		"id": id,
 		"px": pos.x,
 		"py": pos.y,
+		"floor": floor_idx,
 		"facing": facing_deg,
 		"stance": String(stance),
 		"hp": hp,
@@ -68,6 +70,7 @@ static func from_dict(d: Dictionary) -> SimOperative:
 	var o := SimOperative.new()
 	o.id = int(d.get("id", -1))
 	o.pos = Vector2(float(d.get("px", 0.0)), float(d.get("py", 0.0)))
+	o.floor_idx = int(d.get("floor", 0))
 	o.facing_deg = float(d.get("facing", 0.0))
 	o.stance = StringName(String(d.get("stance", "normal")))
 	o.hp = int(d.get("hp", 100))

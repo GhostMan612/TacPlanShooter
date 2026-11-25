@@ -19,6 +19,7 @@ var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
 var overlay: TacticalOverlay = null
+var vfx: TacticalVfx = null
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
 var _initial_snapshot: MissionSnapshot = null
@@ -27,15 +28,16 @@ var _recorded_overrides: Array[OverrideCommand] = []
 var _recorded_max_tick: int = 0
 
 const OPERATIVE_COUNT := 2
-const NODE_BUTTON_PX := 104
+const NODE_BUTTON_PX := 56
 const GREYBOX_SOURCE := "greybox_default"
 
-const ROUTE_HINT := "Hold an operative and draw a route. Tap a route cell to add a go-code wait."
+const ROUTE_HINT := "Hold unit & draw, or switch to TAP mode."
 
 var squads := SquadConfig.new()
 var spawn_cells: Array[Vector2i] = []
 var plans := {}
 var route_cells := {}
+var _floor_segments := {}
 var _route_waits := {}
 var _route_orders := {}
 var _node_menu: PanelContainer = null
@@ -43,8 +45,9 @@ var _node_buttons: Dictionary = {}
 var _invalid_routes := {}
 var _selected_op := -1
 var _selected_node := RoutePlanner.NO_CELL
-var _checkpoints: Array[Vector2i] = []
-var _exits: Array[Vector2i] = []
+var _active_floor := 0
+var _checkpoints: Array[Vector3i] = []
+var _exits: Array[Vector3i] = []
 var _reached_checkpoints := {}
 var _result_view: AarScreen = null
 var _pending_go_codes: Array[StringName] = []
@@ -52,6 +55,8 @@ var _status_label: Label = null
 var map_source := ""
 var _hud: HBoxContainer = null
 var _menu_button: Button = null
+var _mode_button: Button = null
+var _floor_button: Button = null
 var _execute_button: Button = null
 var _alpha_button: Button = null
 var _bravo_button: Button = null
@@ -91,6 +96,9 @@ func _ready() -> void:
 	overlay.z_index = 2
 	overlay.apply_palette(_tm.palette())
 	add_child(overlay)
+	vfx = TacticalVfx.new()
+	vfx.z_index = 3
+	add_child(vfx)
 	prep_flow = MissionPrepFlow.new()
 	add_child(prep_flow)
 	spawn_cells = spawn_cells_for(map, map_source == GREYBOX_SOURCE, OPERATIVE_COUNT)
@@ -124,7 +132,7 @@ func _ready() -> void:
 	for i in range(spawn_cells.size()):
 		squads.add_member(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()], i)
 	_setup_hud()
-	print("[TacPlan] planning map=%s size=%dx%d" % [map_source, map.width_cells, map.height_cells])
+	print("[TacPlan] planning map=%s size=%dx%d floors=%d" % [map_source, map.width_cells, map.height_cells, map.floor_count])
 
 
 func _load_selected_map() -> GreyboxMap:
@@ -176,29 +184,73 @@ func _physics_process(_delta: float) -> void:
 
 func _emit_audio_events(from_idx: int) -> void:
 	var eb := get_node_or_null("/root/EventBus")
-	if eb == null or world == null:
+	if world == null:
 		return
 	for i in range(from_idx, world.journal.size()):
 		var e: Dictionary = world.journal[i]
 		var ev := StringName(String(e.get("ev", "")))
 		if ev == &"breach_opened":
-			eb.breach_detonated.emit(GridUtil.cell_center_px(Vector2i(int(e.get("cx", 0)), int(e.get("cy", 0)))))
+			var bcell := Vector2i(int(e.get("cx", 0)), int(e.get("cy", 0)))
+			var bpos := GridUtil.cell_center_px(bcell)
+			if eb != null:
+				eb.breach_detonated.emit(bpos)
+			if vfx != null and int(e.get("floor", 0)) == _active_floor:
+				vfx.spawn_breach_shockwave(bpos)
 		elif ev == &"go_issued":
-			eb.go_code_issued.emit(StringName(String(e.get("code", ""))))
-		elif ev == &"shot" and bool(e.get("hit", false)):
-			var tid := int(e.get("target", -1))
-			for op in world.operatives:
-				if op.id == tid:
-					eb.operative_damaged.emit(op.id, op.hp)
-					break
+			if eb != null:
+				eb.go_code_issued.emit(StringName(String(e.get("code", ""))))
+		elif ev == &"stairs_used" and int(e.get("op", -1)) == 0:
+			var s_floor := int(e.get("floor", 0))
+			if s_floor != _active_floor:
+				_set_active_floor(s_floor)
+		elif ev == &"shot":
+			var shooter := _find_actor(int(e.get("op", -1)))
+			var target := _find_actor(int(e.get("target", -1)))
+			if vfx != null and shooter != null and target != null and shooter.floor_idx == _active_floor:
+				var spos := shooter.pos * float(SimConstants.GRID_CELL_SIZE_PX)
+				var tpos := target.pos * float(SimConstants.GRID_CELL_SIZE_PX)
+				vfx.spawn_muzzle_flash(spos)
+				vfx.spawn_bullet_tracer(spos, tpos)
+			if bool(e.get("hit", false)):
+				var tid := int(e.get("target", -1))
+				for op in world.operatives:
+					if op.id == tid and eb != null:
+						eb.operative_damaged.emit(op.id, op.hp)
+						break
+		elif ev == &"entity_effect" and vfx != null and int(e.get("floor", 0)) == _active_floor:
+			var ep := GridUtil.cell_center_px(Vector2i(int(e.get("tx", 0)), int(e.get("ty", 0))))
+			var kind := int(e.get("kind", 0))
+			if kind == int(AgentCommand.ActionKind.FLASHBANG):
+				vfx.spawn_flashbang_bloom(ep)
+				vfx.spawn_stun_ring(ep)
+			elif kind == int(AgentCommand.ActionKind.TEAR_GAS):
+				vfx.spawn_tear_gas_cloud(ep)
+			elif kind == int(AgentCommand.ActionKind.FRAG):
+				vfx.spawn_breach_shockwave(ep)
+
+
+func _find_actor(id: int) -> SimOperative:
+	if world == null:
+		return null
+	for o in world.operatives:
+		if o.id == id:
+			return o
+	return world.enemy_actors.get(id, null)
 
 
 func _sync_tokens() -> void:
 	if world == null or controller == null:
 		return
-	for o in world.operatives:
-		for token in controller.tokens:
+	for token in controller.tokens:
+		if SimClock.phase == SimClock.Phase.PLANNING and _result_view == null:
+			var seg_floor := _planning_floor_for_op(token.op_id)
+			var seg_pos := _planning_cell_for_op(token.op_id, seg_floor)
+			token.visible = seg_floor == _active_floor
+			token.position = GridUtil.cell_center_px(seg_pos)
+			continue
+		for o in world.operatives:
 			if token.op_id == o.id:
+				token.visible = o.floor_idx == _active_floor
 				token.sync_from(o, o.pos * float(SimConstants.GRID_CELL_SIZE_PX))
 
 
@@ -206,8 +258,8 @@ func _update_fog() -> void:
 	if fog == null or world == null or world.map == null:
 		return
 	fog.visible = true
-	fog.update_visibility(world, local_faction_id)
-	overlay.update_contacts(world, fog.live_polygons_cells())
+	fog.update_visibility(world, local_faction_id, _active_floor)
+	overlay.update_contacts(world, fog.live_polygons_cells(), _active_floor)
 
 
 func _apply_theme() -> void:
@@ -252,7 +304,17 @@ func _setup_hud() -> void:
 	_hud_canvas.add_child(radial_menu)
 	_menu_button = UiKit.button("< MENU", _go_back, settings)
 	_menu_button.size_flags_horizontal = Control.SIZE_FILL
+	_menu_button.add_theme_font_size_override("font_size", 24)
 	_hud_canvas.add_child(_menu_button)
+	_mode_button = UiKit.button("DRAW", _toggle_input_mode, settings)
+	_mode_button.size_flags_horizontal = Control.SIZE_FILL
+	_mode_button.add_theme_font_size_override("font_size", 24)
+	_hud_canvas.add_child(_mode_button)
+	_floor_button = UiKit.button("F1/%d" % map.floor_count, _cycle_floor, settings)
+	_floor_button.size_flags_horizontal = Control.SIZE_FILL
+	_floor_button.add_theme_font_size_override("font_size", 24)
+	_floor_button.visible = map.floor_count > 1
+	_hud_canvas.add_child(_floor_button)
 	_hud = HBoxContainer.new()
 	_hud.name = "ActionBar"
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -275,7 +337,7 @@ func _setup_hud() -> void:
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_status_label.add_theme_font_size_override("font_size", 24)
+	_status_label.add_theme_font_size_override("font_size", 20)
 	_status_label.text = _planning_hint()
 	_hud_canvas.add_child(_status_label)
 	_build_node_menu(settings)
@@ -286,7 +348,7 @@ func _setup_hud() -> void:
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
-	for c in [_menu_button, _hud, squad_hud, _status_label, _node_menu]:
+	for c in [_menu_button, _mode_button, _floor_button, _hud, squad_hud, _status_label, _node_menu]:
 		(c as Control).theme = _tm.applied_theme
 	_configure_tokens(_tm.palette())
 	_place_hud()
@@ -300,17 +362,95 @@ func _place_hud() -> void:
 	var margin := 24.0
 	_hud.position = Vector2(margin, vp.y - bar_h - margin)
 	_hud.size = Vector2(vp.x - margin * 2.0, bar_h)
+	var row_w := vp.x - margin * 2.0
+	var multi := _floor_button != null and _floor_button.visible
+	var btn_w := (row_w - (24.0 if multi else 12.0)) / (3.0 if multi else 2.0)
+	var cur_x := margin
 	if _menu_button != null:
-		_menu_button.position = Vector2(margin, 64.0)
-		_menu_button.size = Vector2(230.0, bar_h)
+		_menu_button.position = Vector2(cur_x, 64.0)
+		_menu_button.size = Vector2(btn_w, bar_h)
+		cur_x += btn_w + 12.0
+	if _mode_button != null:
+		_mode_button.position = Vector2(cur_x, 64.0)
+		_mode_button.size = Vector2(btn_w, bar_h)
+		cur_x += btn_w + 12.0
+	if multi:
+		_floor_button.position = Vector2(cur_x, 64.0)
+		_floor_button.size = Vector2(btn_w, bar_h)
+	var status_y := 64.0 + bar_h + 8.0
 	if _status_label != null:
-		_status_label.position = Vector2(margin * 2.0 + 230.0, 64.0)
-		_status_label.size = Vector2(vp.x - margin * 3.0 - 230.0, bar_h)
+		_status_label.position = Vector2(margin, status_y)
+		_status_label.size = Vector2(row_w, 54.0)
 	if squad_hud != null:
-		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(vp.x - margin * 2.0, SquadHud.HEIGHT_PX)))
+		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(row_w, SquadHud.HEIGHT_PX)))
 	if _node_menu != null:
-		_node_menu.position = Vector2(margin, 64.0 + bar_h + margin)
-		_node_menu.size = Vector2(vp.x - margin * 2.0, 0.0)
+		_node_menu.position = Vector2(margin, status_y + 58.0)
+		_node_menu.size = Vector2(row_w, 0.0)
+
+
+func _toggle_input_mode() -> void:
+	if controller == null:
+		return
+	controller.tap_to_cell_mode = not controller.tap_to_cell_mode
+	if _mode_button != null:
+		_mode_button.text = "TAP" if controller.tap_to_cell_mode else "DRAW"
+	if _selected_op < 0:
+		_selected_op = 0
+		if squad_hud != null:
+			squad_hud.touch_operative(0)
+	_set_status("TAP mode: tap a cell to path there." if controller.tap_to_cell_mode else _planning_hint())
+
+
+func _cycle_floor() -> void:
+	if map == null or map.floor_count <= 1:
+		return
+	_set_active_floor((_active_floor + 1) % map.floor_count)
+
+
+func _set_active_floor(fl: int) -> void:
+	if map == null:
+		return
+	_active_floor = clampi(fl, 0, maxi(map.floor_count - 1, 0))
+	_selected_node = RoutePlanner.NO_CELL
+	if controller != null:
+		controller.active_floor = _active_floor
+		controller.map = world.map_on_floor(_active_floor) if world != null else map.slice_map(_active_floor)
+	if _floor_button != null:
+		_floor_button.text = "F%d/%d" % [_active_floor + 1, map.floor_count]
+	_refresh_floor_visuals()
+	if SimClock.phase == SimClock.Phase.PLANNING:
+		_set_phase_controls(false)
+	else:
+		_update_fog()
+
+
+func _refresh_floor_visuals() -> void:
+	if world == null:
+		return
+	if renderer != null:
+		renderer.setup(world.map_on_floor(_active_floor))
+	if props != null:
+		props.map = world.map_on_floor(_active_floor)
+		props.rebuild()
+	if controller != null:
+		for i in range(spawn_cells.size()):
+			if _floor_segments.has(i):
+				var seg := _find_segment_on_floor(i, _active_floor)
+				if seg.is_empty():
+					controller.show_route(i, PackedVector2Array())
+					controller.show_waits(i, {})
+				else:
+					controller.show_route(i, RoutePlanner.path_points_px(seg["start"], _current_leg_cells(i, _active_floor)))
+					controller.show_waits(i, _marks_on_floor(i, _active_floor))
+			elif _active_floor == 0 and route_cells.has(i):
+				controller.show_route(i, RoutePlanner.path_points_px(spawn_cells[i], _current_leg_cells(i, 0)))
+				controller.show_waits(i, _marks_on_floor(i, 0))
+			else:
+				controller.show_route(i, PackedVector2Array())
+				controller.show_waits(i, {})
+	_sync_tokens()
+	if vfx != null:
+		vfx.clear()
 
 
 func _center_camera_if_short(map_px: Vector2) -> void:
@@ -408,47 +548,166 @@ func _on_reset_pressed() -> void:
 	if world == null:
 		return
 	if _result_view != null:
-		_hud_canvas.remove_child(_result_view)
-		_result_view.queue_free()
+		var rv := _result_view
 		_result_view = null
+		rv.visible = false
+		rv.queue_free()
 	_pending_go_codes.clear()
 	_selected_node = RoutePlanner.NO_CELL
+	_active_floor = 0
+	if controller != null:
+		controller.active_floor = 0
+		controller.map = map
+	if _floor_button != null and map != null:
+		_floor_button.text = "F1/%d" % map.floor_count
 	SimClock.reset_to_planning()
 	_rebuild_world()
+	_refresh_floor_visuals()
 	_set_phase_controls(false)
 	fog.reset_fog()
 	fog.visible = false
 	overlay.reset()
+	if vfx != null:
+		vfx.clear()
 	_set_status(_planning_hint() if plans.is_empty() else "RESET · Routes kept. " + _planning_hint())
+
+
+func _find_segment_index(segs: Array, floor_idx: int) -> int:
+	for i in range(segs.size()):
+		if int(segs[i].get("floor", -1)) == floor_idx:
+			return i
+	return -1
+
+
+func _find_segment_on_floor(op_id: int, floor_idx: int) -> Dictionary:
+	if not _floor_segments.has(op_id):
+		return {}
+	var segs: Array = _floor_segments[op_id]
+	var idx := _find_segment_index(segs, floor_idx)
+	return segs[idx] if idx >= 0 else {}
+
+
+func _planning_cell_for_op(op_id: int, floor_idx: int) -> Vector2i:
+	if _floor_segments.has(op_id):
+		var seg := _find_segment_on_floor(op_id, floor_idx)
+		if not seg.is_empty():
+			return seg["start"]
+	if op_id >= 0 and op_id < spawn_cells.size():
+		return spawn_cells[op_id]
+	return Vector2i.ZERO
+
+
+func _planning_floor_for_op(op_id: int) -> int:
+	if _floor_segments.has(op_id) and not _find_segment_on_floor(op_id, _active_floor).is_empty():
+		return _active_floor
+	return 0
+
+
+func _marks_on_floor(op_id: int, floor_idx: int) -> Dictionary:
+	var marks := {}
+	var waits: Dictionary = _route_waits.get(op_id, {})
+	for k in waits.keys():
+		if _key_floor(k) == floor_idx:
+			var c := _key_cell(k)
+			marks[c] = String(waits[k]).substr(0, 1).to_upper()
+	var orders: Dictionary = _route_orders.get(op_id, {})
+	for k in orders.keys():
+		if _key_floor(k) == floor_idx:
+			var c := _key_cell(k)
+			marks[c] = String(marks.get(c, "")) + "*"
+	return marks
+
+
+func _erase_floor_node_attrs(op_id: int, from_floor: int) -> void:
+	for dict_root in [_route_waits, _route_orders]:
+		if not dict_root.has(op_id):
+			continue
+		var d: Dictionary = dict_root[op_id]
+		for k in d.keys():
+			if _key_floor(k) == from_floor:
+				d.erase(k)
+
+
+static func _key_cell(k: Variant) -> Vector2i:
+	if k is Vector3i:
+		return Vector2i((k as Vector3i).x, (k as Vector3i).y)
+	return k as Vector2i
+
+
+static func _key_floor(k: Variant) -> int:
+	if k is Vector3i:
+		return (k as Vector3i).z
+	return 0
+
+
+func _node_storage_key(cell: Vector2i) -> Variant:
+	if map != null and map.floor_count > 1:
+		return Vector3i(cell.x, cell.y, _active_floor)
+	return cell
 
 
 func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
 	if SimClock.phase != SimClock.Phase.PLANNING or op_id < 0 or op_id >= spawn_cells.size():
 		return
-	var start: Vector2i = spawn_cells[op_id]
-	var result := RoutePlanner.plan(map, start, waypoints)
+	var fmap := world.map_on_floor(_active_floor) if world != null else map
+	var segs: Array = _floor_segments.get(op_id, [])
+	if segs.is_empty():
+		segs = [{"floor": 0, "start": spawn_cells[op_id], "cells": [], "stair_to_floor": -1, "stair_to_cell": Vector2i.ZERO}]
+	var seg_idx := _find_segment_index(segs, _active_floor)
+	if seg_idx < 0:
+		_set_status("Route %s to a stairwell to reach F%d first." % [squad_hud.callsign(op_id), _active_floor + 1])
+		return
+	while segs.size() > seg_idx + 1:
+		var dropped: Dictionary = segs.pop_back()
+		_erase_floor_node_attrs(op_id, int(dropped.get("floor", 0)))
+	var seg: Dictionary = segs[seg_idx]
+	var start: Vector2i = seg["start"]
+	var result := RoutePlanner.plan(fmap, start, waypoints)
 	var cells: Array[Vector2i] = result["cells"]
 	var blocked: Vector2i = result["blocked_at"]
-	plans[op_id] = result["commands"]
-	route_cells[op_id] = cells
-	_route_waits.erase(op_id)
-	_route_orders.erase(op_id)
+	var took_stair := {}
+	if map != null and map.floor_count > 1 and blocked == RoutePlanner.NO_CELL and not cells.is_empty():
+		var stair := fmap.stair_at(_active_floor, cells[cells.size() - 1])
+		if not stair.is_empty():
+			took_stair = stair
+	seg["cells"] = cells
+	seg["stair_to_floor"] = int(took_stair.get("to_floor", -1)) if not took_stair.is_empty() else -1
+	seg["stair_to_cell"] = Vector2i(int(took_stair["to_cell"][0]), int(took_stair["to_cell"][1])) if not took_stair.is_empty() else Vector2i.ZERO
+	segs[seg_idx] = seg
+	_erase_floor_node_attrs(op_id, _active_floor)
+	if not took_stair.is_empty():
+		segs.append({
+			"floor": int(seg["stair_to_floor"]),
+			"start": seg["stair_to_cell"],
+			"cells": [],
+			"stair_to_floor": -1,
+			"stair_to_cell": Vector2i.ZERO,
+		})
+	if map != null and map.floor_count > 1:
+		_floor_segments[op_id] = segs
+	else:
+		_floor_segments.erase(op_id)
+		route_cells[op_id] = cells
 	_selected_node = RoutePlanner.NO_CELL
 	squad_hud.touch_operative(op_id)
-	controller.show_route(op_id, RoutePlanner.path_points_px(start, cells))
-	controller.show_waits(op_id, {})
+	_compile_route(op_id)
 	if blocked != RoutePlanner.NO_CELL:
 		_invalid_routes[op_id] = blocked
 	else:
 		_invalid_routes.erase(op_id)
 	_rebuild_world()
+	_refresh_floor_visuals()
 	var who := squad_hud.callsign(op_id)
 	if blocked != RoutePlanner.NO_CELL:
 		_set_status("%s route blocked at %s. Redraw to continue." % [who, _cell_name(blocked)])
+	elif not took_stair.is_empty():
+		var next_f := int(seg["stair_to_floor"])
+		_set_active_floor(next_f)
+		_set_status("%s ascended stairs to F%d! Draw F%d route." % [who, next_f + 1, next_f + 1])
 	else:
-		var doors := (plans[op_id] as Array).size() - cells.size()
+		var doors := (plans[op_id] as Array).size() - (route_cells[op_id] as Array).size()
 		var action_note := " · %d door action%s" % [doors, "" if doors == 1 else "s"] if doors > 0 else ""
-		_set_status("%s route set · %d cells%s. Tap a route cell to set a wait." % [who, cells.size(), action_note])
+		_set_status("%s route set · %d cells%s. Tap route cell for orders." % [who, (route_cells[op_id] as Array).size(), action_note])
 
 
 func _on_operative_selected(op_id: int) -> void:
@@ -463,6 +722,32 @@ func _on_operative_selected(op_id: int) -> void:
 func _on_route_node_tapped(cell: Vector2i) -> void:
 	if SimClock.phase != SimClock.Phase.PLANNING or _result_view != null:
 		return
+	var fmap := world.map_on_floor(_active_floor) if world != null else map
+	if not fmap.in_bounds(cell):
+		return
+	if controller != null and controller.tap_to_cell_mode:
+		for i in range(spawn_cells.size()):
+			if _planning_cell_for_op(i, _active_floor) == cell:
+				if not _find_segment_on_floor(i, _active_floor).is_empty() or _active_floor == 0:
+					squad_hud.touch_operative(i)
+					_selected_node = cell if _has_route_node(i, cell) else RoutePlanner.NO_CELL
+					_set_phase_controls(false)
+					if _selected_node != RoutePlanner.NO_CELL:
+						_show_selected_node()
+					return
+		var tap_op := _selected_op if _selected_op >= 0 else 0
+		if not _has_route_node(tap_op, cell) and not fmap.is_solid(cell):
+			var leg := _current_leg_cells(tap_op, _active_floor)
+			var tail := leg[leg.size() - 1] if not leg.is_empty() else _planning_cell_for_op(tap_op, _active_floor)
+			var step_path := GridPathfinder.find_path(fmap, tail, cell)
+			if step_path.size() >= 2:
+				var wps: Array[Vector2i] = []
+				for c in leg:
+					wps.append(c)
+				for idx in range(1, step_path.size()):
+					wps.append(step_path[idx])
+				_on_route_committed(tap_op, wps)
+				return
 	_selected_node = RoutePlanner.NO_CELL
 	if _has_route_node(_selected_op, cell):
 		_selected_node = cell
@@ -477,8 +762,29 @@ func _on_route_node_tapped(cell: Vector2i) -> void:
 		_show_selected_node()
 
 
+func _current_leg_cells(op_id: int, floor_idx: int) -> Array[Vector2i]:
+	if _floor_segments.has(op_id):
+		var seg := _find_segment_on_floor(op_id, floor_idx)
+		var out: Array[Vector2i] = []
+		if not seg.is_empty():
+			for c in seg.get("cells", []):
+				out.append(c as Vector2i)
+		return out
+	var out2: Array[Vector2i] = []
+	if floor_idx == 0 and route_cells.has(op_id):
+		for c in route_cells[op_id]:
+			out2.append(c as Vector2i)
+	return out2
+
+
 func _has_route_node(op_id: int, cell: Vector2i) -> bool:
-	if not route_cells.has(op_id):
+	if _floor_segments.has(op_id):
+		var seg := _find_segment_on_floor(op_id, _active_floor)
+		if seg.is_empty():
+			return false
+		var leg: Array = seg.get("cells", [])
+		return not leg.is_empty() and (cell == seg["start"] or leg.has(cell))
+	if _active_floor != 0 or not route_cells.has(op_id):
 		return false
 	var cells: Array[Vector2i] = route_cells[op_id]
 	return not cells.is_empty() and (cell == spawn_cells[op_id] or cells.has(cell))
@@ -493,7 +799,12 @@ func _show_selected_node() -> void:
 
 func node_order(op_id: int, cell: Vector2i) -> Dictionary:
 	var orders: Dictionary = _route_orders.get(op_id, {})
-	return orders.get(cell, {})
+	var k3 := Vector3i(cell.x, cell.y, _active_floor)
+	if orders.has(k3):
+		return orders[k3]
+	if _active_floor == 0 and orders.has(cell):
+		return orders[cell]
+	return {}
 
 
 func node_summary(op_id: int, cell: Vector2i) -> String:
@@ -506,8 +817,9 @@ func node_summary(op_id: int, cell: Vector2i) -> String:
 	if order.has("fof"):
 		parts.append(_facing_label(int(order["fof"])))
 	var waits: Dictionary = _route_waits.get(op_id, {})
-	if waits.has(cell):
-		parts.append("WAIT " + String(waits[cell]).to_upper())
+	var w_val: Variant = RoutePlanner._node_entry(waits, cell, _active_floor, false)
+	if w_val != null:
+		parts.append("WAIT " + String(w_val).to_upper())
 	if order.has("action"):
 		parts.append(_action_label(int(order["action"])))
 	return " · ".join(parts)
@@ -542,7 +854,7 @@ func _build_node_menu(settings: Dictionary) -> void:
 	_node_menu.name = "NodeMenu"
 	_node_menu.visible = false
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
+	col.add_theme_constant_override("separation", 6)
 	_node_menu.add_child(col)
 	var rows := [
 		["STANCE", "stance", [["CAUTIOUS", &"cautious"], ["NORMAL", &"normal"], ["BLITZ", &"blitz"]]],
@@ -552,40 +864,61 @@ func _build_node_menu(settings: Dictionary) -> void:
 	]
 	for row in rows:
 		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 8)
+		line.add_theme_constant_override("separation", 6)
 		var title := Label.new()
 		title.text = String(row[0])
-		title.custom_minimum_size = Vector2(170, 0)
+		title.custom_minimum_size = Vector2(88, 0)
 		title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		title.add_theme_font_size_override("font_size", 18)
 		line.add_child(title)
 		for opt in row[2]:
 			var b := UiKit.button(String(opt[0]), _set_node_order.bind(String(row[1]), opt[1]), settings)
 			b.toggle_mode = true
 			b.custom_minimum_size = Vector2(0, NODE_BUTTON_PX)
+			b.add_theme_font_size_override("font_size", 18)
+			b.clip_text = true
 			b.name = "Node_%s_%s" % [String(row[1]), String(opt[0])]
 			_node_buttons[b.name] = [String(row[1]), opt[1], b]
 			line.add_child(b)
 		col.add_child(line)
+	var bottom_row := HBoxContainer.new()
+	bottom_row.add_theme_constant_override("separation", 8)
 	var clear_btn := UiKit.button("CLEAR NODE", _clear_node, settings)
 	clear_btn.name = "Node_clear"
 	clear_btn.custom_minimum_size = Vector2(0, NODE_BUTTON_PX)
-	col.add_child(clear_btn)
+	clear_btn.add_theme_font_size_override("font_size", 18)
+	clear_btn.clip_text = true
+	bottom_row.add_child(clear_btn)
+	var done_btn := UiKit.button("DONE", _dismiss_node_menu, settings)
+	done_btn.name = "Node_done"
+	done_btn.custom_minimum_size = Vector2(0, NODE_BUTTON_PX)
+	done_btn.add_theme_font_size_override("font_size", 18)
+	done_btn.clip_text = true
+	bottom_row.add_child(done_btn)
+	col.add_child(bottom_row)
 	_hud_canvas.add_child(_node_menu)
+
+
+func _dismiss_node_menu() -> void:
+	_selected_node = RoutePlanner.NO_CELL
+	_set_phase_controls(false)
+	_set_status(_planning_hint())
 
 
 func _set_node_order(key: String, value: Variant) -> void:
 	if SimClock.phase != SimClock.Phase.PLANNING or _result_view != null or _selected_node == RoutePlanner.NO_CELL:
 		return
 	var orders: Dictionary = _route_orders.get(_selected_op, {})
-	var order: Dictionary = orders.get(_selected_node, {})
+	var k: Variant = _node_storage_key(_selected_node)
+	var order: Dictionary = orders.get(k, {})
 	if order.has(key) and order[key] == value:
 		order.erase(key)
 	else:
 		order[key] = value
 	if order.is_empty():
-		orders.erase(_selected_node)
+		orders.erase(k)
 	else:
-		orders[_selected_node] = order
+		orders[k] = order
 	_route_orders[_selected_op] = orders
 	_compile_route(_selected_op)
 	_rebuild_world()
@@ -595,10 +928,13 @@ func _set_node_order(key: String, value: Variant) -> void:
 func _clear_node() -> void:
 	if SimClock.phase != SimClock.Phase.PLANNING or _selected_node == RoutePlanner.NO_CELL:
 		return
+	var k: Variant = _node_storage_key(_selected_node)
 	var orders: Dictionary = _route_orders.get(_selected_op, {})
+	orders.erase(k)
 	orders.erase(_selected_node)
 	_route_orders[_selected_op] = orders
 	var waits: Dictionary = _route_waits.get(_selected_op, {})
+	waits.erase(k)
 	waits.erase(_selected_node)
 	_route_waits[_selected_op] = waits
 	_compile_route(_selected_op)
@@ -621,16 +957,20 @@ func _refresh_node_menu() -> void:
 
 
 func _compile_route(op_id: int) -> void:
-	var cells: Array[Vector2i] = route_cells[op_id]
 	var waits: Dictionary = _route_waits.get(op_id, {})
 	var orders: Dictionary = _route_orders.get(op_id, {})
-	plans[op_id] = RoutePlanner.compile_commands(map, spawn_cells[op_id], cells, waits, orders)
-	var marks := {}
-	for cell in waits:
-		marks[cell] = String(waits[cell]).substr(0, 1).to_upper()
-	for cell in orders:
-		marks[cell] = String(marks.get(cell, "")) + "*"
-	controller.show_waits(op_id, marks)
+	if _floor_segments.has(op_id):
+		var segs: Array = _floor_segments[op_id]
+		var all_cells: Array[Vector2i] = []
+		for seg in segs:
+			for c in seg.get("cells", []):
+				all_cells.append(c as Vector2i)
+		route_cells[op_id] = all_cells
+		plans[op_id] = RoutePlanner.compile_multi_floor(world.floor_maps, segs, waits, orders)
+	else:
+		var cells: Array[Vector2i] = route_cells[op_id]
+		plans[op_id] = RoutePlanner.compile_commands(map, spawn_cells[op_id], cells, waits, orders)
+	controller.show_waits(op_id, _marks_on_floor(op_id, _active_floor))
 
 
 static func _cell_name(cell: Vector2i) -> String:
@@ -640,9 +980,9 @@ static func _cell_name(cell: Vector2i) -> String:
 func _rebuild_world() -> void:
 	world.setup(map, DEV_SEED)
 	_reached_checkpoints.clear()
-	renderer.setup(world.map)
+	renderer.setup(world.map_on_floor(_active_floor))
 	if props != null:
-		props.map = world.map
+		props.map = world.map_on_floor(_active_floor)
 		props.rebuild()
 	_populate_world()
 	_sync_tokens()
@@ -652,8 +992,21 @@ func _rebuild_world() -> void:
 
 func _set_phase_controls(executing: bool) -> void:
 	var result_visible := _result_view != null
+	if _menu_button != null:
+		_menu_button.visible = not result_visible
+	if _status_label != null:
+		_status_label.visible = not result_visible
+	if _hud != null:
+		_hud.visible = not result_visible
+	if squad_hud != null:
+		squad_hud.visible = not result_visible
 	if _execute_button != null:
 		_execute_button.disabled = executing or result_visible
+	if _mode_button != null:
+		_mode_button.visible = not result_visible
+		_mode_button.disabled = executing or result_visible
+	if _floor_button != null:
+		_floor_button.visible = (map != null and map.floor_count > 1) and not result_visible
 	var code_buttons := [_alpha_button, _bravo_button, _charlie_button, _delta_button]
 	for i in range(code_buttons.size()):
 		var b: Button = code_buttons[i]
@@ -671,15 +1024,21 @@ func _set_status(msg: String) -> void:
 
 
 func _load_mission_targets() -> void:
-	for objective in map.objectives:
-		var cell := MapEditorValidator.cell_of(objective.get("cell", []))
-		if map.in_bounds(cell) and not _checkpoints.has(cell):
-			_checkpoints.append(cell)
-	for zone in map.extraction_zones:
-		for entry in zone.get("cells", []):
-			var cell := MapEditorValidator.cell_of(entry)
-			if map.in_bounds(cell) and not _exits.has(cell):
-				_exits.append(cell)
+	_checkpoints.clear()
+	_exits.clear()
+	for fl in range(map.floor_count):
+		var fm := map.slice_map(fl)
+		for objective in fm.objectives:
+			var cell := MapEditorValidator.cell_of(objective.get("cell", []))
+			var c3 := Vector3i(cell.x, cell.y, fl)
+			if fm.in_bounds(cell) and not _checkpoints.has(c3):
+				_checkpoints.append(c3)
+		for zone in fm.extraction_zones:
+			for entry in zone.get("cells", []):
+				var cell := MapEditorValidator.cell_of(entry)
+				var c3 := Vector3i(cell.x, cell.y, fl)
+				if fm.in_bounds(cell) and not _exits.has(c3):
+					_exits.append(c3)
 
 
 func _planning_hint() -> String:
@@ -688,6 +1047,8 @@ func _planning_hint() -> String:
 	var goal := "Reach the marked checkpoints. " if not _checkpoints.is_empty() else ""
 	if not _exits.is_empty():
 		goal += "Finish a route at an amber exit. "
+	if map != null and map.floor_count > 1:
+		goal = ("Multi-floor (%dF). Route to cyan stair tiles. " % map.floor_count) + goal
 	return goal + ROUTE_HINT
 
 
@@ -702,12 +1063,13 @@ func _maybe_aar() -> void:
 		all_finished = all_finished and (op.done or op.halted or not op.is_alive())
 		halted = halted or op.halted
 		var cell := GridUtil.cell_of(op.pos)
-		if _checkpoints.has(cell):
-			_reached_checkpoints[cell] = true
-		at_exit = at_exit or (op.done and _exits.has(cell))
+		var c3 := Vector3i(cell.x, cell.y, op.floor_idx)
+		if _checkpoints.has(c3):
+			_reached_checkpoints[c3] = true
+		at_exit = at_exit or (op.done and _exits.has(c3))
 	var mission := world.check_mission()
 	if alive == 0:
-		_show_result(false, "No operatives remaining.", alive)
+		_show_result(false, "No operatives remaining.", alive, halted)
 	elif bool(mission.get("complete", false)) and all_finished and world.pending.is_empty() and world.entities.is_empty():
 		var complete := not halted and _reached_checkpoints.size() == _checkpoints.size() and (_exits.is_empty() or at_exit)
 		var reason := "All routes completed."
@@ -717,13 +1079,29 @@ func _maybe_aar() -> void:
 			reason = "One or more checkpoints were missed."
 		elif not _exits.is_empty() and not at_exit:
 			reason = "No operative finished at an exit."
-		_show_result(complete, reason, alive)
+		_show_result(complete, reason, alive, halted)
 
 
-func _show_result(complete: bool, reason: String, alive: int) -> void:
+func _next_campaign_map() -> String:
+	var idx := CampaignScreen.MISSION_PATHS.find(map_source)
+	if idx >= 0 and idx + 1 < CampaignScreen.MISSION_PATHS.size():
+		return CampaignScreen.MISSION_PATHS[idx + 1]
+	return ""
+
+
+func _show_result(complete: bool, reason: String, alive: int, halted: bool = false) -> void:
 	_recorded_go_codes = world.go_code_stream.duplicate(true)
 	_recorded_overrides = world.override_stream.duplicate(true)
 	_recorded_max_tick = world.tick
+	var grading := MissionGrading.new().grade(world, complete)
+	var rp_earned := int(grading.get("rp", 0))
+	var zero_cas := alive == world.operatives.size()
+	var letter := MissionGrading.letter_for(complete, zero_cas, halted)
+	if complete and map_source != "" and map_source != GREYBOX_SOURCE:
+		var ps := ProgressionSave.load_from_disk()
+		ps.campaign_state["total_rp"] = int(ps.campaign_state.get("total_rp", 0)) + rp_earned
+		ps.campaign_state[map_source] = letter
+		ps.save_to_disk()
 	_result_view = AarScreen.new()
 	_result_view.name = "OperationResult"
 	_result_view.result = {
@@ -735,15 +1113,24 @@ func _show_result(complete: bool, reason: String, alive: int) -> void:
 		"alive": alive,
 		"operatives": world.operatives.size(),
 		"ticks": world.tick,
+		"grade": letter,
+		"rp": rp_earned,
+		"next_map_path": _next_campaign_map(),
 		"journal": world.journal.duplicate(true),
 	}
 	_result_view.retry_requested.connect(_on_reset_pressed)
 	_result_view.leave_requested.connect(_go_back)
 	_result_view.scrub_requested.connect(scrub_replay_to_tick)
 	_result_view.replay_requested.connect(_on_replay_requested)
+	_result_view.next_mission_requested.connect(_on_next_mission)
 	_hud_canvas.add_child(_result_view)
 	SimClock.reset_to_planning()
 	_set_phase_controls(false)
+
+
+func _on_next_mission(next_path: String) -> void:
+	ScreenRouter.set_param("map_path", next_path)
+	ScreenRouter.goto_stage(ScreenRouter.Stage.IN_MISSION)
 
 
 func scrub_replay_to_tick(target_tick: int) -> void:
@@ -756,11 +1143,25 @@ func scrub_replay_to_tick(target_tick: int) -> void:
 		fog.reset_fog()
 	if overlay != null:
 		overlay.reset()
+	if vfx != null:
+		vfx.clear()
 	var steps := clampi(target_tick, 0, _recorded_max_tick)
 	for i in range(steps):
 		world.step()
+	if not world.operatives.is_empty():
+		var target_fl := world.operatives[0].floor_idx
+		if target_fl != _active_floor:
+			_active_floor = target_fl
+			if controller != null:
+				controller.active_floor = _active_floor
+				controller.map = world.map_on_floor(_active_floor)
+			if _floor_button != null and map != null:
+				_floor_button.text = "F%d/%d" % [_active_floor + 1, map.floor_count]
 	if renderer != null:
-		renderer.setup(world.map)
+		renderer.setup(world.map_on_floor(_active_floor))
+	if props != null:
+		props.map = world.map_on_floor(_active_floor)
+		props.rebuild()
 	_sync_tokens()
 	_update_fog()
 	if squad_hud != null:
@@ -769,9 +1170,16 @@ func scrub_replay_to_tick(target_tick: int) -> void:
 
 func _on_replay_requested() -> void:
 	if _result_view != null:
-		_hud_canvas.remove_child(_result_view)
-		_result_view.queue_free()
+		var rv := _result_view
 		_result_view = null
+		rv.visible = false
+		rv.queue_free()
+	_active_floor = 0
+	if controller != null:
+		controller.active_floor = 0
+		controller.map = world.map_on_floor(0)
+	if _floor_button != null and map != null:
+		_floor_button.text = "F1/%d" % map.floor_count
 	scrub_replay_to_tick(0)
 	_reached_checkpoints.clear()
 	_pending_go_codes.clear()
@@ -786,12 +1194,15 @@ func _populate_world() -> void:
 		if plans.has(i):
 			for cmd in plans[i]:
 				plan.append(cmd)
-		world.add_operative(i, spawn_cells[i], plan)
-	for i in range(map.ai_spawns.size()):
-		var entry: Dictionary = map.ai_spawns[i]
-		var cell := MapEditorValidator.cell_of(entry.get("cell", []))
-		if map.in_bounds(cell) and not map.is_solid(cell):
-			world.add_enemy(OPERATIVE_COUNT + i, cell, StringName(String(entry.get("archetype", ""))), float(entry.get("facing_deg", 0.0)))
+		world.add_operative(i, spawn_cells[i], plan, 0)
+	var eid := OPERATIVE_COUNT
+	for fl in range(world.floor_maps.size()):
+		var fm := world.floor_maps[fl]
+		for entry in fm.ai_spawns:
+			var cell := MapEditorValidator.cell_of(entry.get("cell", []))
+			if fm.in_bounds(cell) and not fm.is_solid(cell):
+				world.add_enemy(eid, cell, StringName(String(entry.get("archetype", ""))), float(entry.get("facing_deg", 0.0)), fl)
+				eid += 1
 
 
 static func spawn_cells_for(m: GreyboxMap, greybox: bool, count: int) -> Array[Vector2i]:

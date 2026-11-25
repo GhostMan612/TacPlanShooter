@@ -17,6 +17,7 @@ var _polygons: Dictionary = {}
 var _live_shapes: Array[Polygon2D] = []
 var _memory_shapes: Array[Polygon2D] = []
 var _pending_memory := 0
+var _view_floor := 0
 
 
 func setup(m: GreyboxMap) -> void:
@@ -63,20 +64,27 @@ func _make_viewport(extent: Vector2i) -> SubViewport:
 	return vp
 
 
-func update_visibility(world: SimWorld, local_faction_id: int) -> void:
-	var geometry_changed := _map != world.map or _door_open != world.map.door_open
+func update_visibility(world: SimWorld, local_faction_id: int, view_floor: int = 0) -> void:
+	var fmap := world.map_on_floor(view_floor)
+	var floor_changed := _view_floor != view_floor
+	if floor_changed:
+		_view_floor = view_floor
+		_retire_memory_shapes()
+		memory_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+		memory_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var geometry_changed := floor_changed or _map != fmap or _door_open != fmap.door_open
 	if geometry_changed:
-		_map = world.map
+		_map = fmap
 		_door_open = _map.door_open.duplicate()
 		_wall_segments = _map.get_wall_segments()
 		_polygons.clear()
 
 	var origins: Array[Vector2] = []
 	for operative in world.operatives:
-		if operative.faction_id == local_faction_id and operative.is_alive():
+		if operative.faction_id == local_faction_id and operative.is_alive() and operative.floor_idx == view_floor:
 			origins.append(operative.pos)
 	for drone in world.drones:
-		if not drone.destroyed:
+		if not drone.destroyed and view_floor == 0:
 			origins.append(drone.pos)
 	if not geometry_changed and origins == _live_origins:
 		return

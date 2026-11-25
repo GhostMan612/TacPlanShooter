@@ -3,6 +3,18 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 19 — 2026-11-24 — Touch UX de-clunking, Multi-Floor Stair Links (OP-05..OP-10), TacticalVfx & Translucent Replay AAR
+
+- Recorded hands-on user verdict on BLU `B160V` (`CP-080`/`CP-090` `"yes, works well, a little clunky but it's the first try"`) and eliminated every root cause of first-try planning clunkiness:
+  - **Freehand wall-graze auto-repair (`RoutePlanner.repair_freehand_waypoints`):** strips grazed intermediate corner walls during freehand thumb strokes and snaps grazed multi-cell endpoints to adjacent walkable cells while preserving strict `RoutePlanner.plan()` checks (`route_plan_blocked` PASS).
+  - **Responsive touch + `DRAW`/`TAP` mode (`PlanningController`, `PlanningRoot`):** tuned long-press to `0.28 s` (`HOLD_SLOP_PX = 24.0`), added routing blip + haptic pulse (`16 ms`), added full-width top-bar `< MENU` / `DRAW|TAP` / `F1/N` controls, and compacted `_node_menu` (`NODE_BUTTON_PX = 56`, `CLEAR NODE` + `DONE`) cleanly above the `720x1612` map.
+- **Multi-floor simulation & campaign missions (`OP-05`–`OP-10`, `CP-073`):**
+  - Extended `GreyboxMap`, `MapLoader`, `AgentCommand.USE_STAIRS`, `SimOperative`, `SimEntity`, `SimWorld`, `CombatSystem`, `AiCoordinator`, `MapRenderer`, `FogLayer`, `TacticalOverlay`, and `CampaignScreen.describe()` for `1..3` floors and bidirectional `stair_links`, keeping Floor-0 `map_validation_harness` `EXPECTED_SOLIDS` exact across all 10 campaign maps.
+  - Wired automatic stair ascension when ending a leg on a cyan stair tile (`F1 -> F2`) while preserving mid-corridor traversal past reverse stair cells.
+- **Live combat VFX & translucent replay AAR (`TacticalVfx`, `AarScreen`, `MissionGrading`, `ProgressionSave`):**
+  - Replaced `TacticalVfx` stubs with procedural MSAA-free muzzle flashes, tracers, breach shockwaves, flashbang blooms, tear-gas clouds, and acoustic rings; made `AarScreen` translucent (`alpha = 0.72 -> 0.16` on scrub), added Grade (`S`/`A`/`B`/`F`) + `+RP`, `NEXT OPERATION`, and `ProgressionSave` campaign persistence; hid HUD chrome while `AarScreen` is active.
+- Verified static hygiene (`HYGIENE_COMMENTS = 0`), passed all 12 headless Godot 4.0 gates (`parse_all` 92 scripts / 13 scenes `failures=0`, expanded `scene_smoke` `failures=0`, `determinism_harness` `failures=0`), and verified `OP-05: Penthouse Lock` `F1 -> F2` routing, `F2` firefight (`TacticalVfx` tracers/rings + `FogLayer`), `OPERATION COMPLETE (GRADE S · +75 RP)`, and `CampaignScreen` (`10` ops) live on the BLU `B160V`.
+
 ## Session 18 — 2026-11-24 — BLU B160V Android 14 hardware verification, 720x1612 HUD layout fix & WAV header fix
 
 - Verified Route A ARM64 debug APK (`builds\TacPlan-debug.apk`, `apksigner verify` v1/v2/v3 PASS, 10 campaign maps `op01..op10` + 14 WAV assets) live on physical handset BLU `B160V` (`7040016025040287`, Android 14 API 34, `arm64-v8a`, GPU `PowerVR Rogue GE8300`, `720x1612` portrait):

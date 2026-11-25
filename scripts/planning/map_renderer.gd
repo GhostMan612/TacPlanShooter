@@ -107,6 +107,13 @@ func _draw() -> void:
 		var hrect := GridUtil.cell_rect_px(MapEditorValidator.cell_of(h)).grow(-2.0)
 		draw_rect(hrect, HOSTAGE_COLOR, false, 1.5)
 		draw_string(ThemeDB.fallback_font, hrect.position + Vector2(0.5, hrect.size.y - 3.0), "HST", HORIZONTAL_ALIGNMENT_LEFT, -1, 5, HOSTAGE_COLOR)
+	for s_link in map.stairs_from_floor(map.floor_index):
+		var sc: Array = s_link.get("from_cell", [])
+		if sc.size() >= 2:
+			var srect := GridUtil.cell_rect_px(Vector2i(int(sc[0]), int(sc[1]))).grow(-1.5)
+			draw_rect(srect, Color(0.2, 0.9, 0.95, 0.35), true)
+			draw_rect(srect, Color(0.25, 0.95, 1.0, 0.95), false, 1.5)
+			draw_string(ThemeDB.fallback_font, srect.position + Vector2(1.0, 9.0), "F%d" % (int(s_link.get("to_floor", 0)) + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.9, 1.0, 1.0))
 	var font := ThemeDB.fallback_font
 	for i in range(map.width_cells):
 		draw_string(font, Vector2(i * s + 3.0, -6.0), col_letter(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, c_ink)

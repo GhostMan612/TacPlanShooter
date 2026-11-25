@@ -45,8 +45,44 @@ func _run() -> void:
 		inst.queue_free()
 		await get_tree().process_frame
 	_check_door_route()
+	_check_wall_graze_and_multifloor()
 	print("[SMOKE] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures > 0 else 0)
+
+
+func _check_wall_graze_and_multifloor() -> void:
+	var op1 := MapLoader.load_from_json("res://data/maps/op01_glass_house.json")
+	var graze_wps: Array[Vector2i] = [Vector2i(4, 2), Vector2i(5, 2), Vector2i(6, 2), Vector2i(6, 1), Vector2i(8, 1)]
+	var repaired := RoutePlanner.repair_freehand_waypoints(op1, graze_wps)
+	var grazed := RoutePlanner.plan(op1, Vector2i(2, 2), repaired)
+	_check(grazed["blocked_at"] == RoutePlanner.NO_CELL and (grazed["cells"] as Array).has(Vector2i(8, 1)), "wall-graze auto-repair navigates around corner wall")
+	var op5 := MapLoader.load_from_json("res://data/maps/op05_penthouse_lock.json")
+	_check(op5.floor_count == 2 and not op5.stair_links.is_empty(), "op05 loads 2 floors and stair links")
+	var desc := CampaignScreen.describe("res://data/maps/op05_penthouse_lock.json")
+	_check(not bool(desc["practice"]), "op05 is no longer marked ground-floor practice")
+	var f0 := op5.slice_map(0)
+	var f1 := op5.slice_map(1)
+	var leg0 := RoutePlanner.plan(f0, Vector2i(2, 10), [Vector2i(8, 10)])
+	var leg1 := RoutePlanner.plan(f1, Vector2i(8, 1), [Vector2i(10, 5), Vector2i(14, 10)])
+	_check(leg0["blocked_at"] == RoutePlanner.NO_CELL and leg1["blocked_at"] == RoutePlanner.NO_CELL, "op05 ground and upper floor legs path cleanly")
+	_check((leg1["cells"] as Array).has(Vector2i(8, 1)), "op05 F2 path passes reverse stair cell on way to exit")
+	var segs := [
+		{"floor": 0, "start": Vector2i(2, 10), "cells": leg0["cells"], "stair_to_floor": 1, "stair_to_cell": Vector2i(8, 1)},
+		{"floor": 1, "start": Vector2i(8, 1), "cells": [], "stair_to_floor": -1, "stair_to_cell": Vector2i.ZERO},
+	]
+	var half_cmds := RoutePlanner.compile_multi_floor([f0, f1], segs)
+	_check(half_cmds.size() > (leg0["cells"] as Array).size(), "compile_multi_floor handles empty untyped upper-floor cell list")
+	segs[1]["cells"] = leg1["cells"]
+	var cmds := RoutePlanner.compile_multi_floor([f0, f1], segs)
+	var sim := SimWorld.new()
+	sim.setup(op5, 17)
+	sim.add_operative(0, Vector2i(2, 10), cmds, 0)
+	for i in range(900):
+		sim.step()
+		if sim.operatives[0].done:
+			break
+	var reached := GridUtil.cell_of(sim.operatives[0].pos)
+	_check(sim.operatives[0].done and sim.operatives[0].floor_idx == 1 and reached == Vector2i(14, 10), "operative uses stairs from F1 to F2 and finishes at exit (%s fl=%d)" % [str(reached), sim.operatives[0].floor_idx])
 
 
 func _check(ok: bool, what: String) -> void:

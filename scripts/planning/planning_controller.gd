@@ -11,10 +11,11 @@ signal cell_tapped(cell: Vector2i)
 
 enum Mode { OBSERVATION, ROUTING }
 
-const LONG_PRESS_SEC := 0.45
-const TAP_MAX_SEC := 0.3
-const SLOP_PX := 10.0
-const SELECT_RADIUS_SCREEN_PX := 72.0
+const LONG_PRESS_SEC := 0.28
+const TAP_MAX_SEC := 0.32
+const SLOP_PX := 12.0
+const HOLD_SLOP_PX := 24.0
+const SELECT_RADIUS_SCREEN_PX := 80.0
 const PREVIEW_COLOR := Color(0.25, 0.85, 1.0, 0.9)
 const COMMITTED_COLOR := Color(0.25, 0.85, 1.0, 0.5)
 
@@ -27,6 +28,7 @@ var line_container: Node2D = null
 var mode := Mode.OBSERVATION
 var routing_enabled := true
 var tap_to_cell_mode := false
+var active_floor := 0
 var op_colors := {}
 
 var _touches := {}
@@ -52,7 +54,7 @@ func _process(delta: float) -> void:
 			continue
 		var origin: Vector2 = _press_origin[idx]
 		var cur: Vector2 = _touches.get(idx, origin)
-		if origin.distance_to(cur) >= SLOP_PX:
+		if origin.distance_to(cur) >= HOLD_SLOP_PX:
 			_long_fired[idx] = true
 			continue
 		if _press_time[idx] >= LONG_PRESS_SEC and _touches.size() == 1 and mode == Mode.OBSERVATION:
@@ -152,6 +154,8 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 	var best: OperativeToken = null
 	var best_d := SELECT_RADIUS_SCREEN_PX / zoom_x
 	for t in tokens:
+		if not t.visible or t.modulate.a < 0.5:
+			continue
 		var d := t.position.distance_to(world)
 		if d < best_d:
 			best_d = d
@@ -162,6 +166,11 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 	_routing_token = best
 	best.set_routing_highlight(true)
 	mode = Mode.ROUTING
+	var ta := get_node_or_null("/root/TacticalAudio")
+	if ta != null:
+		ta.play_blip(&"")
+	if bool(ThemeManager.load_settings().get("haptics", true)):
+		Input.vibrate_handheld(16)
 	if camera != null and vp_pos.y > camera.get_viewport_rect().size.y * 0.72:
 		camera.set_finger_offset(Vector2(0.0, -72.0))
 	_raw_route = PackedVector2Array([best.position])
@@ -183,7 +192,7 @@ func _commit_route() -> void:
 		_exit_routing()
 		return
 	var pts := RouteSanitizer.bake_smooth(RouteSanitizer.decimate(_raw_route))
-	var cells := GridUtil.collapse_consecutive_cells(GridUtil.px_points_to_cell_waypoints(pts))
+	var cells := RoutePlanner.repair_freehand_waypoints(map, GridUtil.collapse_consecutive_cells(GridUtil.px_points_to_cell_waypoints(pts)))
 	_line_for(op_id).points = pts
 	board.set_route(op_id, cells)
 	route_committed.emit(op_id, cells)
@@ -225,18 +234,6 @@ func _handle_tap(pos: Vector2) -> void:
 		return
 	var world := _to_world(pos)
 	var cell := GridUtil.px_to_cell(world)
-	if tap_to_cell_mode and map != null:
-		var picked_token := false
-		for t in tokens:
-			if GridUtil.px_to_cell(t.position) == cell:
-				_tap_selected_op = t.op_id
-				picked_token = true
-				break
-		if not picked_token and _tap_selected_op >= 0:
-			for t in tokens:
-				if t.op_id == _tap_selected_op:
-					commit_tap_cell(_tap_selected_op, GridUtil.px_to_cell(t.position), cell)
-					break
 	cell_tapped.emit(cell)
 
 

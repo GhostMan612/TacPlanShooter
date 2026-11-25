@@ -10,10 +10,12 @@ signal retry_requested
 signal leave_requested
 signal scrub_requested(tick: int)
 signal replay_requested
+signal next_mission_requested(next_path: String)
 
 var result: Dictionary = {}
 var scrubber: HSlider = null
 var scrub_label: Label = null
+var _bg_rect: ColorRect = null
 
 
 func _ready() -> void:
@@ -21,25 +23,36 @@ func _ready() -> void:
 	var settings := ThemeManager.load_settings()
 	var pal := tm.palette()
 	var col := UiKit.build_screen(self, pal)
+	_bg_rect = get_node_or_null("Background") as ColorRect
+	if _bg_rect != null:
+		var c: Color = pal["bg"]
+		_bg_rect.color = Color(c.r, c.g, c.b, 0.72)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var heading := "NO OPERATION RESULT"
 	if not result.is_empty():
 		heading = "OPERATION COMPLETE" if bool(result["completed"]) else "OPERATION FAILED"
 		if bool(result["practice"]):
 			heading = "PRACTICE COMPLETE" if bool(result["completed"]) else "PRACTICE FAILED"
-	var title := UiKit.heading(heading, pal, 56)
+	var title := UiKit.heading(heading, pal, 52)
 	title.name = "ResultTitle"
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(title)
 	if result.is_empty():
 		col.add_child(UiKit.button("< MENU", _leave, settings))
 		return
+	var grade_str := String(result.get("grade", ""))
+	var rp_val := int(result.get("rp", 0))
+	if grade_str != "" or rp_val > 0:
+		col.add_child(UiKit.heading("GRADE %s · +%d RP" % [grade_str if grade_str != "" else "B", rp_val], pal, 32))
 	col.add_child(UiKit.caption(String(result["reason"]), pal, false))
 	var summary := "%d/%d checkpoints reached · %d/%d operatives standing · %.1f s" % [
 		int(result["reached"]), int(result["checkpoints"]), int(result["alive"]),
 		int(result["operatives"]), float(result["ticks"]) * SimWorld.DT,
 	]
 	col.add_child(UiKit.caption(summary, pal))
+	var next_path := String(result.get("next_map_path", ""))
+	if next_path != "" and bool(result.get("completed", false)):
+		col.add_child(UiKit.button("NEXT OPERATION", _on_next, settings))
 	col.add_child(UiKit.button("REPLAN", _retry, settings))
 	col.add_child(UiKit.button("RETURN", _leave, settings))
 	col.add_child(UiKit.heading("TIMELINE", pal, 28))
@@ -82,6 +95,8 @@ func _timeline_lines() -> Array[String]:
 			out.append("t=%.1fs · FUNNEL op%d" % [t_sec, int(e.get("op", 0))])
 		elif ev == "ai_callout":
 			out.append("t=%.1fs · AI %s" % [t_sec, String(e.get("callout", ""))])
+		elif ev == "stairs_used":
+			out.append("t=%.1fs · STAIRS -> F%d (%d,%d)" % [t_sec, int(e.get("floor", 0)) + 1, int(e.get("cx", 0)), int(e.get("cy", 0))])
 		if out.size() >= 10:
 			break
 	var ops := int(result["operatives"])
@@ -97,7 +112,15 @@ func _on_scrub_changed(val: float) -> void:
 	var max_tick := int(result.get("ticks", 0))
 	if scrub_label != null:
 		scrub_label.text = "SCRUB TICK %d / %d" % [tick_val, max_tick]
+	if _bg_rect != null:
+		_bg_rect.color.a = 0.16
 	scrub_requested.emit(tick_val)
+
+
+func _on_next() -> void:
+	var np := String(result.get("next_map_path", ""))
+	if np != "":
+		next_mission_requested.emit(np)
 
 
 func _on_replay() -> void:

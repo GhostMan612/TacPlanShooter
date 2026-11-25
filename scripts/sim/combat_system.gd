@@ -137,20 +137,20 @@ func can_fire(world: SimWorld, o: SimOperative) -> bool:
 	return true
 
 
-func pick_target(shooter: SimOperative, all: Array[SimOperative], world: SimWorld, segs_box: Array) -> SimOperative:
+func pick_target(shooter: SimOperative, all: Array[SimOperative], world: SimWorld, segs_by_floor: Dictionary) -> SimOperative:
 	var best: SimOperative = null
 	var best_d := INF
 	for t in all:
-		if t.faction_id == shooter.faction_id or not t.is_alive():
+		if t.faction_id == shooter.faction_id or not t.is_alive() or t.floor_idx != shooter.floor_idx:
 			continue
 		var d := shooter.pos.distance_to(t.pos)
 		if d > ENGAGE_RANGE_CELLS:
 			continue
 		if absf(angle_diff(angle_to(shooter.pos, t.pos), shooter.facing_deg)) > ENGAGE_HALF_ANGLE_DEG:
 			continue
-		if segs_box.is_empty():
-			segs_box.append(world.map.get_wall_segments())
-		if not line_clear(shooter.pos, t.pos, segs_box[0]):
+		if not segs_by_floor.has(shooter.floor_idx):
+			segs_by_floor[shooter.floor_idx] = world.map_on_floor(shooter.floor_idx).get_wall_segments()
+		if not line_clear(shooter.pos, t.pos, segs_by_floor[shooter.floor_idx]):
 			continue
 		if d < best_d or (d == best_d and best != null and t.id < best.id):
 			best = t
@@ -172,12 +172,12 @@ func resolve(world: SimWorld) -> void:
 		else:
 			world.ballistics.suppression[id] = s
 	var all := actors(world)
-	var segs_box := []
+	var segs_by_floor: Dictionary = {}
 	for shooter in all:
 		if not can_fire(world, shooter):
 			sight.erase(shooter.id)
 			continue
-		var target := pick_target(shooter, all, world, segs_box)
+		var target := pick_target(shooter, all, world, segs_by_floor)
 		if target == null:
 			sight.erase(shooter.id)
 			continue

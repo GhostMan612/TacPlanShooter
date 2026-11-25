@@ -33,7 +33,7 @@ func add_enemy(ai_id: int, archetype: StringName) -> void:
 func update_threats(world: SimWorld, segs_override: Array = []) -> void:
 	if enemies.is_empty():
 		return
-	var segs: Array = segs_override if not segs_override.is_empty() else world.map.get_wall_segments()
+	var segs_by_floor: Dictionary = {}
 	var ids: Array = enemies.keys()
 	ids.sort()
 	for id in ids:
@@ -41,10 +41,17 @@ func update_threats(world: SimWorld, segs_override: Array = []) -> void:
 		if observer == null or not observer.is_alive():
 			blackboard.clear_threat(id)
 			continue
+		var segs: Array
+		if not segs_override.is_empty():
+			segs = segs_override
+		else:
+			if not segs_by_floor.has(observer.floor_idx):
+				segs_by_floor[observer.floor_idx] = world.map_on_floor(observer.floor_idx).get_wall_segments()
+			segs = segs_by_floor[observer.floor_idx]
 		var brain: EnemyAi = enemies[id]
 		var saw_any := false
 		for target in world.operatives:
-			if not target.is_alive() or target.faction_id == observer.faction_id:
+			if not target.is_alive() or target.faction_id == observer.faction_id or target.floor_idx != observer.floor_idx:
 				continue
 			var tcell: Vector2i = GridUtil.cell_of(target.pos)
 			if influence.is_smoked(tcell) or influence.is_smoked(GridUtil.cell_of(observer.pos)):
@@ -66,7 +73,7 @@ func update_threats(world: SimWorld, segs_override: Array = []) -> void:
 			if prev_id >= 0:
 				blackboard.escalate(id)
 		for d in world.drones:
-			if d.destroyed or d.signal_strength <= 0:
+			if d.destroyed or d.signal_strength <= 0 or observer.floor_idx != 0:
 				continue
 			if d.pos.distance_to(observer.pos) <= 7.0 and CombatSystem.line_clear(d.pos, observer.pos, segs):
 				if brain.spotted_by_drone_id != d.id:
@@ -96,14 +103,14 @@ func step_world(world: SimWorld) -> void:
 			brain.ai_tick()
 	influence.ensure_size(world.map)
 	influence.clear_dynamic(world.tick)
-	var segs: Array = world.map.get_wall_segments()
-	update_threats(world, segs)
+	var segs_by_floor: Dictionary = {0: world.map.get_wall_segments()}
+	update_threats(world, [])
 	_ingest_acoustic_events(world)
-	_refresh_influence_danger(world, segs)
+	_refresh_influence_danger(world, segs_by_floor[0])
 	commander.step_commander(world)
 	var shared_lkp := _first_known_lkp(ids)
 	if shared_lkp != Vector2(-1.0, -1.0):
-		tactics.assign_bounding_roles(world.map, world.enemy_actors, enemies, squad, shared_lkp, influence, segs)
+		tactics.assign_bounding_roles(world.map, world.enemy_actors, enemies, squad, shared_lkp, influence, segs_by_floor[0])
 	var any_suppressing := false
 	for id in ids:
 		var b: EnemyAi = enemies[id]
@@ -117,7 +124,9 @@ func step_world(world: SimWorld) -> void:
 			continue
 		if brain.is_stunned() or brain.state == int(EnemyAi.State.SURRENDER):
 			continue
-		_step_enemy_brain(world, actor, brain, any_suppressing, segs)
+		if not segs_by_floor.has(actor.floor_idx):
+			segs_by_floor[actor.floor_idx] = world.map_on_floor(actor.floor_idx).get_wall_segments()
+		_step_enemy_brain(world, actor, brain, any_suppressing, segs_by_floor[actor.floor_idx])
 
 
 func _ingest_acoustic_events(world: SimWorld) -> void:
@@ -236,14 +245,15 @@ func _build_facts(world: SimWorld, actor: SimOperative, brain: EnemyAi, any_supp
 			if op.id == t_id and op.is_alive():
 				target_vis = blackboard.cone_visible(actor.pos, op.pos, actor.facing_deg, true, segs)
 				break
+	var fmap := world.map_on_floor(actor.floor_idx)
 	var in_cover := false
 	if has_lkp:
-		in_cover = influence.is_hard_cover_from(world.map, actor_cell, lkp_pos, segs)
+		in_cover = influence.is_hard_cover_from(fmap, actor_cell, lkp_pos, segs)
 	var under_sup: bool = world.ballistics.suppressed_ticks(actor.id) > 0 or brain.suppression >= 30
 	var ammo_low: bool = brain.ammo <= EnemyAi.LOW_AMMO_THRESHOLD
 	var hostage_near := false
 	if has_lkp:
-		for hs in world.map.hostage_spawns:
+		for hs in fmap.hostage_spawns:
 			var hc: Vector2i = CpuCommander._cell_from_entry(hs)
 			if absi(hc.x - lkp_cell.x) + absi(hc.y - lkp_cell.y) <= 3:
 				hostage_near = true
@@ -253,7 +263,7 @@ func _build_facts(world: SimWorld, actor: SimOperative, brain: EnemyAi, any_supp
 		target_in_cover = true
 	var throw_ready := false
 	if has_lkp and (brain.has_flashbang or brain.has_frag):
-		throw_ready = influence.pick_grenade_landing_cell(world.map, actor.pos, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), segs) != InfluenceMap.NO_CELL
+		throw_ready = influence.pick_grenade_landing_cell(fmap, actor.pos, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), segs) != InfluenceMap.NO_CELL
 	var drone_shootable := false
 	if brain.spotted_by_drone_id >= 0:
 		var d: SimDrone = _find_drone(world, brain.spotted_by_drone_id)
@@ -285,6 +295,7 @@ func _build_facts(world: SimWorld, actor: SimOperative, brain: EnemyAi, any_supp
 
 
 func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, facts: Dictionary, segs: Array) -> void:
+	var fmap := world.map_on_floor(actor.floor_idx)
 	var action: StringName = brain.goap_plan[brain.goap_index]
 	var actor_cell: Vector2i = GridUtil.cell_of(actor.pos)
 	var lkp_pos: Vector2 = blackboard.lkp_of(actor.id) if blackboard.has_threat(actor.id) else actor.pos + Vector2.RIGHT
@@ -293,14 +304,14 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 		tactics.emit_callout(world.journal, world.tick, actor.id, "RELOADING_COVER_ME", actor_cell)
 		brain.goap_index += 1
 	elif action == &"StepBehindHardCover" or action == &"TakeHardCover":
-		if influence.is_hard_cover_from(world.map, actor_cell, lkp_pos, segs):
+		if influence.is_hard_cover_from(fmap, actor_cell, lkp_pos, segs):
 			brain.target_cell = Vector2i(-1, -1)
 			brain.goap_index += 1
 			return
 		if brain.target_cell == Vector2i(-1, -1):
-			brain.target_cell = influence.best_cover_cell(world.map, actor_cell, lkp_pos, 6, {}, true, segs)
+			brain.target_cell = influence.best_cover_cell(fmap, actor_cell, lkp_pos, 6, {}, true, segs)
 		if brain.target_cell == Vector2i(-1, -1):
-			brain.target_cell = influence.best_cover_cell(world.map, actor_cell, lkp_pos, 6, {}, false, segs)
+			brain.target_cell = influence.best_cover_cell(fmap, actor_cell, lkp_pos, 6, {}, false, segs)
 		if brain.target_cell == Vector2i(-1, -1):
 			brain.goap_index += 1
 			return
@@ -314,7 +325,7 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 			brain.goap_index += 1
 	elif action == &"RePeek":
 		if brain.peek_cell == Vector2i(-1, -1):
-			brain.peek_cell = influence.best_peek_cell(world.map, actor_cell, lkp_pos, {}, segs)
+			brain.peek_cell = influence.best_peek_cell(fmap, actor_cell, lkp_pos, {}, segs)
 		if brain.peek_cell != Vector2i(-1, -1):
 			if _follow_tactical_path(world, actor, brain.peek_cell, 1):
 				actor.facing_deg = CombatSystem.angle_to(actor.pos, lkp_pos)
@@ -324,12 +335,12 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 			actor.facing_deg = CombatSystem.angle_to(actor.pos, lkp_pos)
 			brain.goap_index += 1
 	elif action == &"MoveToThrowAngle":
-		if influence.pick_grenade_landing_cell(world.map, actor.pos, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), segs) != InfluenceMap.NO_CELL:
+		if influence.pick_grenade_landing_cell(fmap, actor.pos, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), segs) != InfluenceMap.NO_CELL:
 			brain.target_cell = Vector2i(-1, -1)
 			brain.goap_index += 1
 			return
 		if brain.target_cell == Vector2i(-1, -1):
-			brain.target_cell = influence.best_throw_cell(world.map, actor_cell, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), 8, {}, segs)
+			brain.target_cell = influence.best_throw_cell(fmap, actor_cell, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), 8, {}, segs)
 		if brain.target_cell == Vector2i(-1, -1):
 			brain.goap_index += 1
 			return
@@ -337,7 +348,7 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 			brain.target_cell = Vector2i(-1, -1)
 			brain.goap_index += 1
 	elif action == &"ThrowFragOrFlash":
-		var landing: Vector2i = influence.pick_grenade_landing_cell(world.map, actor.pos, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), segs)
+		var landing: Vector2i = influence.pick_grenade_landing_cell(fmap, actor.pos, lkp_cell, float(SimConstants.ACTION_MAX_RANGE_CELLS), segs)
 		if landing == InfluenceMap.NO_CELL:
 			brain.goap_index += 1
 			return
@@ -355,6 +366,7 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 		e.kind = kind
 		e.op_id = actor.id
 		e.pos = Vector2(landing) + Vector2(0.5, 0.5)
+		e.floor_idx = actor.floor_idx
 		e.spawned_tick = world.tick
 		e.due_tick = world.tick + 18
 		world.entities.append(e)
@@ -384,9 +396,9 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 			world.combat.fire_cooldowns[actor.id] = CombatSystem.FIRE_INTERVAL_TICKS
 			brain.ammo = maxi(brain.ammo - 1, 0)
 			world.sound_event(actor_cell, &"gunshot_unsuppressed")
-			influence.stamp_lane_danger(world.map, actor.pos, lkp_pos, 40, segs)
+			influence.stamp_lane_danger(fmap, actor.pos, lkp_pos, 40, segs)
 			for op in world.operatives:
-				if op.is_alive() and op.pos.distance_to(lkp_pos) <= 2.0 and CombatSystem.line_clear(actor.pos, op.pos, segs):
+				if op.is_alive() and op.floor_idx == actor.floor_idx and op.pos.distance_to(lkp_pos) <= 2.0 and CombatSystem.line_clear(actor.pos, op.pos, segs):
 					world.ballistics.apply_suppression(op.id, CombatSystem.SUPPRESS_TICKS)
 	elif action == &"DeploySmoke":
 		var se := SimEntity.new()
@@ -394,6 +406,7 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 		se.kind = int(AgentCommand.ActionKind.TEAR_GAS)
 		se.op_id = actor.id
 		se.pos = actor.pos
+		se.floor_idx = actor.floor_idx
 		se.spawned_tick = world.tick
 		se.due_tick = world.tick + 1
 		world.entities.append(se)
@@ -404,7 +417,7 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 	elif action == &"BoundCoverToCover":
 		var goal: Vector2i = tactics.flank_target_cell
 		if goal == Vector2i(-1, -1):
-			goal = SquadTactics.pick_flank_goal(world.map, actor_cell, lkp_pos, influence, segs)
+			goal = SquadTactics.pick_flank_goal(fmap, actor_cell, lkp_pos, influence, segs)
 		if goal == Vector2i(-1, -1):
 			brain.goap_index += 1
 			return
@@ -450,7 +463,7 @@ func _execute_goap_action(world: SimWorld, actor: SimOperative, brain: EnemyAi, 
 	elif action == &"FallbackToCrossfireCell":
 		if brain.target_cell == Vector2i(-1, -1):
 			var claimed: Dictionary = {}
-			var cf: Array[Dictionary] = SquadTactics.assign_crossfire_cells(world.map, brain.heard_breach_cell, Vector2i(1, 0), 1, claimed, segs)
+			var cf: Array[Dictionary] = SquadTactics.assign_crossfire_cells(fmap, brain.heard_breach_cell, Vector2i(1, 0), 1, claimed, segs)
 			if not cf.is_empty():
 				brain.target_cell = cf[0]["cell"]
 		if brain.target_cell == Vector2i(-1, -1):
@@ -506,8 +519,9 @@ func _step_enemy_queue(world: SimWorld, actor: SimOperative) -> void:
 
 
 func _follow_tactical_path(world: SimWorld, actor: SimOperative, goal_cell: Vector2i, danger_weight: int) -> bool:
+	var fmap := world.map_on_floor(actor.floor_idx)
 	if actor.active_path.is_empty():
-		var cells: Array[Vector2i] = influence.find_tactical_path(world.map, GridUtil.cell_of(actor.pos), goal_cell, danger_weight)
+		var cells: Array[Vector2i] = influence.find_tactical_path(fmap, GridUtil.cell_of(actor.pos), goal_cell, danger_weight)
 		if cells.size() <= 1:
 			return true
 		var pts := PackedVector2Array()
@@ -519,8 +533,9 @@ func _follow_tactical_path(world: SimWorld, actor: SimOperative, goal_cell: Vect
 
 
 func _follow_grid_path(world: SimWorld, actor: SimOperative, goal_cell: Vector2i) -> bool:
+	var fmap := world.map_on_floor(actor.floor_idx)
 	if actor.active_path.is_empty():
-		var cells: Array[Vector2i] = GridPathfinder.find_path(world.map, GridUtil.cell_of(actor.pos), goal_cell)
+		var cells: Array[Vector2i] = GridPathfinder.find_path(fmap, GridUtil.cell_of(actor.pos), goal_cell)
 		if cells.size() <= 1:
 			return true
 		var pts := PackedVector2Array()
@@ -532,6 +547,7 @@ func _follow_grid_path(world: SimWorld, actor: SimOperative, goal_cell: Vector2i
 
 
 func _step_active_path(world: SimWorld, actor: SimOperative) -> bool:
+	var fmap := world.map_on_floor(actor.floor_idx)
 	var rem: float = actor.speed_cells_per_sec() * SimWorld.DT
 	while rem > 0.00001 and actor.path_index < actor.active_path.size() - 1:
 		var tgt: Vector2 = actor.active_path[actor.path_index + 1]
@@ -543,7 +559,7 @@ func _step_active_path(world: SimWorld, actor: SimOperative) -> bool:
 			continue
 		var cand: Vector2 = tgt if dist <= rem else actor.pos + delta * (rem / dist)
 		var cand_cell: Vector2i = GridUtil.cell_of(cand)
-		if not world.map.in_bounds(cand_cell) or world.map.is_solid(cand_cell):
+		if not fmap.in_bounds(cand_cell) or fmap.is_solid(cand_cell):
 			actor.active_path = PackedVector2Array()
 			actor.path_index = 0
 			return false

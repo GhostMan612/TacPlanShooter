@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-24 (Session 18 — BLU B160V Android 14 hardware QA, 720x1612 HUD layout fix & WAV header fix)
+**Last updated:** 2026-11-24 (Session 19 — Touch UX de-clunking, Multi-Floor Stair Links OP-05..OP-10, TacticalVfx & Translucent Replay AAR)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable / 4.0.stable (`C:\Godot\Godot_v4.0-stable_win64_console.exe`) for headless gates & Route A export.
@@ -23,14 +23,14 @@ BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/brea
 
 **FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
-- BLU `B160V` Hardware QA & Fixes (Session 18): verified Route A ARM64 debug APK (`builds\TacPlan-debug.apk`, `apksigner` v1/v2/v3 PASS) live on physical Android 14 device `7040016025040287` (`PowerVR Rogue GE8300`, `720x1612` portrait): Title, Settings (`Night-Ops NVG` / `Dark Tactical`), `OP-01` Planning (`_center_camera_if_short()` + compact `ActionBar` fix in `planning_root.gd`), long-press routing + `PipLoupe`, 60 Hz Execution + `FogLayer` GPU shader (`SurfaceFlinger` `BLAST` `median_ms=33.67`, `p95_ms=50.52`), `AarScreen` + `ReplayScrubber` (`SCRUB TICK 98 / 197`), `MapEditorScreen`, and `0` logcat errors; also fixed `tools/gen_placeholder_audio.ps1` + 14 `assets/audio/sfx_ui_*.wav` (`blockAlign=2`, `bitsPerSample=16`, `0` WAV import errors).
-- Headless verification (`parse_all.tscn`, `scene_smoke.tscn`, `determinism_harness.gd`, etc.) passes cleanly with zero errors.
-- Remaining items are subjective feel/listen confirmations (`CP-080` / `CP-090` USER), multi-floor stair links, 2-Player LAN lockstep transport, and store release signing.
+- Touch UX & Multi-Floor Expansion (Session 19): recorded hands-on user verdict (`CP-080` / `CP-090` ✅ PASSED) and shipped freehand wall-graze auto-repair, `0.28 s` hold + `24 px` hold slop, `DRAW`/`TAP` toggle mode, compact above-map `_node_menu` w/ `DONE`, procedural `TacticalVfx` tracers/flashes/rings, translucent `AarScreen` (`GRADE` + `+RP` + `NEXT OPERATION` + `ProgressionSave`), and full multi-floor stair links (`CP-073` ✅ PASSED across `OP-05`–`OP-10`).
+- Verified all 12 headless Godot 4.0 gates cleanly (`failures = 0`, `HYGIENE_COMMENTS = 0`) and tested `OP-05: Penthouse Lock` `F1 -> F2` stair ascension, `F2` firefight/extraction (`GRADE S · +75 RP`), and translucent replay live on BLU `B160V`.
+- Remaining items are Mission Prep 7-stage panels polish, 2-Player LAN lockstep UI wiring, and store release signing.
 
 ## Immediate next actions
 
-1. Extend maps with multi-floor stair links and objective variants beyond ground floor.
-2. Implement 2-Player LAN lockstep transport and complete subjective UX/audio checks (`CP-080`, `CP-090`).
+1. Polish the Mission Prep pre-planning UI (`Briefing` / `Intel` / `Roster` / `Kit` / `Team`) before entering the planning board.
+2. Wire the 2-Player LAN lockstep lobby & commit-reveal flow (`LockstepSession`, `CommitReveal`) and re-enable the Title `2-PLAYER` button.
 3. Configure release keystore signing outside the repo (and optionally JDK 11 / NDK 23 if Route B Gradle assembly is ever needed).
 
 ## Gotchas / constraints (DO NOT FORGET)

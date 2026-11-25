@@ -14,6 +14,7 @@ const TICKS_PER_SEC := 60.0
 
 var world: SimWorld = null
 var local_faction_id := 0
+var view_floor := 0
 var contacts: Dictionary = {}
 var hostile_color := Color(0.94, 0.27, 0.27)
 var ring_color := Color(1.0, 0.7, 0.0)
@@ -33,17 +34,18 @@ func reset() -> void:
 	queue_redraw()
 
 
-func update_contacts(w: SimWorld, live_polys_cells: Array[PackedVector2Array]) -> void:
+func update_contacts(w: SimWorld, live_polys_cells: Array[PackedVector2Array], p_floor: int = 0) -> void:
 	world = w
+	view_floor = p_floor
 	for contact in contacts.values():
 		contact["visible"] = false
 	for id in w.enemy_actors:
 		var o: SimOperative = w.enemy_actors[id]
-		if o.faction_id == local_faction_id:
+		if o.faction_id == local_faction_id or o.floor_idx != p_floor:
 			continue
 		for poly in live_polys_cells:
 			if Geometry2D.is_point_in_polygon(o.pos, poly):
-				contacts[id] = {"pos": o.pos, "tick": int(w.tick), "visible": true, "alive": o.is_alive()}
+				contacts[id] = {"pos": o.pos, "tick": int(w.tick), "floor": o.floor_idx, "visible": true, "alive": o.is_alive()}
 				break
 	queue_redraw()
 
@@ -94,6 +96,8 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	for k in contacts.keys():
 		var c: Dictionary = contacts[k]
+		if int(c.get("floor", 0)) != view_floor:
+			continue
 		var px: Vector2 = c["pos"] * s
 		var pts := diamond(px, DIAMOND_RADIUS)
 		var closed := pts.duplicate()
