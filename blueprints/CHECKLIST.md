@@ -58,7 +58,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Action range check
 
 ## M6 — Visibility & fog of war (BP-06)
-- ⬜ Segment extraction + vertex aggregation from level geometry
+- ✅ Segment extraction + vertex aggregation from level geometry (`GreyboxMap.extract_segments()`)
 - ✅ Rotational sweep-line visibility polygon: 3 rays/vertex, T1>0 ∧ 0<T2<1, angular sort (CP-060 — verified: segments=180, poly=720)
 - ✅ Rotational sweep-line visibility polygon: 3 rays/vertex, T1>0 ∧ 0<T2<1, angular sort (CP-060 — verified: segments=180, poly=720)
 - ✅ Phase A (WO-N64-R6-AND-M6-REMEDIATION): FogLayer SubViewport masks (fog2 probe PASS: live=1, memory=1, poly_contains=true, reset=0); Visibility wrapf + endpoint tolerance (WCW PASS: poly=900 t=80.3990); HUD CanvasLayer + Alpha/Bravo/Charlie/Delta wired; Zero-Artifact CI (`.github/workflows/headless-ci.yml`)
