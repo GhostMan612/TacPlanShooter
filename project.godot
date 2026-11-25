@@ -19,6 +19,7 @@ config/quit_on_go_back=false
 
 EventBus="*res://scripts/autoload/event_bus.gd"
 SimClock="*res://scripts/autoload/sim_clock.gd"
+TacticalAudio="*res://scripts/audio/tactical_audio.gd"
 
 [display]
 
