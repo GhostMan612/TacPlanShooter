@@ -31,6 +31,13 @@ func _setup_buses() -> void:
 	_ambient_bus_idx = _ensure_bus(&"Ambient")
 	_ensure_bus(&"SFX")
 	_ensure_bus(&"UI")
+	var n := AudioServer.get_bus_count()
+	for i in range(n):
+		if AudioServer.get_bus_name(i) == &"Ambient" and AudioServer.get_bus_effect_count(_ambient_bus_idx) == 0:
+			var lp := AudioEffectLowPassFilter.new()
+			lp.cutoff_hz = 1400.0
+			AudioServer.add_bus_effect(_ambient_bus_idx, lp)
+			break
 
 
 func _ensure_bus(name: StringName) -> int:
@@ -103,6 +110,15 @@ func _physics_process(_delta: float) -> void:
 			_play_squelch(&"ui_heartbeat")
 	if _duck_factor < 0.9:
 		AudioServer.set_bus_mute(_ambient_bus_idx, true)
+	var lp: AudioEffectLowPassFilter = null
+	var nfx := AudioServer.get_bus_effect_count(_ambient_bus_idx)
+	for i in range(nfx):
+		var e := AudioServer.get_bus_effect(_ambient_bus_idx, i)
+		if e is AudioEffectLowPassFilter:
+			lp = e as AudioEffectLowPassFilter
+			break
+	if lp != null:
+		lp.cutoff_hz = float(350.0 + _heartbeat_hp_peak * 260.0)
 
 
 func _play_squelch(name: StringName) -> void:
