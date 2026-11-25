@@ -98,6 +98,7 @@ func _on_release(idx: int, pos: Vector2) -> void:
 		_pinch_base_dist = 0.0
 	if dt <= TAP_MAX_SEC and not moved and not long_fired and _touches.size() == 0:
 		_handle_tap(pos)
+		TacticalAudio.play_blip(&"sfx_ui_blip_01")
 
 
 func _on_drag(idx: int, pos: Vector2, relative: Vector2) -> void:

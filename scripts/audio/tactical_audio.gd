@@ -46,6 +46,18 @@ func _on_go_code(_code: StringName) -> void:
 	squelch_played.emit(&"go_code")
 
 
+func play_blip(name: StringName) -> void:
+	var p := "res://assets/audio/" + String(name) + ".wav"
+	if ResourceLoader.exists(p):
+		var t := ResourceLoader.load(p, "AudioStream") as AudioStream
+		if t != null:
+			var pl := AudioStreamPlayer2D.new()
+			pl.stream = t
+			add_child(pl)
+			pl.play()
+			pl.call_deferred("queue_free")
+
+
 func _on_breach(_pos: Vector2) -> void:
 	_duck_ambient()
 	_play_squelch(&"ui_squelch_strong")
