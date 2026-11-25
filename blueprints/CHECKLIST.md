@@ -45,7 +45,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Go-codes Alpha/Bravo/Charlie: conditional wait nodes halt queue until issued (CP-041; `SimWorld.issue_go_code` emits `EventBus.go_code_issued` for UI confirmation)
 - ✅ Tactical actions: flashbang / frag / tear gas / breach charge as spawned entities + cooldown lock (CP-042)
 - ✅ Fields of fire: facing override independent of movement vector ("slicing the pie") (CP-043)
-- ⬜ Radial command node menu along bottom arc (thumb reach); progressive disclosure
+- ✅ Radial command node menu along bottom arc (thumb reach); progressive disclosure (M4 line 48; `scripts/ui/radial_menu.gd` opened on right-tap; wired in `PlanningRoot._setup_hud` → `_on_radial_go_code` → `world.issue_go_code`)
 
 ## M5 — Execution sim v1 (BP-02 + BP-04)
 - ✅ Movement interpolation strictly along planned vectors at stance speed (CP-050)

@@ -11,6 +11,7 @@ var map: GreyboxMap = null
 var renderer: MapRenderer = null
 var squad_hud: SquadHud = null
 var _tm: ThemeManager = null
+var radial_menu: RadialMenu = null
 var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
@@ -140,6 +141,8 @@ func _on_viewport_resized() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if radial_menu != null and Input.is_action_just_pressed(&"ui_right"):
+		radial_menu.open_at(Vector2(get_viewport_rect().size.x / 2.0, get_viewport_rect().size.y / 2.0))
 	if world != null and SimClock.phase == SimClock.Phase.EXECUTION:
 		for code in _pending_go_codes:
 			world.schedule_go_code(code)
@@ -201,6 +204,9 @@ func _setup_hud() -> void:
 	var settings := ThemeManager.load_settings()
 	_hud_canvas = CanvasLayer.new()
 	add_child(_hud_canvas)
+	radial_menu = RadialMenu.new()
+	radial_menu.go_code_selected.connect(_on_radial_go_code)
+	_hud_canvas.add_child(radial_menu)
 	_menu_button = UiKit.button("< MENU", _go_back, settings)
 	_menu_button.size_flags_horizontal = Control.SIZE_FILL
 	_hud_canvas.add_child(_menu_button)
@@ -277,7 +283,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_go_back()
 
 
-func _on_execute_pressed() -> void:
+func _on_radial_go_code(code: StringName) -> void:
+	if world != null:
+		world.issue_go_code(code)
+		print("[TacPlan] radial go_code: " + String(code))
 	if world == null or _result_view != null or SimClock.phase != SimClock.Phase.PLANNING:
 		return
 	if not _invalid_routes.is_empty():
