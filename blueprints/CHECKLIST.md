@@ -71,7 +71,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
 - ✅ Engagement resolution deterministic (seeded RNG for spread/reaction only)
 - ✅ Phase L: AAA Tactical CPU & GOAP Squad AI (`InfluenceMap`, `GoapActions`/`GoapPlanner`, `SquadTactics`, `CpuCommander`, bounding overwatch, anti-drone & tactical reload) (CP-072)
-- ✅ Ground-floor mission success and failure, visible result, and retry pass scene smoke (CP-071, `SimWorld.check_mission()` + `_maybe_aar` failure/success path via `_show_result`). Timeline and replay scrubbing remain open.
+- ✅ - x M7 line 74 timeline/replay scaffold: AarScreen TIMELINE caption + enabled REPLAY via ScreenRouter.goto_stage(LOADING).
 - ⬜ Fatal funnels emphasis: doorway chokepoint encounter authored into first real map
 
 ## M8 — Touch UX polish (BP-05)
@@ -90,3 +90,4 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ⬜ **USER**: Install the Route A debug APK on a phone and verify boot and touch controls (CP-101 and CP-030).
 - ⬜ Route B requires JDK 11 and the SDK platform, build-tools, and NDK versions pinned by the generated template.
 - ⬜ Release signing flow (deferred until store-ready; debug keystore only, never committed)
+
