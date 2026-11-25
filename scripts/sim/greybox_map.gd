@@ -67,6 +67,15 @@ func door_state(cell: Vector2i) -> StringName:
 	return &"OPEN" if bool(door_open.get(cell, false)) else &"CLOSED_UNLOCKED"
 
 
+func extract_segments() -> Dictionary:
+	var segs := get_wall_segments()
+	var verts := {}
+	for s in segs:
+		verts[s[0]] = true
+		verts[s[1]] = true
+	return {"segments": segs, "vertices": Array(verts.keys())}
+
+
 func occludes(cell: Vector2i) -> bool:
 	if not in_bounds(cell):
 		return true
