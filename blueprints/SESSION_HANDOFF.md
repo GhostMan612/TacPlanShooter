@@ -17,7 +17,9 @@
 
 **TacPlan Shooter** — a pure top-down tactical planning game for Android in **Godot 4** (Compatibility/OpenGL ES renderer): the Rainbow Six (1998) pre-mission planning loop with NO first-person shooting. Players draw insertion routes, set stances/go-codes/tactical actions/fields of fire on a blueprint map, then commit and watch a deterministic simulation execute the plan frame-perfectly. Replay scrubbing via Command Pattern + fixed-tick reset-and-feed.
 
-## Where we are
+## Where we are (TL;DR)
+
+**FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
 - Phase L (`AAA-TACTICAL-AI-CPU-SPEC.md` + SceneTree `_init()` fix across all harnesses) is complete and verified: `InfluenceMap`, `GoapActions`, `GoapPlanner`, `SquadTactics`, and `CpuCommander` integrate cleanly into `EnemyAi`, `AiCoordinator`, `CombatSystem`, and `SimWorld` with full snapshot/hash determinism (`aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `parse_all` 89 scripts / 13 scenes `failures=0`, all 12 headless gates green).
 - `.github/workflows/headless-ci.yml` polls `.godot/global_script_class_cache.cfg` (`> 1000` bytes) during import passes and runs `aaa_ai_harness.gd` in CI.
