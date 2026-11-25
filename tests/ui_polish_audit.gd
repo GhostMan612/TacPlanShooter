@@ -4,8 +4,22 @@
 # ============================================================
 extends SceneTree
 
+var _initialized := false
+
+
+func _init() -> void:
+	call_deferred("_ensure_initialized")
+
+
+func _ensure_initialized() -> void:
+	if not _initialized:
+		_initialize()
+
 
 func _initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
 	var failures := 0
 	failures += _test_theme_apply()
 	failures += _test_squad_hud_control()

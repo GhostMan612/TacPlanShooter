@@ -4,8 +4,22 @@
 # ============================================================
 extends SceneTree
 
+var _initialized := false
+
+
+func _init() -> void:
+	call_deferred("_ensure_initialized")
+
+
+func _ensure_initialized() -> void:
+	if not _initialized:
+		_initialize()
+
 
 func _initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
 	BusGraph.ensure_buses()
 	var ok := AudioServer.get_bus_index(&"BGM") >= 0
 	var tm := ThemeManager.new()

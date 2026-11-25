@@ -18,8 +18,22 @@ const EXPECTED_SOLIDS := {
 	"op10_sovereign_citadel": 68,
 }
 
+var _initialized := false
+
+
+func _init() -> void:
+	call_deferred("_ensure_initialized")
+
+
+func _ensure_initialized() -> void:
+	if not _initialized:
+		_initialize()
+
 
 func _initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
 	var failures := 0
 	for map_id in EXPECTED_SOLIDS.keys():
 		failures += _validate_map(String(map_id), int(EXPECTED_SOLIDS[map_id]))

@@ -29,6 +29,8 @@ var drones: Array[SimDrone] = []
 var vehicles: Array[SimVehicle] = []
 var ai := AiCoordinator.new()
 var combat := CombatSystem.new()
+var influence_map: InfluenceMap = ai.influence
+var cpu_commander: CpuCommander = ai.commander
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -51,6 +53,9 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	vehicles.clear()
 	enemy_actors.clear()
 	ai = AiCoordinator.new()
+	influence_map = ai.influence
+	cpu_commander = ai.commander
+	ai.influence.ensure_size(map)
 	combat = CombatSystem.new()
 	door_system = DoorSystem.new()
 	ballistics = BallisticsSuppression.new()
@@ -144,8 +149,6 @@ func sound_event(cell: Vector2i, kind: StringName) -> void:
 func step() -> void:
 	tick += 1
 	_process_go_code_stream()
-	ai.step_all()
-	ai.update_threats(self)
 	if tapin_player_cooldown > 0:
 		tapin_player_cooldown -= 1
 	_tick_down_tapin()
@@ -153,6 +156,7 @@ func step() -> void:
 	_process_overrides()
 	_process_pending()
 	_step_entities()
+	ai.step_world(self)
 	for o in operatives:
 		_step_operative(o)
 	combat.resolve(self)
@@ -321,6 +325,8 @@ func restore_from_data(d: Dictionary) -> void:
 		var enemy := SimOperative.from_dict(ed)
 		enemy_actors[enemy.id] = enemy
 	ai = AiCoordinator.from_dict(d.get("ai", {}))
+	influence_map = ai.influence
+	cpu_commander = ai.commander
 	combat = CombatSystem.from_dict(d.get("combat", {}))
 	door_system = DoorSystem.from_array(d.get("door_system", []))
 	ballistics = BallisticsSuppression.new()
@@ -335,8 +341,10 @@ func _process_pending() -> void:
 	var keep: Array[Dictionary] = []
 	for e in pending:
 		if int(e["due"]) <= tick:
-			map.open_door(Vector2i(int(e["cx"]), int(e["cy"])))
-			journal.append({"t": tick, "ev": &"breach_opened", "cx": int(e["cx"]), "cy": int(e["cy"])})
+			var cell := Vector2i(int(e["cx"]), int(e["cy"]))
+			map.open_door(cell)
+			sound_event(cell, &"door_breach")
+			journal.append({"t": tick, "ev": &"breach_opened", "cx": cell.x, "cy": cell.y})
 		else:
 			keep.append(e)
 	pending = keep
@@ -526,6 +534,23 @@ func _step_entities() -> void:
 
 
 func _apply_entity_effect(e: SimEntity) -> void:
+	if e.kind == int(AgentCommand.ActionKind.TEAR_GAS):
+		ai.influence.add_smoke_zone(GridUtil.cell_of(e.pos), 2, tick + 240)
+		return
+	if e.kind == int(AgentCommand.ActionKind.FLASHBANG):
+		var segs: Array = map.get_wall_segments()
+		for op in combat.actors(self):
+			if op.done or not op.is_alive():
+				continue
+			if op.pos.distance_to(e.pos) <= 2.5 and CombatSystem.line_clear(e.pos, op.pos, segs):
+				ballistics.apply_suppression(op.id, 60)
+				if ai.enemies.has(op.id):
+					var brain: EnemyAi = ai.enemies[op.id]
+					brain.stun_ticks = 60
+					brain.transition(int(EnemyAi.State.STUNNED))
+					brain.morale = maxi(brain.morale - 25, 0)
+					journal.append({"t": tick, "ev": &"flash_stun", "op": op.id, "by": e.op_id})
+		return
 	if e.kind != int(AgentCommand.ActionKind.FRAG):
 		return
 	for op in combat.actors(self):

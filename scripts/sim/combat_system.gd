@@ -92,6 +92,14 @@ func reaction_of(id: int) -> int:
 	return int(reactions.get(id, FRIENDLY_REACTION_TICKS))
 
 
+func reaction_for_world(world: SimWorld, id: int) -> int:
+	var base: int = reaction_of(id)
+	if world != null and world.ai.enemies.has(id):
+		var brain: EnemyAi = world.ai.enemies[id]
+		return SquadTactics.scaled_reaction_ticks(base, brain.doctrine)
+	return base
+
+
 func actors(world: SimWorld) -> Array[SimOperative]:
 	var out: Array[SimOperative] = []
 	for o in world.operatives:
@@ -108,7 +116,7 @@ func can_fire(world: SimWorld, o: SimOperative) -> bool:
 		return false
 	if world.ai.enemies.has(o.id):
 		var brain: EnemyAi = world.ai.enemies[o.id]
-		if brain.is_stunned() or brain.state == int(EnemyAi.State.SURRENDER):
+		if brain.is_stunned() or brain.state == int(EnemyAi.State.SURRENDER) or brain.reload_ticks_left > 0 or brain.ammo <= 0:
 			return false
 	return true
 
@@ -161,7 +169,7 @@ func resolve(world: SimWorld) -> void:
 		if seen.is_empty() or int(seen["target"]) != target.id:
 			sight[shooter.id] = {"target": target.id, "since": world.tick}
 			continue
-		if world.tick - int(seen["since"]) < reaction_of(shooter.id):
+		if world.tick - int(seen["since"]) < reaction_for_world(world, shooter.id):
 			continue
 		if fire_cooldowns.has(shooter.id):
 			continue
@@ -170,6 +178,9 @@ func resolve(world: SimWorld) -> void:
 
 func _fire(world: SimWorld, shooter: SimOperative, target: SimOperative) -> void:
 	fire_cooldowns[shooter.id] = FIRE_INTERVAL_TICKS
+	if world.ai.enemies.has(shooter.id):
+		var shooter_brain: EnemyAi = world.ai.enemies[shooter.id]
+		shooter_brain.ammo = maxi(shooter_brain.ammo - 1, 0)
 	var dist := shooter.pos.distance_to(target.pos)
 	if shooter.faction_id != 0:
 		shooter.facing_deg = angle_to(shooter.pos, target.pos)

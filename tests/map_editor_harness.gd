@@ -4,8 +4,22 @@
 # ============================================================
 extends SceneTree
 
+var _initialized := false
+
+
+func _init() -> void:
+	call_deferred("_ensure_initialized")
+
+
+func _ensure_initialized() -> void:
+	if not _initialized:
+		_initialize()
+
 
 func _initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
 	call_deferred("_run")
 
 

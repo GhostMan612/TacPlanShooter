@@ -6,8 +6,22 @@ extends SceneTree
 
 const TICK_BUDGET := 7200
 
+var _initialized := false
+
+
+func _init() -> void:
+	call_deferred("_ensure_initialized")
+
+
+func _ensure_initialized() -> void:
+	if not _initialized:
+		_initialize()
+
 
 func _initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
 	print("PROBE_H_INIT")
 	var failures := 0
 	failures += _test_command_serialization()

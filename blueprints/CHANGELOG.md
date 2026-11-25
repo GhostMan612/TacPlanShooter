@@ -3,6 +3,17 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 16 — 2026-11-24 — Phase L: AAA Tactical CPU & GOAP Squad AI (+ CI _init() fix)
+
+- Implemented pure autoload-free 60 Hz deterministic AI modules under `scripts/sim/ai/`:
+  - `influence_map.gd` (`InfluenceMap`): integer-grid danger/LOF cone heatmap, hard-cover/peek/grenade-landing evaluators, smoke masking, and threat-weighted deterministic A* (`find_tactical_path`).
+  - `goap_actions.gd` & `goap_planner.gd` (`GoapActions`, `GoapPlanner`): staggered 12-tick 26-bit GOAP planner covering Flush Cover, Bounding Overwatch (`F_BOUNDED`), Tactical Reload, Anti-Drone Counter, Breach Counter, and Suppress LKP.
+  - `squad_tactics.gd` (`SquadTactics`): doorway L-crossfire placement, friendly LOF block checks, bounding overwatch role assignment/swapping, telegraphed `ai_callout` journal/feed events, and fair `RECRUIT`/`VETERAN`/`TIER_ONE` doctrines.
+  - `cpu_commander.gd` (`CpuCommander`): tick-0 `GreyboxMap` topology analyzer, automated `CommandQueue` preplans with crossfire anchors, patrols, barricaded doors, RF jammers, and `alpha`/`bravo` go-codes, plus live `step_commander` adaptation.
+- Integrated into `enemy_ai.gd`, `ai_coordinator.gd`, `combat_system.gd`, and `sim_world.gd` with full snapshot/restore and `state_hash()` determinism coverage.
+- Fixed SceneTree `_init()` initialization across `tests/{determinism_harness,meta_progression_harness,ui_polish_audit,map_validation_harness,ui_audio_smoke,map_editor_harness}.gd`, added `tests/aaa_ai_harness.gd`, and hardened `.github/workflows/headless-ci.yml` class-cache polling + `AAA AI harness` gate.
+- All 12 local Godot 4.0 headless gates passed (`parse_all` 89 scripts / 13 scenes `failures=0`, boot smoke, `scene_smoke`, `aaa_ai_harness` 6/6 PASS, `determinism_harness` `failures=0`, `meta_progression_harness`, `ui_polish_audit`, `map_validation_harness`, `ui_audio_smoke`, `map_editor_harness`, `fog_layer_harness`, `simclock_probe`) plus static hygiene audit (`0` failures).
+
 ## Session 15 — 2026-11-24 — Integrate planning overlays
 
 - Resolved [PR #4](https://github.com/GhostMan612/TacPlanShooter/pull/4) with the mission, replay, and fog changes on `main`.

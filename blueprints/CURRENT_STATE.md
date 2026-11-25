@@ -1,5 +1,5 @@
 # CURRENT_STATE.md — Component Inventory Snapshot
-**Snapshot date:** 2026-11-24 (code audit remediation)
+**Snapshot date:** 2026-11-24 (Phase L — AAA Tactical CPU & GOAP Squad AI)
 
 ## Repo layout (`C:\TacPlan Shooter\`)
 
@@ -20,7 +20,8 @@
 │   │   ├── sim_constants.gd          ← single tuning surface (incl. ACTION_FUSE_TICKS, ACTION_COOLDOWN_TICKS, ACTION_MAX_RANGE_CELLS)
 │   │   ├── agent_command.gd · command_queue.gd · sim_operative.gd
 │   │   ├── greybox_map.gd · sim_world.gd · mission_snapshot.gd
-│   │   └── grid_pathfinder.gd        ← integer-grid A* on GreyboxMap (D-023; doors pass, walls/bounds enforced in movement)
+│   │   ├── grid_pathfinder.gd        ← integer-grid A* on GreyboxMap (D-023; doors pass, walls/bounds enforced in movement)
+│   │   └── ai\                       ← AAA tactical CPU (`CpuCommander`), GOAP planner (`GoapActions`/`GoapPlanner`), `InfluenceMap`, `SquadTactics`, `EnemyAi`, `AiCoordinator`
 │   └── planning\                     ← C4I terminal layer (S2b/S3)
 │       ├── grid_util.gd              ← central px↔cell law
 │       ├── route_sanitizer.gd        ← decimate 12px (tail kept) → Catmull-Rom Bezier bake 8px (CP-031)
@@ -57,7 +58,8 @@
 | **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + per-op lines + clamped camera + resize wired | CP-030 feel verdict = USER device test |
 | **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 slice 1: `GridPathfinder` A* movement + adherence + collision-halt + wall/door/bounds + action range; `PlanningRoot` Execute/Go-Code Alpha/Reset HUD + live token sync | CP-050/051/052 ✅ PASS; next: M5 remainder, then M4 stances/actions/FoF |
 | Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware GPU masks with live and last-seen map contacts | Handset rendering and frame time |
-| Enemy AI / mission loop (M7/BP-09) | 🟡 Registered enemy actors and playable ground-floor checkpoint-and-exit missions | Upper floors, dedicated objective rules, timeline, and scrubbing |
+| **Tests & harnesses** | 🟢 12 headless gates green (`parse_all` 89 scripts / 13 scenes, `aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `_init()` fixed) | CI remote run on push |
+| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander (`CpuCommander`, `SquadTactics`, `InfluenceMap`, bounding overwatch, anti-drone, reload-in-cover) | Upper floors, dedicated objective rules, timeline, and scrubbing |
 | Audio pass (M9/BP-08) | ⬜ not started | content |
 | **Android export track (M10/BP-10)** | 🟡 Route A verified from a clean checkout with Godot 4.0.4 | Handset boot and touch. Route B requires the JDK and SDK versions pinned by its template. |
 

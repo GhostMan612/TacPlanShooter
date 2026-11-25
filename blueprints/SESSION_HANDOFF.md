@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-24 (Session 15 — planning overlays)
+**Last updated:** 2026-11-24 (Session 16 — Phase L AAA Tactical CPU & GOAP Squad AI)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable for CI and verified Route A export.
@@ -19,15 +19,15 @@
 
 ## Where we are
 
-- The [code audit](../docs/TacPlanShooter_Code_Audit_77c064b.md) and the credential-free Route A export preset are tracked. The signed APK contains all ten source maps.
-- The 43-case determinism harness covers map reset isolation, active enemy detection, and restored simulation state. Ground-floor operations reach a visible success or failure result. Route nodes can wait for go-codes.
-- Map Editor preserves edit history across Playtest and keeps the current map when import validation fails. Fog caches static geometry and unchanged observer masks and composites visited coverage on the GPU. Tokens show squad callsigns and exact movement. The overlay shows live and last-seen contacts.
-- Upper-floor objectives, dedicated objective rules, timeline, and replay scrubbing are open.
+- Phase L (`AAA-TACTICAL-AI-CPU-SPEC.md` + SceneTree `_init()` fix across all harnesses) is complete and verified: `InfluenceMap`, `GoapActions`, `GoapPlanner`, `SquadTactics`, and `CpuCommander` integrate cleanly into `EnemyAi`, `AiCoordinator`, `CombatSystem`, and `SimWorld` with full snapshot/hash determinism (`aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `parse_all` 89 scripts / 13 scenes `failures=0`, all 12 headless gates green).
+- `.github/workflows/headless-ci.yml` polls `.godot/global_script_class_cache.cfg` (`> 1000` bytes) during import passes and runs `aaa_ai_harness.gd` in CI.
+- Upper-floor objectives, dedicated objective rules, timeline, and replay scrubbing remain open alongside handset verification of the Route A APK.
 
 ## Immediate next actions
 
-1. Verify the Route A APK on an Android handset using the [build guide](../docs/BUILD-IN-ANDROID-STUDIO.md). Check boot, touch controls, fog appearance, and execution frame time.
-2. Match the generated template's JDK and SDK versions before trying Route B in Android Studio.
+1. Push `main` so GitHub Actions Headless CI confirms all 12 Linux Godot 4.0.4 gates (including `AAA AI harness`) green remotely.
+2. Verify the Route A APK on an Android handset using the [build guide](../docs/BUILD-IN-ANDROID-STUDIO.md). Check boot, touch controls, fog appearance, and execution frame time.
+3. Implement CP-071 timeline / replay scrubbing UI and multi-floor objectives (M7/M8).
 
 ## Gotchas / constraints (DO NOT FORGET)
 
