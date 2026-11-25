@@ -19,6 +19,8 @@
 
 ## Where we are (TL;DR)
 
+BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/breach, heartbeat on op_damaged), placeholders in `assets/audio`, autoload registered. Next: M5 remainder.
+
 **FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
 - Phase L (`AAA-TACTICAL-AI-CPU-SPEC.md` + SceneTree `_init()` fix across all harnesses) is complete and verified: `InfluenceMap`, `GoapActions`, `GoapPlanner`, `SquadTactics`, and `CpuCommander` integrate cleanly into `EnemyAi`, `AiCoordinator`, `CombatSystem`, and `SimWorld` with full snapshot/hash determinism (`aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `parse_all` 89 scripts / 13 scenes `failures=0`, all 12 headless gates green).
