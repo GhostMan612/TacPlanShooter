@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-24 (Session 19 — Touch UX de-clunking, Multi-Floor Stair Links OP-05..OP-10, TacticalVfx & Translucent Replay AAR)
+**Last updated:** 2026-11-25 (Session 20 — Repo sync & Headless CI green fix on `TacticalAudio` + `tools/ci_gate.sh`)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable / 4.0.stable (`C:\Godot\Godot_v4.0-stable_win64_console.exe`) for headless gates & Route A export.

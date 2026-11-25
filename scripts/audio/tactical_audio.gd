@@ -119,7 +119,7 @@ func _play_squelch(kind: StringName) -> void:
 
 
 func _play_path(path: String, bus_name: StringName) -> void:
-	if not ResourceLoader.exists(path):
+	if not is_inside_tree() or not ResourceLoader.exists(path):
 		return
 	var stream := ResourceLoader.load(path, "AudioStream") as AudioStream
 	if stream == null:

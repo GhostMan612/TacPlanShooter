@@ -3,6 +3,12 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 20 — 2026-11-25 — Repo sync & Headless CI green fix
+
+- Audited local/remote `main` (`55f3fbe`) and inspected GitHub Actions run `45555806041` (`Headless CI`): all 12 test suites passed functionally, while 2 post-run log checks tripped CI:
+  - Added `is_inside_tree()` guard in [`scripts/audio/tactical_audio.gd`](../scripts/audio/tactical_audio.gd) `_play_path()` so unit tests instantiating `TacticalAudio` outside the `SceneTree` (`ui_audio_smoke.gd`) do not emit `ERROR: Playback can only happen when a node is inside the scene tree`.
+  - Changed `grep -vE` to case-insensitive `grep -viE` in [`tools/ci_gate.sh`](../tools/ci_gate.sh) so Godot 4.0.4's capitalized shutdown notice `ERROR: Resources still in use at exit` is filtered identically to lowercase variants.
+
 ## Session 19 — 2026-11-24 — Touch UX de-clunking, Multi-Floor Stair Links (OP-05..OP-10), TacticalVfx & Translucent Replay AAR
 
 - Recorded hands-on user verdict on BLU `B160V` (`CP-080`/`CP-090` `"yes, works well, a little clunky but it's the first try"`) and eliminated every root cause of first-try planning clunkiness:

@@ -6,7 +6,7 @@ if [ ! -s "$log" ]; then
   echo "::error::$log is empty"
   exit 1
 fi
-bad=$(grep -E "SCRIPT ERROR|Parse Error|Compile Error|\bFAIL\b|^ERROR:|^\s*ERROR:" "$log" | grep -vE "resources still in use at exit|ObjectDB instances leaked|StringName: .* unclaimed")
+bad=$(grep -E "SCRIPT ERROR|Parse Error|Compile Error|\bFAIL\b|^ERROR:|^\s*ERROR:" "$log" | grep -viE "resources still in use at exit|ObjectDB instances leaked|StringName: .* unclaimed")
 if [ -n "$bad" ]; then
   echo "::error::$log contains failures"
   echo "$bad" | head -40
