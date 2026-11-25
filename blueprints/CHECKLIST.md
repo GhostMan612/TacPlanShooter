@@ -50,7 +50,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 ## M5 — Execution sim v1 (BP-02 + BP-04)
 - ✅ Movement interpolation strictly along planned vectors at stance speed (CP-050)
 - ✅ Strict path adherence: intersecting plans collide & halt both agents (NO avoidance) (CP-051)
-- ⬜ Go-code sync: multi-team simultaneous breach resolves frame-exact (CP-041 flipped; burst-sync edge cases deferred to M6+)
+- ✅ Go-code sync: multi-team simultaneous breach resolves frame-exact (CP-041 flipped; burst-sync edge cases deferred to M6+; `SimWorld.go_code_ready()` + zero-tick WAIT_GO_CODE check in `step()`)
 - ✅ Execution runs entirely inside `_physics_process()`; render layer read-only (CQS audit) (CP-052)
 - ✅ Wall/door/bounds enforcement in SimWorld moves and actions
 - ✅ Unify sim cell-corner vs render cell-center coordinates

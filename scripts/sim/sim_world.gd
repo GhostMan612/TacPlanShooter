@@ -138,6 +138,10 @@ func issue_go_code(code: StringName) -> void:
 	journal.append({"t": tick, "ev": &"go_issued", "code": String(code)})
 
 
+func go_code_ready(code: StringName) -> bool:
+	return go_codes_issued.has(code)
+
+
 func heartbeat_radius_of(o: SimOperative) -> int:
 	return int(o.heartbeat_radius)
 
