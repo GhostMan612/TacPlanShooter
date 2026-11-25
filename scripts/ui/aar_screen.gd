@@ -38,6 +38,33 @@ func _ready() -> void:
 	col.add_child(UiKit.caption(summary, pal))
 	col.add_child(UiKit.button("REPLAN", _retry, settings))
 	col.add_child(UiKit.button("RETURN", _leave, settings))
+	col.add_child(UiKit.heading("TIMELINE", pal, 20))
+	var timeline_txt := ""
+	for ev in _timeline_lines():
+		if timeline_txt != "":
+			timeline_txt += "\n"
+		timeline_txt += ev
+	var replay := UiKit.button("REPLAY", _on_replay, settings)
+	replay.disabled = false
+	col.add_child(UiKit.caption(timeline_txt, pal, false))
+	col.add_child(replay)
+
+
+func _timeline_lines() -> Array:
+	var out := []
+	if result.is_empty():
+		return out
+	var ops := int(result["operatives"])
+	var alive := int(result["alive"])
+	var t := float(result["ticks"]) * SimWorld.DT
+	out.append("Reached checkpoints: %d/%d at t=%.1fs" % [int(result["reached"]), int(result["checkpoints"]), t])
+	out.append("Operatives standing: %d/%d (alive)" % [alive, ops])
+	out.append("Complete: %s" % bool(result["completed"]))
+	return out
+
+
+func _on_replay() -> void:
+	ScreenRouter.goto_stage(ScreenRouter.Stage.LOADING)
 
 
 func _retry() -> void:
