@@ -1,4 +1,4 @@
-# CHECKLIST.md — Main Execution Checklist
+﻿# CHECKLIST.md — Main Execution Checklist
 Single source of truth for "what's next". Grouped by milestone; each item cites its BP + gate.
 Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 
@@ -71,7 +71,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
 - ✅ Engagement resolution deterministic (seeded RNG for spread/reaction only)
 - ✅ Phase L: AAA Tactical CPU & GOAP Squad AI (`InfluenceMap`, `GoapActions`/`GoapPlanner`, `SquadTactics`, `CpuCommander`, bounding overwatch, anti-drone & tactical reload) (CP-072)
-- ✅ - x M7 line 74 timeline/replay scaffold: AarScreen TIMELINE caption + enabled REPLAY via ScreenRouter.goto_stage(LOADING).
+- v M7 line 74 timeline/replay scaffold: AarScreen TIMELINE caption + enabled REPLAY via ScreenRouter.goto_stage(LOADING).
 - ⬜ Fatal funnels emphasis: doorway chokepoint encounter authored into first real map
 
 ## M8 — Touch UX polish (BP-05)
