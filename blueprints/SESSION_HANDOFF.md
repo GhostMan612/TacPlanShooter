@@ -6,10 +6,10 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-24 (Session 17 — Integration fixes, PipLoupe, CP-071 replay scrubbing & M9 Audio)
+**Last updated:** 2026-11-24 (Session 18 — BLU B160V Android 14 hardware QA, 720x1612 HUD layout fix & WAV header fix)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
-**Godot:** 4.0.4.stable for CI and verified Route A export.
+**Godot:** 4.0.4.stable / 4.0.stable (`C:\Godot\Godot_v4.0-stable_win64_console.exe`) for headless gates & Route A export.
 
 ---
 
@@ -23,15 +23,15 @@ BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/brea
 
 **FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
-- Integration fixes & completion (Session 17): fixed `.github/workflows/headless-ci.yml` Import Pass 2, `SimWorld.check_mission()` / chokepoint tracking, `TacticalAudio` autoload (`Ambient` ducking, LP heartbeat, seeded squelch/blips), `PropsPlacement` (`MultiMeshInstance2D`), `RadialMenu`, `PlanningController` (`PipLoupe` 3x magnifier + `commit_tap_cell()`), and **CP-071** `AarScreen` timeline + `ReplayScrubber` rewind (`scrub_replay_to_tick`).
-- All 12 local Godot 4.0 headless gates pass cleanly (`parse_all` 92 scripts / 13 scenes `failures=0`, `scene_smoke` replay scrub PASS, `aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `ui_audio_smoke` PASS, `fog_layer_harness` PASS).
-- Remaining items are hardware/device checks (`CP-030`, `CP-080`, `CP-090`, `CP-101` Route A APK on Android phone), multi-floor objectives, and store release signing.
+- BLU `B160V` Hardware QA & Fixes (Session 18): verified Route A ARM64 debug APK (`builds\TacPlan-debug.apk`, `apksigner` v1/v2/v3 PASS) live on physical Android 14 device `7040016025040287` (`PowerVR Rogue GE8300`, `720x1612` portrait): Title, Settings (`Night-Ops NVG` / `Dark Tactical`), `OP-01` Planning (`_center_camera_if_short()` + compact `ActionBar` fix in `planning_root.gd`), long-press routing + `PipLoupe`, 60 Hz Execution + `FogLayer` GPU shader (`SurfaceFlinger` `BLAST` `median_ms=33.67`, `p95_ms=50.52`), `AarScreen` + `ReplayScrubber` (`SCRUB TICK 98 / 197`), `MapEditorScreen`, and `0` logcat errors; also fixed `tools/gen_placeholder_audio.ps1` + 14 `assets/audio/sfx_ui_*.wav` (`blockAlign=2`, `bitsPerSample=16`, `0` WAV import errors).
+- Headless verification (`parse_all.tscn`, `scene_smoke.tscn`, `determinism_harness.gd`, etc.) passes cleanly with zero errors.
+- Remaining items are subjective feel/listen confirmations (`CP-080` / `CP-090` USER), multi-floor stair links, 2-Player LAN lockstep transport, and store release signing.
 
 ## Immediate next actions
 
-1. Confirm GitHub Actions Headless CI passes all 12 Linux Godot 4.0.4 gates on pushed `main`.
-2. Verify the Route A APK on an Android handset using the [build guide](../docs/BUILD-IN-ANDROID-STUDIO.md) (`CP-030` / `CP-080` / `CP-090` / `CP-101`).
-3. Extend maps with multi-floor stair links and objective variants beyond ground floor.
+1. Extend maps with multi-floor stair links and objective variants beyond ground floor.
+2. Implement 2-Player LAN lockstep transport and complete subjective UX/audio checks (`CP-080`, `CP-090`).
+3. Configure release keystore signing outside the repo (and optionally JDK 11 / NDK 23 if Route B Gradle assembly is ever needed).
 
 ## Gotchas / constraints (DO NOT FORGET)
 

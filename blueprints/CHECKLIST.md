@@ -65,7 +65,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Visited-memory additive buffer @50% opacity (mark_visible → memory_vp, Phase A2)
 - ✅ Phase J: ThemeManager v2 (real Theme + StyleBoxFlat, theme_changed, applied_theme), MapRenderer MGRS coords (A–Z, 01–99) + zone overlays, SquadHud screen-space Control, PlanBoard N64 squad palette (red/blue/green/gold), OperativeToken MIL-STD symbology + LKP ghost dot, ExecutionHud health dots, RosterRolesScreen + ArmoryScreen, `ui_polish_audit` PASS
 - ✅ Planning smoke covers exact token tracking, live contacts, last-seen positions, and fog reset.
-- ⬜ Verify frame time and fog compositing on a mid-range Android handset.
+- ✅ Verify frame time and fog compositing on a mid-range Android handset (BLU `B160V`, Android 14 API 34, `PowerVR Rogue GE8300`, `720x1612` portrait: GPU `FogLayer` live sight + 50% visited memory verified clean; SurfaceFlinger `BLAST` layer `refresh_ms=16.67`, `samples=126`, `avg_ms=33.13`, `median_ms=33.67`, `p95_ms=50.52`, `0` shader/GL errors).
 
 ## M7 — Enemy AI & mission loop (BP-09)
 - ✅ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
@@ -87,7 +87,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 ## M10 — Android release track (BP-10) — ACTIVE (Route A default)
 - ✅ Route A clean-checkout preset verified with Godot 4.0.4, ARM64 packaging, signature, and all ten source maps (CP-100).
 - ✅ Handoff doc rewritten: `docs\BUILD-IN-ANDROID-STUDIO.md` (Route A walkthrough, `adb.exe install`, CP-030 1–7 test script, Route B blocker details)
-- ⬜ **USER**: Install the Route A debug APK on a phone and verify boot and touch controls (CP-101 and CP-030).
+- ✅ Install Route A debug APK (`builds\TacPlan-debug.apk`) on physical Android device (`BLU B160V`, `7040016025040287`) and verify boot + touch planning/execution/AAR/editor controls (CP-101, CP-030).
 - ⬜ Route B requires JDK 11 and the SDK platform, build-tools, and NDK versions pinned by the generated template.
 - ⬜ Release signing flow (deferred until store-ready; debug keystore only, never committed)
 

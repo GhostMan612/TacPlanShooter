@@ -3,6 +3,16 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 18 — 2026-11-24 — BLU B160V Android 14 hardware verification, 720x1612 HUD layout fix & WAV header fix
+
+- Verified Route A ARM64 debug APK (`builds\TacPlan-debug.apk`, `apksigner verify` v1/v2/v3 PASS, 10 campaign maps `op01..op10` + 14 WAV assets) live on physical handset BLU `B160V` (`7040016025040287`, Android 14 API 34, `arm64-v8a`, GPU `PowerVR Rogue GE8300`, `720x1612` portrait):
+  - Verified `SplashScreen` -> `TitleScreen` (`[TacPlan] screen=title buttons=7`), `SettingsScreen` live `Night-Ops NVG` (`theme=2`) <-> `Dark Tactical` (`theme=0`) switch, `OP-01` Planning, long-press route drawing (`[PLAN] op 0 route committed: 14 waypoints, 43 px baked`) + 3x `PipLoupe`, live 60 Hz execution + `FogLayer` (`fog_mask.gdshader` live cone + 50% visited memory), `AarScreen` (`OPERATION COMPLETE`, `TIMELINE`, `ReplayScrubber` scrubbed to `SCRUB TICK 98 / 197`), and `MapEditorScreen` (`[TacPlan] screen=map_editor w=16 h=12`).
+  - Measured SurfaceFlinger frame intervals on `SurfaceView[com.tacplan.game/com.godot.game.GodotApp](BLAST)#1602`: `refresh_ms=16.67`, `samples=126`, `avg_ms=33.13`, `median_ms=33.67`, `p95_ms=50.52`, `min_ms=16.60`, `max_ms=50.74`; device logcat clean (`0` `godot:W`/`godot:E`/`AndroidRuntime:E` errors).
+- Fixed two `720x1612` portrait layout issues found on device in [`scripts/planning/planning_root.gd`](../scripts/planning/planning_root.gd):
+  - Added `_center_camera_if_short(map_px)` and `0.86` zoom margin so the `OP-01` board clears the top status bar and keeps `01..12` MGRS labels unclipped.
+  - Compacted bottom `ActionBar` (`font_size=24`, `clip_text=true`, `separation=8`, `W:A..W:D` / `GO:A..GO:D`, stretch ratios `1.6` / `1.35`) so all 6 buttons fit within `720px` width.
+- Fixed [`tools/gen_placeholder_audio.ps1`](../tools/gen_placeholder_audio.ps1) to write valid 16-bit mono PCM headers (`blockAlign=2`, `bitsPerSample=16`, non-zero integer samples) and regenerated the 14 tracked `assets/audio/sfx_ui_*.wav` files (`WAV_import_errors=0` on export).
+
 ## Session 17 — 2026-11-24 — Post-merge integration fixes, PipLoupe, CP-071 replay scrubbing & M9 Audio
 
 - Fixed `.github/workflows/headless-ci.yml` Import Pass 2 missing `run:` block and byte-size class-cache verification (`> 1000` bytes).

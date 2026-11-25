@@ -101,10 +101,10 @@ func _ready() -> void:
 		add_child(token)
 	camera = MissionCamera.new()
 	add_child(camera)
-	camera.configure_for_map(
-		Vector2(map.width_cells, map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX),
-		get_viewport_rect().size
-	)
+	var map_px := Vector2(map.width_cells, map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX)
+	camera.configure_for_map(map_px, get_viewport_rect().size)
+	camera.apply_uniform_zoom(camera.zoom.x * 0.86)
+	_center_camera_if_short(map_px)
 	camera.make_current()
 	controller = PlanningController.new()
 	controller.camera = camera
@@ -148,6 +148,8 @@ func _load_selected_map() -> GreyboxMap:
 func _on_viewport_resized() -> void:
 	if camera != null:
 		camera.set_viewport_size(get_viewport_rect().size)
+		if map != null:
+			_center_camera_if_short(Vector2(map.width_cells, map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX))
 	_place_hud()
 
 
@@ -254,22 +256,26 @@ func _setup_hud() -> void:
 	_hud = HBoxContainer.new()
 	_hud.name = "ActionBar"
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.add_theme_constant_override("separation", 8)
 	_hud_canvas.add_child(_hud)
 	_execute_button = UiKit.button("EXECUTE", _on_execute_pressed, settings)
-	_alpha_button = UiKit.button("A", _on_alpha_pressed, settings)
-	_bravo_button = UiKit.button("B", _on_bravo_pressed, settings)
-	_charlie_button = UiKit.button("C", _on_charlie_pressed, settings)
-	_delta_button = UiKit.button("D", _on_delta_pressed, settings)
+	_alpha_button = UiKit.button("W:A", _on_alpha_pressed, settings)
+	_bravo_button = UiKit.button("W:B", _on_bravo_pressed, settings)
+	_charlie_button = UiKit.button("W:C", _on_charlie_pressed, settings)
+	_delta_button = UiKit.button("W:D", _on_delta_pressed, settings)
 	_reset_button = UiKit.button("RESET", _on_reset_pressed, settings)
-	_execute_button.size_flags_stretch_ratio = 2.0
-	_reset_button.size_flags_stretch_ratio = 1.6
+	_execute_button.size_flags_stretch_ratio = 1.6
+	_reset_button.size_flags_stretch_ratio = 1.35
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
+		b.add_theme_font_size_override("font_size", 24)
+		b.clip_text = true
 		_hud.add_child(b)
 	_status_label = Label.new()
 	_status_label.name = "Status"
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_label.add_theme_font_size_override("font_size", 24)
 	_status_label.text = _planning_hint()
 	_hud_canvas.add_child(_status_label)
 	_build_node_menu(settings)
@@ -295,16 +301,31 @@ func _place_hud() -> void:
 	_hud.position = Vector2(margin, vp.y - bar_h - margin)
 	_hud.size = Vector2(vp.x - margin * 2.0, bar_h)
 	if _menu_button != null:
-		_menu_button.position = Vector2(margin, 72.0)
-		_menu_button.size = Vector2(280.0, bar_h)
+		_menu_button.position = Vector2(margin, 64.0)
+		_menu_button.size = Vector2(230.0, bar_h)
 	if _status_label != null:
-		_status_label.position = Vector2(margin * 2.0 + 280.0, 72.0)
-		_status_label.size = Vector2(vp.x - margin * 3.0 - 280.0, bar_h)
+		_status_label.position = Vector2(margin * 2.0 + 230.0, 64.0)
+		_status_label.size = Vector2(vp.x - margin * 3.0 - 230.0, bar_h)
 	if squad_hud != null:
 		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(vp.x - margin * 2.0, SquadHud.HEIGHT_PX)))
 	if _node_menu != null:
-		_node_menu.position = Vector2(margin, 72.0 + bar_h + margin)
+		_node_menu.position = Vector2(margin, 64.0 + bar_h + margin)
 		_node_menu.size = Vector2(vp.x - margin * 2.0, 0.0)
+
+
+func _center_camera_if_short(map_px: Vector2) -> void:
+	if camera == null:
+		return
+	var vp_sz: Vector2 = get_viewport_rect().size
+	var world_h: float = vp_sz.y / maxf(camera.zoom.x, 0.01)
+	if map_px.y + 96.0 < world_h:
+		var pad_y: int = int(ceil((world_h - map_px.y) * 0.5)) + 64
+		camera.limit_left = -72
+		camera.limit_right = int(map_px.x) + 72
+		camera.limit_top = -pad_y
+		camera.limit_bottom = int(map_px.y) + pad_y
+		camera.position = map_px * 0.5
+		camera.clamp_to_limits()
 
 
 func _go_back() -> void:
@@ -638,7 +659,7 @@ func _set_phase_controls(executing: bool) -> void:
 		var b: Button = code_buttons[i]
 		if b != null:
 			b.disabled = result_visible or (not executing and _selected_node == RoutePlanner.NO_CELL)
-			b.text = ("SEND " if executing else "WAIT ") + "ABCD".substr(i, 1)
+			b.text = ("GO:" if executing else "W:") + "ABCD".substr(i, 1)
 	if controller != null:
 		controller.routing_enabled = not executing and not result_visible
 	_refresh_node_menu()
