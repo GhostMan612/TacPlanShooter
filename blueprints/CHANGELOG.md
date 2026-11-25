@@ -3,6 +3,15 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 21 — 2026-11-25 — N64 Mission Prep, Armory RP Unlocks, Live Tap-In Control & 2-Player Co-Op/PvP
+
+- Completed **CP-074** & **CP-075** end-to-end across RPG progression, pre-mission prep, live execution overrides, and 2-player multiplayer:
+  - **RPG Progression & Interactive HQ Armory:** Updated [`scripts/meta/progression_save.gd`](../scripts/meta/progression_save.gd) (`DEFAULT_UNLOCKS`, `unlocked_items()`, `unlock_item()`, full `UnitProfile.to_dict()` serialization) and [`scripts/ui/hq_armory_screen.gd`](../scripts/ui/hq_armory_screen.gd) (`AVAILABLE RP` header + touch unlock buttons persisting gear unlocks to disk).
+  - **N64 5-Tab Pre-Mission Prep (`scenes/prep.tscn`, `MissionPrepScreen`, `MissionPrepPanels`):** Route `CampaignScreen` operations through `ScreenRouter.Stage.PREP` (`BRIEF` / `INTEL` / `ROSTER` 2–4 operatives / `KIT` weapon-armor-sensor / `SQUAD` fireteam + `QUICK DEPLOY >`), applying weapon caliber, armor class, heartbeat sensor radius, and squad colors inside [`scripts/planning/planning_root.gd`](../scripts/planning/planning_root.gd).
+  - **Live Tap-In Direct Control:** Extended `SimWorld._process_overrides()` (`use_slot == true` live cell redirect + bounds/wall check + idle-unrouted collision guard), [`scripts/planning/tap_in_controller.gd`](../scripts/planning/tap_in_controller.gd) (`ingest_cell_target()`), [`scripts/planning/planning_controller.gd`](../scripts/planning/planning_controller.gd) (`execution_cell_tapped`), and [`scripts/planning/planning_root.gd`](../scripts/planning/planning_root.gd) (`REL AI` / `-1 CP` live redirect recorded into `override_stream` for deterministic replay).
+  - **2-Player Co-Op / PvP & LAN Lockstep:** Re-enabled `2-PLAYER CO-OP / PVP` (`7/7` active buttons) on [`scripts/ui/title_screen.gd`](../scripts/ui/title_screen.gd), added [`scenes/two_player.tscn`](../scenes/two_player.tscn) + [`scripts/ui/two_player_screen.gd`](../scripts/ui/two_player_screen.gd) (`Stage.TWO_PLAYER`), updated [`scripts/net/lockstep_session.gd`](../scripts/net/lockstep_session.gd) (UDP `7600` host/client + `plan_sync` + JSON float vector decode), added Faction 1 player-planned ROE/facing support in [`scripts/sim/combat_system.gd`](../scripts/sim/combat_system.gd) & [`scripts/planning/tactical_overlay.gd`](../scripts/planning/tactical_overlay.gd), and wired Pass-and-Play blind SHA-256 `CommitReveal` (`COMMIT P1` -> `COMMIT & EXEC`) in `PlanningRoot`.
+- Updated [`export_presets.cfg.example`](../export_presets.cfg.example) (and local preset) with `permissions/internet=true` + `permissions/access_network_state=true`, exported & `apksigner`-verified `builds\TacPlan-debug.apk` (`28,399,175` bytes, `v1/v2/v3` true), and installed onto connected BLU `B160V` (`7040016025040287` — live launch gated at `CP-102` pending device PIN unlock / Moto G `ZT4222BMWN` reconnection).
+
 ## Session 20 — 2026-11-25 — Repo sync & Headless CI green fix
 
 - Audited local/remote `main` (`55f3fbe`) and inspected GitHub Actions run `45555806041` (`Headless CI`): all 12 test suites passed functionally, while 2 post-run log checks tripped CI:

@@ -19,6 +19,59 @@ var flow: MissionPrepFlow = null
 var contents: Dictionary = {}
 
 
+static func intel_summary(m: GreyboxMap) -> Dictionary:
+	var out := {
+		"enemies": 0,
+		"archetypes": {},
+		"doors": 0,
+		"objectives": 0,
+		"extractions": 0,
+		"chokepoints": [],
+		"floors": 1,
+	}
+	if m == null:
+		return out
+	out["floors"] = maxi(1, m.floor_count)
+	for fl in range(maxi(1, m.floor_count)):
+		var fm: GreyboxMap = m if fl == 0 else m.slice_map(fl)
+		out["doors"] = int(out["doors"]) + fm.door_cells.size()
+		out["objectives"] = int(out["objectives"]) + fm.objectives.size()
+		out["extractions"] = int(out["extractions"]) + fm.extraction_zones.size()
+		for sp in fm.ai_spawns:
+			out["enemies"] = int(out["enemies"]) + 1
+			var arch := String(sp.get("archetype", "sentry")).replace("_", " ").to_upper()
+			if arch == "":
+				arch = "SENTRY"
+			var counts: Dictionary = out["archetypes"]
+			counts[arch] = int(counts.get(arch, 0)) + 1
+			out["archetypes"] = counts
+		for cp in fm.chokepoints:
+			var cell := MapEditorValidator.cell_of(cp)
+			(out["chokepoints"] as Array).append("F%d:%s%02d" % [fl + 1, MapRenderer.col_letter(cell.x), cell.y + 1])
+	return out
+
+
+static func default_unit_kit(idx: int) -> Dictionary:
+	var base := ArmoryScreen.default_roster()
+	var prof: UnitProfile = base[idx % base.size()]
+	var sq := String(SquadConfig.SQUADS[idx % SquadConfig.SQUADS.size()])
+	var weapon_label := "CARBINE 5.56" if idx % 2 == 0 else "SMG 9MM"
+	var caliber := "5.56" if idx % 2 == 0 else "9mm"
+	var tool_label := "DEMOLITIONS" if idx % 2 == 0 else "UNDERDOOR CAM"
+	var hb := 0 if idx % 2 == 0 else 2
+	return {
+		"operative_id": prof.operative_id,
+		"codename": String(prof.codename).to_upper(),
+		"role": ArmoryScreen.role_name(prof.role),
+		"squad": sq,
+		"caliber": caliber,
+		"armor_class": "light",
+		"heartbeat_radius": hb,
+		"weapon_label": weapon_label,
+		"tool_label": tool_label,
+	}
+
+
 func load_panels() -> void:
 	flow = MissionPrepFlow.new()
 	for i in range(int(PrepPanel.PLANNING) + 1):

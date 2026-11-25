@@ -9,6 +9,8 @@ const SCREENS: Array[String] = [
 	"res://scenes/splash.tscn",
 	"res://scenes/title.tscn",
 	"res://scenes/campaign.tscn",
+	"res://scenes/prep.tscn",
+	"res://scenes/two_player.tscn",
 	"res://scenes/settings.tscn",
 	"res://scenes/hq.tscn",
 	"res://scenes/credits.tscn",
@@ -46,6 +48,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	_check_door_route()
 	_check_wall_graze_and_multifloor()
+	await _check_prep_tapin_and_pvp()
 	print("[SMOKE] RESULT %s failures=%d" % ["PASS" if failures == 0 else "FAIL", failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -101,7 +104,14 @@ func _inspect(path: String, inst: Node) -> void:
 			_check(b.get_combined_minimum_size().y >= float(ThemeManager.TOUCH_MIN_STANDARD), "title button touch height " + String(k))
 			if not b.disabled:
 				enabled += 1
-		_check(enabled == 6, "title enabled buttons = 6")
+		_check(enabled == 7, "title enabled buttons = 7")
+	elif inst is MissionPrepScreen:
+		var mp := inst as MissionPrepScreen
+		_check(mp.tab_buttons.size() == 5 and mp.build_loadout().size() == 2, "prep mounts 5 tabs and default 2-op loadout")
+		_check(mp.toggle_operative(2) and mp.build_loadout().size() == 3, "prep toggles up to 3 operatives cleanly")
+	elif inst is TwoPlayerScreen:
+		var tp := inst as TwoPlayerScreen
+		_check(tp.host_ip_input != null and tp.mode_button != null and tp.session != null, "two-player lobby mounts Pass & Play and LAN session")
 	elif inst is CampaignScreen:
 		var cs := inst as CampaignScreen
 		_check(cs.missions.size() == CampaignScreen.MISSION_PATHS.size(), "campaign lists every operation")
@@ -353,3 +363,65 @@ func _check_door_route() -> void:
 		if sim.operatives[0].done:
 			break
 	_check(sim.operatives[0].done and GridUtil.cell_of(sim.operatives[0].pos) == goal, "closed-door route reaches the far side")
+
+
+func _check_prep_tapin_and_pvp() -> void:
+	ScreenRouter.set_param("map_path", "res://data/maps/op01_glass_house.json")
+	ScreenRouter.set_param("mission_loadout", [
+		{"roster_id": 0, "codename": "VANGUARD", "squad": "red", "caliber": "7.62", "armor_class": "heavy", "heartbeat_radius": 4},
+		{"roster_id": 1, "codename": "VECTOR", "squad": "blue", "caliber": "5.56", "armor_class": "medium", "heartbeat_radius": 2},
+		{"roster_id": 2, "codename": "SLEDGE", "squad": "green", "caliber": "9mm", "armor_class": "light", "heartbeat_radius": 0},
+	])
+	var packed := load("res://scenes/planning.tscn") as PackedScene
+	var pr := packed.instantiate() as PlanningRoot
+	get_tree().root.add_child(pr)
+	for i in range(4):
+		await get_tree().process_frame
+	_check(pr.world.operatives.size() == 3, "mission_loadout spawns 3 operatives")
+	_check(pr.world.operatives[0].armor_class == &"heavy" and pr.world.operatives[0].heartbeat_radius == 4, "mission_loadout applies armor and heartbeat sensor")
+	pr.set_physics_process(false)
+	var start0: Vector2i = pr.spawn_cells[0]
+	var route0: Array[Vector2i] = [start0, start0 + Vector2i(1, 0)]
+	pr._on_route_committed(0, route0)
+	pr._on_execute_pressed()
+	pr.squad_hud.touch_operative(0)
+	var tap_target := start0 + Vector2i(2, 0)
+	pr._on_execution_cell_tapped(tap_target)
+	for i in range(180):
+		pr._physics_process(SimWorld.DT)
+		if GridUtil.cell_of(pr.world.operatives[0].pos) == tap_target:
+			break
+	_check(pr.world.tapin_points == SimConstants.TAPIN_COMMAND_POINTS_MAX - 1, "live Tap-In spends 1 CP")
+	_check(pr.world.override_stream.size() == 1 and pr.world.override_stream[0].use_slot, "live Tap-In records use_slot OverrideCommand")
+	_check(GridUtil.cell_of(pr.world.operatives[0].pos) == tap_target, "live Tap-In redirects operative to tapped cell")
+	SimClock.reset_to_planning()
+	get_tree().root.remove_child(pr)
+	pr.queue_free()
+	await get_tree().process_frame
+
+	var cr := CommitReveal.new()
+	var commitment := cr.commit("{\"0\":[1,2]}", "salt42")
+	_check(commitment.length() == 64 and cr.verify("{\"0\":[1,2]}", "salt42", commitment) and not cr.verify("{\"0\":[9]}", "salt42", commitment), "CommitReveal SHA-256 verify holds")
+	cr.free()
+
+	ScreenRouter.set_param("map_path", "res://data/maps/op01_glass_house.json")
+	ScreenRouter.set_param("two_player_config", {"transport": "pass_play", "mode": "pvp", "seed": 2026})
+	var pvp_pr := packed.instantiate() as PlanningRoot
+	get_tree().root.add_child(pvp_pr)
+	for i in range(4):
+		await get_tree().process_frame
+	_check(pvp_pr.world.operatives.size() == 4 and pvp_pr.world.operatives[2].faction_id == 1, "Pass-and-Play PvP spawns Faction 0 Breachers and Faction 1 Defenders")
+	var p1_start := pvp_pr.spawn_cells[0]
+	pvp_pr._on_route_committed(0, [p1_start, p1_start + Vector2i(1, 0)])
+	pvp_pr._on_execute_pressed()
+	_check(pvp_pr._pass_play_stage == 1 and not pvp_pr._p1_commitment.is_empty(), "COMMIT P1 hashes P1 routes and switches turn to P2")
+	var p2_start := pvp_pr.spawn_cells[2]
+	pvp_pr._on_route_committed(2, [p2_start, p2_start + Vector2i(1, 0)])
+	pvp_pr._on_execute_pressed()
+	_check(SimClock.phase == SimClock.Phase.EXECUTION, "COMMIT & EXEC verifies P1 commitment and enters 60 Hz execution")
+	SimClock.reset_to_planning()
+	get_tree().root.remove_child(pvp_pr)
+	pvp_pr.queue_free()
+	await get_tree().process_frame
+	ScreenRouter.clear_param("mission_loadout")
+	ScreenRouter.clear_param("two_player_config")

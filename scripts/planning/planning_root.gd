@@ -21,7 +21,16 @@ var fog: FogLayer = null
 var overlay: TacticalOverlay = null
 var vfx: TacticalVfx = null
 var prep_flow: MissionPrepFlow = null
+var tap_in: TapInController = null
+var lockstep: LockstepSession = null
 var local_faction_id: int = 0
+var mission_loadout: Array = []
+var two_player_config: Dictionary = {}
+var _pass_play_stage: int = 0
+var _p1_plan_json: String = ""
+var _p1_salt: String = "tacplan_p1"
+var _p1_commitment: String = ""
+var _consumed_enemy_spawns: int = 0
 var _initial_snapshot: MissionSnapshot = null
 var _recorded_go_codes: Array[Dictionary] = []
 var _recorded_overrides: Array[OverrideCommand] = []
@@ -101,7 +110,13 @@ func _ready() -> void:
 	add_child(vfx)
 	prep_flow = MissionPrepFlow.new()
 	add_child(prep_flow)
-	spawn_cells = spawn_cells_for(map, map_source == GREYBOX_SOURCE, OPERATIVE_COUNT)
+	tap_in = TapInController.new()
+	add_child(tap_in)
+	lockstep = LockstepSession.new()
+	add_child(lockstep)
+	tap_in.lockstep = lockstep
+	_load_session_configs()
+	spawn_cells = _resolve_spawn_cells()
 	for i in range(spawn_cells.size()):
 		var token := OperativeToken.new(i)
 		token.position = GridUtil.cell_center_px(spawn_cells[i])
@@ -122,16 +137,19 @@ func _ready() -> void:
 		if child is OperativeToken:
 			controller.tokens.append(child as OperativeToken)
 	for i in range(spawn_cells.size()):
-		controller.op_colors[i] = PlanBoard.squad_color(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()])
+		controller.op_colors[i] = PlanBoard.squad_color(_assigned_squad_for(i))
 	controller.route_committed.connect(_on_route_committed)
 	controller.cell_tapped.connect(_on_route_node_tapped)
+	controller.execution_cell_tapped.connect(_on_execution_cell_tapped)
 	add_child(controller)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	world = SimWorld.new()
 	_rebuild_world()
 	for i in range(spawn_cells.size()):
-		squads.add_member(SquadConfig.SQUADS[i % SquadConfig.SQUADS.size()], i)
+		squads.add_member(_assigned_squad_for(i), i)
 	_setup_hud()
+	_apply_turn_controllability()
+	_set_phase_controls(false)
 	print("[TacPlan] planning map=%s size=%dx%d floors=%d" % [map_source, map.width_cells, map.height_cells, map.floor_count])
 
 
@@ -162,9 +180,14 @@ func _on_viewport_resized() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if lockstep != null and lockstep.session_active:
+		lockstep.poll()
+		_consume_lan_packets()
 	if radial_menu != null and Input.is_action_just_pressed(&"ui_right"):
 		radial_menu.open_at(Vector2(get_viewport_rect().size.x / 2.0, get_viewport_rect().size.y / 2.0))
 	if world != null and SimClock.phase == SimClock.Phase.EXECUTION:
+		if lockstep != null and lockstep.session_active:
+			lockstep.process_tick(world)
 		for code in _pending_go_codes:
 			world.schedule_go_code(code)
 		_pending_go_codes.clear()
@@ -389,6 +412,14 @@ func _place_hud() -> void:
 
 
 func _toggle_input_mode() -> void:
+	if SimClock.phase == SimClock.Phase.EXECUTION:
+		if world != null and tap_in != null:
+			var rel_id := tap_in.op_id if tap_in.op_id >= 0 else _selected_op
+			if rel_id >= 0:
+				world.release_tapin(rel_id)
+			tap_in.release_ai()
+			_set_status("AI plan control restored.")
+		return
 	if controller == null:
 		return
 	controller.tap_to_cell_mode = not controller.tap_to_cell_mode
@@ -469,6 +500,8 @@ func _center_camera_if_short(map_px: Vector2) -> void:
 
 
 func _go_back() -> void:
+	if lockstep != null and lockstep.session_active:
+		lockstep.close_session()
 	if SimClock.phase == SimClock.Phase.EXECUTION:
 		SimClock.reset_to_planning()
 	var target := int(ScreenRouter.get_param("return_stage", int(ScreenRouter.Stage.TITLE)))
@@ -495,18 +528,47 @@ func _on_execute_pressed() -> void:
 	if not _invalid_routes.is_empty():
 		_set_status("Redraw the blocked routes before executing.")
 		return
+	if _is_pass_play() and _pass_play_stage == 0:
+		var p1_ops := _turn_ops(0)
+		var p1_routed := 0
+		for op_id in p1_ops:
+			if route_cells.has(op_id) and not (route_cells[op_id] as Array).is_empty():
+				p1_routed += 1
+		if p1_routed == 0:
+			_set_status("P1: Draw at least one route before COMMIT P1.")
+			return
+		_p1_plan_json = _serialize_ops_plans(p1_ops)
+		var cr := CommitReveal.new()
+		_p1_commitment = cr.commit(_p1_plan_json, _p1_salt)
+		cr.free()
+		_pass_play_stage = 1
+		_apply_turn_controllability()
+		_set_phase_controls(false)
+		_set_status("P1 COMMIT [%s] · Hand device to P2!" % _p1_commitment.substr(0, 10))
+		return
 	var routed := 0
 	for cells in route_cells.values():
 		if not cells.is_empty():
 			routed += 1
-	if routed == 0:
+	if _is_pass_play() and _pass_play_stage == 1:
+		var cr2 := CommitReveal.new()
+		var valid_commit := cr2.verify(_p1_plan_json, _p1_salt, _p1_commitment)
+		cr2.free()
+		if not valid_commit:
+			_set_status("Commit-Reveal signature mismatch.")
+			return
+		_reveal_all_plans_for_execution()
+	elif routed == 0:
 		_set_status(_planning_hint())
 		return
+	if lockstep != null and lockstep.session_active:
+		var my_ops := _turn_ops(local_faction_id if _is_pvp() else (0 if String(two_player_config.get("role", "host")) == "host" else 1))
+		lockstep.send_packet({"kind": "plan_sync", "plans": _serialize_ops_plans(my_ops)})
 	_initial_snapshot = MissionSnapshot.capture(world)
 	_pending_go_codes.clear()
 	SimClock.start_execution()
 	_set_phase_controls(true)
-	_set_status("EXECUTING · %d of %d operatives routed" % [routed, spawn_cells.size()])
+	_set_status("EXECUTING · Tap operative card + cell for Tap-In (-1 CP).")
 
 
 func _select_go_code(code: StringName) -> void:
@@ -555,9 +617,13 @@ func _on_reset_pressed() -> void:
 	_pending_go_codes.clear()
 	_selected_node = RoutePlanner.NO_CELL
 	_active_floor = 0
+	_pass_play_stage = 0
+	if tap_in != null:
+		tap_in.release_ai()
 	if controller != null:
 		controller.active_floor = 0
 		controller.map = map
+	_apply_turn_controllability()
 	if _floor_button != null and map != null:
 		_floor_button.text = "F1/%d" % map.floor_count
 	SimClock.reset_to_planning()
@@ -717,6 +783,36 @@ func _on_operative_selected(op_id: int) -> void:
 		token.set_selected(token.op_id == op_id)
 	if SimClock.phase == SimClock.Phase.PLANNING:
 		_set_phase_controls(false)
+	elif SimClock.phase == SimClock.Phase.EXECUTION and tap_in != null:
+		tap_in.op_id = op_id
+		_set_status("TAP-IN %s · Tap any cell on map to redirect (-1 CP)." % squad_hud.callsign(op_id))
+
+
+func _on_execution_cell_tapped(cell: Vector2i) -> void:
+	if SimClock.phase != SimClock.Phase.EXECUTION or _result_view != null or world == null or tap_in == null:
+		return
+	var fmap := world.map_on_floor(_active_floor)
+	if not fmap.in_bounds(cell) or fmap.is_solid(cell):
+		return
+	var target_id := tap_in.op_id if tap_in.op_id >= 0 else (_selected_op if _selected_op >= 0 else 0)
+	var target_op: SimOperative = null
+	for o in world.operatives:
+		if o.id == target_id and o.faction_id == local_faction_id:
+			target_op = o
+			break
+	if target_op == null or target_op.floor_idx != _active_floor:
+		return
+	if tap_in.ingest_cell_target(target_op, cell):
+		_set_status("TAP-IN %s -> %s (CP %d/%d)" % [
+			squad_hud.callsign(target_op.id),
+			_cell_name(cell),
+			world.tapin_points,
+			SimConstants.TAPIN_COMMAND_POINTS_MAX,
+		])
+	elif world.tapin_points <= 0:
+		_set_status("No Command Points left for Tap-In.")
+	else:
+		_set_status("Tap-In on cooldown for %s." % squad_hud.callsign(target_op.id))
 
 
 func _on_route_node_tapped(cell: Vector2i) -> void:
@@ -978,7 +1074,10 @@ static func _cell_name(cell: Vector2i) -> String:
 
 
 func _rebuild_world() -> void:
-	world.setup(map, DEV_SEED)
+	var seed_val := int(two_player_config.get("seed", DEV_SEED))
+	world.setup(map, seed_val)
+	if tap_in != null:
+		tap_in.world = world
 	_reached_checkpoints.clear()
 	renderer.setup(world.map_on_floor(_active_floor))
 	if props != null:
@@ -1002,9 +1101,17 @@ func _set_phase_controls(executing: bool) -> void:
 		squad_hud.visible = not result_visible
 	if _execute_button != null:
 		_execute_button.disabled = executing or result_visible
+		if _is_pass_play() and not executing:
+			_execute_button.text = "COMMIT P1" if _pass_play_stage == 0 else "COMMIT & EXEC"
+		else:
+			_execute_button.text = "EXECUTE"
 	if _mode_button != null:
 		_mode_button.visible = not result_visible
-		_mode_button.disabled = executing or result_visible
+		_mode_button.disabled = result_visible
+		if executing:
+			_mode_button.text = "REL AI"
+		elif controller != null:
+			_mode_button.text = "TAP" if controller.tap_to_cell_mode else "DRAW"
 	if _floor_button != null:
 		_floor_button.visible = (map != null and map.floor_count > 1) and not result_visible
 	var code_buttons := [_alpha_button, _bravo_button, _charlie_button, _delta_button]
@@ -1053,6 +1160,25 @@ func _planning_hint() -> String:
 
 
 func _maybe_aar() -> void:
+	if _is_pvp():
+		var f0_alive := 0
+		var f1_alive := 0
+		var all_fin := true
+		for op in world.operatives:
+			if op.faction_id == 0 and op.is_alive():
+				f0_alive += 1
+			elif op.faction_id == 1 and op.is_alive():
+				f1_alive += 1
+			all_fin = all_fin and (op.done or op.halted or not op.is_alive())
+		if f1_alive == 0:
+			_show_result(true, "P1 Breachers eliminated P2 Defenders.", f0_alive, false)
+			return
+		if f0_alive == 0:
+			_show_result(false, "P2 Defenders eliminated P1 Breachers.", f0_alive, false)
+			return
+		if all_fin and world.pending.is_empty() and world.entities.is_empty():
+			_show_result(true, "PvP breach phase completed.", f0_alive, false)
+		return
 	var alive := 0
 	var all_finished := true
 	var halted := false
@@ -1091,13 +1217,15 @@ func _next_campaign_map() -> String:
 
 func _show_result(complete: bool, reason: String, alive: int, halted: bool = false) -> void:
 	_recorded_go_codes = world.go_code_stream.duplicate(true)
-	_recorded_overrides = world.override_stream.duplicate(true)
+	_recorded_overrides.clear()
+	for oc in world.override_stream:
+		_recorded_overrides.append(OverrideCommand.from_dict(oc.to_dict()))
 	_recorded_max_tick = world.tick
 	var grading := MissionGrading.new().grade(world, complete)
 	var rp_earned := int(grading.get("rp", 0))
 	var zero_cas := alive == world.operatives.size()
 	var letter := MissionGrading.letter_for(complete, zero_cas, halted)
-	if complete and map_source != "" and map_source != GREYBOX_SOURCE:
+	if complete and map_source != "" and map_source != GREYBOX_SOURCE and two_player_config.is_empty():
 		var ps := ProgressionSave.load_from_disk()
 		ps.campaign_state["total_rp"] = int(ps.campaign_state.get("total_rp", 0)) + rp_earned
 		ps.campaign_state[map_source] = letter
@@ -1130,7 +1258,8 @@ func _show_result(complete: bool, reason: String, alive: int, halted: bool = fal
 
 func _on_next_mission(next_path: String) -> void:
 	ScreenRouter.set_param("map_path", next_path)
-	ScreenRouter.goto_stage(ScreenRouter.Stage.IN_MISSION)
+	ScreenRouter.set_param("return_stage", int(ScreenRouter.Stage.CAMPAIGN))
+	ScreenRouter.goto_stage(ScreenRouter.Stage.PREP)
 
 
 func scrub_replay_to_tick(target_tick: int) -> void:
@@ -1138,7 +1267,9 @@ func scrub_replay_to_tick(target_tick: int) -> void:
 		return
 	world.restore_from_data(_initial_snapshot.data)
 	world.go_code_stream = _recorded_go_codes.duplicate(true)
-	world.override_stream = _recorded_overrides.duplicate(true)
+	world.override_stream.clear()
+	for oc in _recorded_overrides:
+		world.override_stream.append(OverrideCommand.from_dict(oc.to_dict()))
 	if fog != null:
 		fog.reset_fog()
 	if overlay != null:
@@ -1189,20 +1320,192 @@ func _on_replay_requested() -> void:
 
 
 func _populate_world() -> void:
+	_consumed_enemy_spawns = 2 if _is_pvp() else 0
 	for i in range(spawn_cells.size()):
 		var plan: Array[AgentCommand] = []
 		if plans.has(i):
 			for cmd in plans[i]:
 				plan.append(cmd)
-		world.add_operative(i, spawn_cells[i], plan, 0)
-	var eid := OPERATIVE_COUNT
+		var op := world.add_operative(i, spawn_cells[i], plan, 0)
+		if _is_pvp() and i >= 2:
+			op.faction_id = 1
+		if i < mission_loadout.size():
+			var cfg: Dictionary = mission_loadout[i]
+			op.armor_class = StringName(String(cfg.get("armor_class", "light")))
+			op.heartbeat_radius = int(cfg.get("heartbeat_radius", 0))
+			world.combat.calibers[op.id] = StringName(String(cfg.get("caliber", "5.56")))
+	var eid := maxi(OPERATIVE_COUNT, spawn_cells.size())
+	var skipped := 0
 	for fl in range(world.floor_maps.size()):
 		var fm := world.floor_maps[fl]
 		for entry in fm.ai_spawns:
 			var cell := MapEditorValidator.cell_of(entry.get("cell", []))
 			if fm.in_bounds(cell) and not fm.is_solid(cell):
+				if fl == 0 and skipped < _consumed_enemy_spawns:
+					skipped += 1
+					continue
 				world.add_enemy(eid, cell, StringName(String(entry.get("archetype", ""))), float(entry.get("facing_deg", 0.0)), fl)
 				eid += 1
+
+
+func _load_session_configs() -> void:
+	var raw_loadout: Variant = ScreenRouter.get_param("mission_loadout", [])
+	ScreenRouter.clear_param("mission_loadout")
+	if typeof(raw_loadout) == TYPE_ARRAY:
+		mission_loadout = (raw_loadout as Array).duplicate(true)
+	var raw_2p: Variant = ScreenRouter.get_param("two_player_config", {})
+	ScreenRouter.clear_param("two_player_config")
+	if typeof(raw_2p) == TYPE_DICTIONARY:
+		two_player_config = (raw_2p as Dictionary).duplicate(true)
+	if String(two_player_config.get("transport", "")) == "lan" and lockstep != null:
+		var role := String(two_player_config.get("role", "host"))
+		if role == "host":
+			lockstep.host_on_port(0, LockstepSession.PORT)
+		else:
+			lockstep.connect_on_port(String(two_player_config.get("host_ip", "127.0.0.1")), LockstepSession.PORT)
+			if _is_pvp():
+				local_faction_id = 1
+	if overlay != null:
+		overlay.local_faction_id = local_faction_id
+
+
+func _is_2p() -> bool:
+	return not two_player_config.is_empty()
+
+
+func _is_pvp() -> bool:
+	return String(two_player_config.get("mode", "")) == "pvp"
+
+
+func _is_pass_play() -> bool:
+	return String(two_player_config.get("transport", "")) == "pass_play"
+
+
+func _assigned_squad_for(op_id: int) -> StringName:
+	if op_id >= 0 and op_id < mission_loadout.size():
+		return StringName(String((mission_loadout[op_id] as Dictionary).get("squad", "red")))
+	return SquadConfig.SQUADS[op_id % SquadConfig.SQUADS.size()]
+
+
+func _resolve_spawn_cells() -> Array[Vector2i]:
+	if _is_pvp():
+		var breacher_cells := spawn_cells_for(map, map_source == GREYBOX_SOURCE, 2)
+		var def_cells: Array[Vector2i] = []
+		for entry in map.ai_spawns:
+			var dc := MapEditorValidator.cell_of(entry.get("cell", []))
+			if map.in_bounds(dc) and not map.is_solid(dc) and not breacher_cells.has(dc) and not def_cells.has(dc):
+				def_cells.append(dc)
+				if def_cells.size() >= 2:
+					break
+		var extra := spawn_cells_for(map, map_source == GREYBOX_SOURCE, 4)
+		for ec in extra:
+			if def_cells.size() >= 2:
+				break
+			if not breacher_cells.has(ec) and not def_cells.has(ec):
+				def_cells.append(ec)
+		var combined: Array[Vector2i] = []
+		for bc in breacher_cells:
+			combined.append(bc)
+		for dc2 in def_cells:
+			combined.append(dc2)
+		return combined
+	var count := clampi(mission_loadout.size(), 2, 4) if not mission_loadout.is_empty() else OPERATIVE_COUNT
+	return spawn_cells_for(map, map_source == GREYBOX_SOURCE, count)
+
+
+func _turn_ops(player_idx: int) -> Array[int]:
+	var out: Array[int] = []
+	if not _is_2p():
+		for i in range(spawn_cells.size()):
+			out.append(i)
+		return out
+	if _is_pvp():
+		if player_idx == 0:
+			out = [0, 1]
+		else:
+			out = [2, 3]
+		return out
+	out = [player_idx] if player_idx < spawn_cells.size() else [0]
+	return out
+
+
+func _apply_turn_controllability() -> void:
+	if controller == null:
+		return
+	controller.controllable_ops.clear()
+	if not _is_2p() or SimClock.phase == SimClock.Phase.EXECUTION:
+		local_faction_id = 0
+		if squad_hud != null:
+			squad_hud.active_faction_id = 0
+			squad_hud.refresh(world)
+		if overlay != null:
+			overlay.local_faction_id = 0
+		return
+	var p_idx := _pass_play_stage if _is_pass_play() else (0 if String(two_player_config.get("role", "host")) == "host" else 1)
+	var allowed := _turn_ops(p_idx)
+	for op_id in allowed:
+		controller.controllable_ops[op_id] = true
+	if _is_pvp():
+		local_faction_id = p_idx
+	if squad_hud != null:
+		squad_hud.active_faction_id = local_faction_id
+		squad_hud.refresh(world)
+		if not allowed.is_empty():
+			squad_hud.selected_op = allowed[0]
+			_selected_op = allowed[0]
+	if overlay != null:
+		overlay.local_faction_id = local_faction_id
+	for i in range(spawn_cells.size()):
+		var line := controller.route_line(i)
+		if line != null:
+			line.visible = (not _is_pass_play() or allowed.has(i))
+	for tok in controller.tokens:
+		tok.visible = not (_is_pass_play() and _pass_play_stage == 1 and _is_pvp() and tok.op_id < 2)
+
+
+func _reveal_all_plans_for_execution() -> void:
+	if controller == null:
+		return
+	controller.controllable_ops.clear()
+	local_faction_id = 0
+	if squad_hud != null:
+		squad_hud.active_faction_id = 0
+		squad_hud.refresh(world)
+	if overlay != null:
+		overlay.local_faction_id = 0
+	for i in range(spawn_cells.size()):
+		var line := controller.route_line(i)
+		if line != null:
+			line.visible = true
+	_sync_tokens()
+
+
+func _serialize_ops_plans(op_ids: Array[int]) -> String:
+	var dump := {}
+	for op_id in op_ids:
+		var arr := []
+		for cmd in plans.get(op_id, []):
+			arr.append((cmd as AgentCommand).to_dict())
+		dump[str(op_id)] = arr
+	return JSON.stringify(dump)
+
+
+func _consume_lan_packets() -> void:
+	if lockstep == null:
+		return
+	while not lockstep.received_packets.is_empty():
+		var pkt: Dictionary = lockstep.received_packets.pop_front()
+		if String(pkt.get("kind", "")) == "plan_sync":
+			var parsed: Variant = JSON.parse_string(String(pkt.get("plans", "{}")))
+			if typeof(parsed) == TYPE_DICTIONARY:
+				var d: Dictionary = parsed
+				for k in d.keys():
+					var op_id := int(k)
+					var arr: Array[AgentCommand] = []
+					for cd in d[k]:
+						arr.append(AgentCommand.from_dict(cd))
+					plans[op_id] = arr
+				_rebuild_world()
 
 
 static func spawn_cells_for(m: GreyboxMap, greybox: bool, count: int) -> Array[Vector2i]:

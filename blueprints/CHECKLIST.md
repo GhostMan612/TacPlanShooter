@@ -90,6 +90,9 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Route A clean-checkout preset verified with Godot 4.0.4, ARM64 packaging, signature, and all ten source maps (CP-100).
 - ✅ Handoff doc rewritten: `docs\BUILD-IN-ANDROID-STUDIO.md` (Route A walkthrough, `adb.exe install`, CP-030 1–7 test script, Route B blocker details)
 - ✅ Install Route A debug APK (`builds\TacPlan-debug.apk`) on physical Android device (`BLU B160V`, `7040016025040287`) and verify boot + touch planning/execution/AAR/editor controls (CP-101, CP-030).
+- ✅ Update `CHANGELOG.md` + `CHECKPOINTS.md` + N64 Mission Prep 5-tab flow (`scenes/prep.tscn` + `MissionPrepScreen`: `BRIEF`/`INTEL`/`ROSTER`/`KIT`/`SQUAD`) + RPG `ArmoryScreen` RP unlocks + `ProgressionSave` (`CP-074`)
+- ✅ Live Tap-In Direct Control (`TapInController.ingest_cell_target` + `REL AI` + `override_stream` replay) and 2-Player Co-Op/PvP Lobby (`TitleScreen` 7/7 enabled -> `scenes/two_player.tscn` / `TwoPlayerScreen` Pass-and-Play SHA-256 `CommitReveal` + LAN `LockstepSession` UDP 7600, `CP-075`)
+- ⬜ Device UI walkthrough (`CP-102`): Route A APK (`INTERNET` + `ACCESS_NETWORK_STATE`) built, `apksigner`-verified & installed on `B160V` (`7040016025040287`); live launch awaits phone unlock / `ZT4222BMWN` USB reconnect
 - ⬜ Route B requires JDK 11 and the SDK platform, build-tools, and NDK versions pinned by the generated template.
 - ⬜ Release signing flow (deferred until store-ready; debug keystore only, never committed)
 

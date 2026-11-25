@@ -8,6 +8,7 @@ extends Node
 signal mode_changed(mode: int)
 signal route_committed(op_id: int, waypoints: Array[Vector2i])
 signal cell_tapped(cell: Vector2i)
+signal execution_cell_tapped(cell: Vector2i)
 
 enum Mode { OBSERVATION, ROUTING }
 
@@ -30,6 +31,7 @@ var routing_enabled := true
 var tap_to_cell_mode := false
 var active_floor := 0
 var op_colors := {}
+var controllable_ops: Dictionary = {}
 
 var _touches := {}
 var _press_time := {}
@@ -156,6 +158,8 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 	for t in tokens:
 		if not t.visible or t.modulate.a < 0.5:
 			continue
+		if not controllable_ops.is_empty() and not controllable_ops.has(t.op_id):
+			continue
 		var d := t.position.distance_to(world)
 		if d < best_d:
 			best_d = d
@@ -230,10 +234,11 @@ func commit_tap_cell(op_id: int, start_cell: Vector2i, target_cell: Vector2i) ->
 
 
 func _handle_tap(pos: Vector2) -> void:
-	if not routing_enabled:
-		return
 	var world := _to_world(pos)
 	var cell := GridUtil.px_to_cell(world)
+	if not routing_enabled:
+		execution_cell_tapped.emit(cell)
+		return
 	cell_tapped.emit(cell)
 
 

@@ -84,13 +84,13 @@ static func line_clear(a: Vector2, b: Vector2, segs: Array) -> bool:
 
 
 static func mode_of(o: SimOperative) -> StringName:
-	if o.faction_id != 0 or o.mode_name == &"":
+	if o.mode_name == &"":
 		return MODE_ENGAGE
 	return o.mode_name
 
 
 func holds_position(o: SimOperative) -> bool:
-	return o.faction_id == 0 and mode_of(o) == MODE_ENGAGE and sight.has(o.id)
+	return mode_of(o) == MODE_ENGAGE and sight.has(o.id)
 
 
 func register_enemy(id: int, archetype: StringName) -> void:
@@ -198,7 +198,7 @@ func _fire(world: SimWorld, shooter: SimOperative, target: SimOperative) -> void
 		var shooter_brain: EnemyAi = world.ai.enemies[shooter.id]
 		shooter_brain.ammo = maxi(shooter_brain.ammo - 1, 0)
 	var dist := shooter.pos.distance_to(target.pos)
-	if shooter.faction_id != 0:
+	if world.ai.enemies.has(shooter.id):
 		shooter.facing_deg = angle_to(shooter.pos, target.pos)
 	var acc := accuracy(shooter.stance, dist, world.ballistics.suppressed_ticks(shooter.id) > 0)
 	var hit := world.rng.randf() < acc

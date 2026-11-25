@@ -80,9 +80,10 @@ func _ready() -> void:
 
 
 func _launch(path: String) -> void:
+	ScreenRouter.clear_param("two_player_config")
 	ScreenRouter.set_param("map_path", path)
 	ScreenRouter.set_param("return_stage", int(ScreenRouter.Stage.CAMPAIGN))
-	ScreenRouter.goto_stage(ScreenRouter.Stage.IN_MISSION)
+	ScreenRouter.goto_stage(ScreenRouter.Stage.PREP)
 
 
 func _go_back() -> void:

@@ -132,10 +132,40 @@ func _process_overrides() -> void:
 		for o in operatives:
 			if o.id != oc.op_id or not o.is_alive():
 				continue
+			if oc.use_slot:
+				o.facing_deg = oc.aim_deg
+				o.field_of_fire_deg = int(round(fposmod(oc.aim_deg, 360.0)))
+				var fmap := map_on_floor(o.floor_idx)
+				var goal := Vector2i(int(round(oc.move_dir.x)), int(round(oc.move_dir.y)))
+				if goal == GridUtil.cell_of(o.pos):
+					var empty: Array[AgentCommand] = []
+					o.queue.reset(empty)
+					o.active_path = PackedVector2Array()
+					o.path_index = 0
+					o.wait_code = &""
+					o.halted = false
+					o.done = true
+				elif fmap.in_bounds(goal) and not fmap.is_solid(goal):
+					var mv := AgentCommand.new()
+					mv.command_type = AgentCommand.CommandType.MOVE_TO_CELL
+					mv.target_cell = goal
+					var cmds: Array[AgentCommand] = [mv]
+					o.queue.reset(cmds)
+					o.active_path = PackedVector2Array()
+					o.path_index = 0
+					o.wait_code = &""
+					o.halted = false
+					o.done = false
+					o.move_blocked_from = 0
+				continue
 			if oc.aim_deg != 0.0:
 				o.facing_deg = oc.aim_deg
 			if oc.move_dir.length() > 0.000001:
-				o.pos += oc.move_dir.normalized() * SimConstants.BASE_SPEED_CELLS_PER_SEC * o.speed_cells_per_sec() * (1.0 / 60.0)
+				var cand := o.pos + oc.move_dir.normalized() * SimConstants.BASE_SPEED_CELLS_PER_SEC * o.speed_cells_per_sec() * (1.0 / 60.0)
+				var fmap2 := map_on_floor(o.floor_idx)
+				var ccell := GridUtil.cell_of(cand)
+				if fmap2.in_bounds(ccell) and not fmap2.is_solid(ccell):
+					o.pos = cand
 
 
 func schedule_go_code(code: StringName) -> void:
@@ -694,6 +724,8 @@ func _check_collision(o: SimOperative) -> void:
 	var plan := _collision_plan(o)
 	for p in operatives:
 		if p == o or p.floor_idx != o.floor_idx or p.done or not p.is_alive():
+			continue
+		if p.active_path.is_empty() and p.queue.peek_next() == null:
 			continue
 		if _polyline_intersects(plan, _collision_plan(p)):
 			o.halted = true

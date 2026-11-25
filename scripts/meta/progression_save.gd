@@ -8,6 +8,15 @@ extends RefCounted
 
 const VERSION: int = 1
 const SAVE_PATH := "user://progression.json"
+const DEFAULT_UNLOCKS: Array[String] = [
+	"weapon_smg_standard",
+	"weapon_carbine_compact",
+	"weapon_pistol_standard",
+	"armor_light_iia",
+	"armor_medium_ii",
+	"tool_underdoor_cam",
+	"tool_demolitions",
+]
 
 
 var profiles := []
@@ -15,19 +24,47 @@ var campaign_state := {}
 
 
 func save_json() -> String:
-	var parts := []
+	var parts: Array[String] = []
 	for p in profiles:
-		parts.append("{\"operative_id\":%d,\"codename\":\"%s\",\"xp\":%d,\"role\":%d}" % [
-			p.operative_id,
-			String(p.codename).replace("\"", ""),
-			p.xp,
-			p.role,
-		])
+		parts.append(JSON.stringify((p as UnitProfile).to_dict()))
 	return "{\"version\":%d,\"profiles\":[%s],\"campaign\":%s}" % [
 		VERSION,
 		",".join(parts),
 		JSON.stringify(campaign_state),
 	]
+
+
+func unlocked_items() -> Array[String]:
+	var out: Array[String] = []
+	for d in DEFAULT_UNLOCKS:
+		out.append(d)
+	var saved: Variant = campaign_state.get("unlocks", [])
+	if typeof(saved) == TYPE_ARRAY:
+		for entry in saved:
+			var s := String(entry)
+			if s != "" and not out.has(s):
+				out.append(s)
+	return out
+
+
+func unlock_item(item: StringName, cost_rp: int) -> bool:
+	var key := String(item)
+	if unlocked_items().has(key):
+		return true
+	var rp := int(campaign_state.get("total_rp", 0))
+	var cost := maxi(cost_rp, 0)
+	if rp < cost:
+		return false
+	campaign_state["total_rp"] = rp - cost
+	var arr: Array = []
+	var prev: Variant = campaign_state.get("unlocks", [])
+	if typeof(prev) == TYPE_ARRAY:
+		for e in prev:
+			arr.append(String(e))
+	if not arr.has(key):
+		arr.append(key)
+	campaign_state["unlocks"] = arr
+	return true
 
 
 func save_to_disk() -> void:

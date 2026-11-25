@@ -47,11 +47,15 @@ func _test_save_load() -> int:
 	var s := ProgressionSave.new()
 	var p := UnitProfile.new()
 	p.operative_id = 1
-	p.earn_xp(100)
+	p.equip(&"weapon_carbine_compact")
 	s.profiles.append(p)
+	p.earn_xp(100)
+	s.campaign_state["total_rp"] = 50
+	var bought := s.unlock_item(&"tool_heartbeat_sensor", 25)
 	var json := s.save_json()
 	var s2 := ProgressionSave.new()
-	var ok: bool = s2.load_json(json) and s2.profiles.size() == 1 and s2.profiles[0].xp == 100
+	var ok: bool = bought and s2.load_json(json) and s2.profiles.size() == 1 and s2.profiles[0].xp == 100
+	ok = ok and s2.profiles[0].equipped.has(&"weapon_carbine_compact") and int(s2.campaign_state.get("total_rp", 0)) == 25 and s2.unlocked_items().has("tool_heartbeat_sensor")
 	print("[HARNESS] mp_save_load %s" % ("PASS" if ok else "FAIL"))
 	return 0 if ok else 1
 

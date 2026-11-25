@@ -6,7 +6,7 @@ class_name ScreenRouter
 extends RefCounted
 
 
-enum Stage { SPLASH, TITLE, LOADING, PREP, IN_MISSION, AAR, CAMPAIGN, SETTINGS, HQ, CREDITS, MAP_EDITOR }
+enum Stage { SPLASH, TITLE, LOADING, PREP, IN_MISSION, AAR, CAMPAIGN, SETTINGS, HQ, CREDITS, MAP_EDITOR, TWO_PLAYER }
 
 
 signal advanced(stage: int)
@@ -27,7 +27,9 @@ static func scene_for(s: int) -> String:
 			return "res://scenes/title.tscn"
 		Stage.LOADING:
 			return "res://scenes/loading.tscn"
-		Stage.PREP, Stage.IN_MISSION:
+		Stage.PREP:
+			return "res://scenes/prep.tscn"
+		Stage.IN_MISSION:
 			return "res://scenes/planning.tscn"
 		Stage.AAR:
 			return "res://scenes/aar.tscn"
@@ -41,6 +43,8 @@ static func scene_for(s: int) -> String:
 			return "res://scenes/credits.tscn"
 		Stage.MAP_EDITOR:
 			return "res://scenes/map_editor.tscn"
+		Stage.TWO_PLAYER:
+			return "res://scenes/two_player.tscn"
 	return ""
 
 

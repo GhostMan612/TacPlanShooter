@@ -16,6 +16,7 @@ const DOT_PX := 22.0
 var world: SimWorld = null
 var squads: SquadConfig = null
 var selected_op: int = -1
+var active_faction_id: int = 0
 var palette: Dictionary = ThemeManager.palette_for(ThemeManager.Style.DARK_TACTICAL)
 var _row: HBoxContainer = null
 var _cp_label: Label = null
@@ -67,17 +68,22 @@ func world_ops_of(squad: StringName) -> Array[SimOperative]:
 	if world == null:
 		return out
 	for o in world.operatives:
-		if o.faction_id == 0 and squad_of(o.id) == squad:
+		if o.faction_id == active_faction_id and squad_of(o.id) == squad:
 			out.append(o)
 	return out
 
 
 func callsign(op_id: int) -> String:
 	var sq := squad_of(op_id)
-	var ops := world_ops_of(sq)
+	var ops: Array[SimOperative] = []
+	if world != null:
+		for o in world.operatives:
+			if squad_of(o.id) == sq:
+				ops.append(o)
 	for i in range(ops.size()):
 		if ops[i].id == op_id:
-			return String(sq).substr(0, 1).to_upper() + str(i + 1)
+			var prefix := "Y" if sq == &"gold" else String(sq).substr(0, 1).to_upper()
+			return prefix + str(i + 1)
 	return "?" + str(op_id)
 
 
@@ -89,10 +95,10 @@ func world_tapin_points() -> int:
 
 func health_color(o: SimOperative) -> Color:
 	if not o.is_alive():
-		return Color("#DC2626")
+		return Color(0.863, 0.149, 0.149)
 	if o.health == &"wounded":
-		return Color("#F59E0B")
-	return Color("#16A34A")
+		return Color(0.961, 0.620, 0.043)
+	return Color(0.086, 0.639, 0.290)
 
 
 func touch_operative(op_id: int) -> void:
@@ -114,11 +120,21 @@ func operative_button(op_id: int) -> Button:
 func _roster_signature() -> String:
 	if world == null:
 		return ""
-	var parts: Array[String] = []
+	var parts: Array[String] = [str(active_faction_id)]
 	for o in world.operatives:
-		if o.faction_id == 0:
+		if o.faction_id == active_faction_id:
 			parts.append("%d:%s" % [o.id, String(squad_of(o.id))])
 	return ",".join(PackedStringArray(parts))
+
+
+func _active_op_count() -> int:
+	if world == null:
+		return 0
+	var n := 0
+	for o in world.operatives:
+		if o.faction_id == active_faction_id:
+			n += 1
+	return n
 
 
 func _rebuild() -> void:
@@ -131,6 +147,15 @@ func _rebuild() -> void:
 	for child in _row.get_children():
 		_row.remove_child(child)
 		child.queue_free()
+	var total_ops := _active_op_count()
+	var btn_w := 176.0
+	var f_px := 26
+	if total_ops == 3:
+		btn_w = 120.0
+		f_px = 22
+	elif total_ops >= 4:
+		btn_w = 92.0
+		f_px = 18
 	for sq in SquadConfig.SQUADS:
 		var ops := world_ops_of(sq)
 		if ops.is_empty():
@@ -145,7 +170,7 @@ func _rebuild() -> void:
 		var header := Label.new()
 		header.text = String(sq).to_upper()
 		header.add_theme_color_override("font_color", PlanBoard.squad_color(sq))
-		header.add_theme_font_size_override("font_size", 32)
+		header.add_theme_font_size_override("font_size", 28 if total_ops <= 2 else 22)
 		col.add_child(header)
 		var buttons := HBoxContainer.new()
 		col.add_child(buttons)
@@ -153,13 +178,15 @@ func _rebuild() -> void:
 			var b := Button.new()
 			b.name = "Op%d" % o.id
 			b.focus_mode = Control.FOCUS_NONE
-			b.custom_minimum_size = Vector2(176, 96)
+			b.custom_minimum_size = Vector2(btn_w, 96)
+			b.clip_text = true
+			b.add_theme_font_size_override("font_size", f_px)
 			b.add_theme_color_override("font_color", PlanBoard.squad_color(sq))
 			b.pressed.connect(touch_operative.bind(o.id))
 			var dot := ColorRect.new()
 			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			dot.position = Vector2(10, 10)
-			dot.size = Vector2(DOT_PX, DOT_PX)
+			dot.position = Vector2(8, 8)
+			dot.size = Vector2(DOT_PX if total_ops <= 2 else 16.0, DOT_PX if total_ops <= 2 else 16.0)
 			b.add_child(dot)
 			buttons.add_child(b)
 			_op_buttons[o.id] = b
@@ -170,6 +197,7 @@ func _rebuild() -> void:
 	_cp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_cp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_cp_label.add_theme_color_override("font_color", palette["ink"])
+	_cp_label.add_theme_font_size_override("font_size", 24 if total_ops <= 2 else 20)
 	_row.add_child(_cp_label)
 	_update_live()
 

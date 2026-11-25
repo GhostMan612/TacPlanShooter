@@ -22,3 +22,5 @@ architectures/x86=false
 architectures/x86_64=false
 package/unique_name="com.tacplan.game"
 package/signed=true
+permissions/internet=true
+permissions/access_network_state=true

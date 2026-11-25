@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-25 (Session 20 — Repo sync & Headless CI green fix on `TacticalAudio` + `tools/ci_gate.sh`)
+**Last updated:** 2026-11-25 (Session 21 — Mission Prep, Armory RP Unlocks, Live Tap-In Control & 2-Player Co-Op/PvP Lobby)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable / 4.0.stable (`C:\Godot\Godot_v4.0-stable_win64_console.exe`) for headless gates & Route A export.
@@ -23,15 +23,14 @@ BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/brea
 
 **FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
-- Touch UX & Multi-Floor Expansion (Session 19): recorded hands-on user verdict (`CP-080` / `CP-090` ✅ PASSED) and shipped freehand wall-graze auto-repair, `0.28 s` hold + `24 px` hold slop, `DRAW`/`TAP` toggle mode, compact above-map `_node_menu` w/ `DONE`, procedural `TacticalVfx` tracers/flashes/rings, translucent `AarScreen` (`GRADE` + `+RP` + `NEXT OPERATION` + `ProgressionSave`), and full multi-floor stair links (`CP-073` ✅ PASSED across `OP-05`–`OP-10`).
-- Verified all 12 headless Godot 4.0 gates cleanly (`failures = 0`, `HYGIENE_COMMENTS = 0`) and tested `OP-05: Penthouse Lock` `F1 -> F2` stair ascension, `F2` firefight/extraction (`GRADE S · +75 RP`), and translucent replay live on BLU `B160V`.
-- Remaining items are Mission Prep 7-stage panels polish, 2-Player LAN lockstep UI wiring, and store release signing.
+- **Session 21 (`CP-074`, `CP-075` headless PASS):** Shipped interactive `ArmoryScreen` RP unlocks + `ProgressionSave`, 5-tab `MissionPrepScreen` (`scenes/prep.tscn` — `BRIEF`/`INTEL`/`ROSTER`/`KIT`/`SQUAD` deploying 2–4 operatives with weapon caliber, armor class, heartbeat sensor, and squad colors), live `TapInController` cell-redirect during Execution (`-1 CP`, `REL AI`, deterministic `override_stream` replay), and 2-Player Co-Op/PvP (`TitleScreen` 7/7 enabled -> `scenes/two_player.tscn` / `TwoPlayerScreen` Pass-and-Play blind SHA-256 `CommitReveal` + `LockstepSession` UDP 7600 host/join).
+- Exported & `apksigner`-verified `builds\TacPlan-debug.apk` (`28,399,175` bytes, `INTERNET` + `ACCESS_NETWORK_STATE`) and installed onto connected BLU `B160V` (`7040016025040287`). Live on-device UI walkthrough (`CP-102`) is pending phone unlock (`B160V` in `RUNNING_LOCKED` BFU) or USB reconnect of Moto G (`ZT4222BMWN`).
 
 ## Immediate next actions
 
-1. Polish the Mission Prep pre-planning UI (`Briefing` / `Intel` / `Roster` / `Kit` / `Team`) before entering the planning board.
-2. Wire the 2-Player LAN lockstep lobby & commit-reveal flow (`LockstepSession`, `CommitReveal`) and re-enable the Title `2-PLAYER` button.
-3. Configure release keystore signing outside the repo (and optionally JDK 11 / NDK 23 if Route B Gradle assembly is ever needed).
+1. Unlock BLU `B160V` (`7040016025040287`) and/or reconnect Moto G (`ZT4222BMWN`) via USB to install & run live touch/screencap/logcat verification for `CP-102` (`Title`, `HQ & Armory`, `MissionPrepScreen`, `TwoPlayerScreen`, `Tap-In` Execution).
+2. Optional 2-device Wi-Fi LAN Co-Op/PvP session test between Moto G & BLU `B160V` on UDP `7600`.
+3. Configure release keystore signing outside the repo when ready for distribution.
 
 ## Gotchas / constraints (DO NOT FORGET)
 

@@ -47,6 +47,13 @@ func update_contacts(w: SimWorld, live_polys_cells: Array[PackedVector2Array], p
 			if Geometry2D.is_point_in_polygon(o.pos, poly):
 				contacts[id] = {"pos": o.pos, "tick": int(w.tick), "floor": o.floor_idx, "visible": true, "alive": o.is_alive()}
 				break
+	for o in w.operatives:
+		if o.faction_id == local_faction_id or o.floor_idx != p_floor:
+			continue
+		for poly in live_polys_cells:
+			if Geometry2D.is_point_in_polygon(o.pos, poly):
+				contacts[o.id] = {"pos": o.pos, "tick": int(w.tick), "floor": o.floor_idx, "visible": true, "alive": o.is_alive()}
+				break
 	queue_redraw()
 
 
