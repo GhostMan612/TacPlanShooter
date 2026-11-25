@@ -9,9 +9,11 @@ const DEV_SEED := 1337
 
 var map: GreyboxMap = null
 var renderer: MapRenderer = null
+var props: PropsPlacement = null
 var squad_hud: SquadHud = null
 var _tm: ThemeManager = null
 var radial_menu: RadialMenu = null
+var loupe: PipLoupe = null
 var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
@@ -19,6 +21,10 @@ var fog: FogLayer = null
 var overlay: TacticalOverlay = null
 var prep_flow: MissionPrepFlow = null
 var local_faction_id: int = 0
+var _initial_snapshot: MissionSnapshot = null
+var _recorded_go_codes: Array[Dictionary] = []
+var _recorded_overrides: Array[OverrideCommand] = []
+var _recorded_max_tick: int = 0
 
 const OPERATIVE_COUNT := 2
 const NODE_BUTTON_PX := 104
@@ -71,6 +77,10 @@ func _ready() -> void:
 	renderer.apply_palette(_tm.palette())
 	renderer.setup(map)
 	add_child(renderer)
+	props = PropsPlacement.new()
+	props.z_index = 1
+	props.setup(map)
+	add_child(props)
 	fog = FogLayer.new()
 	fog.setup(map)
 	fog.apply_palette(_tm.palette())
@@ -98,6 +108,7 @@ func _ready() -> void:
 	camera.make_current()
 	controller = PlanningController.new()
 	controller.camera = camera
+	controller.map = map
 	controller.line_container = self
 	for child in get_children():
 		if child is OperativeToken:
@@ -149,6 +160,7 @@ func _physics_process(_delta: float) -> void:
 		_pending_go_codes.clear()
 		var journal_start := world.journal.size()
 		world.step()
+		_emit_audio_events(journal_start)
 		for i in range(journal_start, world.journal.size()):
 			if world.journal[i]["ev"] == &"breach_opened":
 				renderer.refresh()
@@ -158,6 +170,25 @@ func _physics_process(_delta: float) -> void:
 		if squad_hud != null:
 			squad_hud.refresh(world)
 		_maybe_aar()
+
+
+func _emit_audio_events(from_idx: int) -> void:
+	var eb := get_node_or_null("/root/EventBus")
+	if eb == null or world == null:
+		return
+	for i in range(from_idx, world.journal.size()):
+		var e: Dictionary = world.journal[i]
+		var ev := StringName(String(e.get("ev", "")))
+		if ev == &"breach_opened":
+			eb.breach_detonated.emit(GridUtil.cell_center_px(Vector2i(int(e.get("cx", 0)), int(e.get("cy", 0)))))
+		elif ev == &"go_issued":
+			eb.go_code_issued.emit(StringName(String(e.get("code", ""))))
+		elif ev == &"shot" and bool(e.get("hit", false)):
+			var tid := int(e.get("target", -1))
+			for op in world.operatives:
+				if op.id == tid:
+					eb.operative_damaged.emit(op.id, op.hp)
+					break
 
 
 func _sync_tokens() -> void:
@@ -195,15 +226,25 @@ func _on_theme_changed(pal: Dictionary) -> void:
 
 
 func _configure_tokens(pal: Dictionary) -> void:
+	var sprite_paths: Array[String] = ["res://assets/sprites/op_pointman.png", "res://assets/sprites/op_breacher.png"]
 	for token in controller.tokens:
 		var squad := squad_hud.squad_of(token.op_id)
 		token.configure(PlanBoard.squad_color(squad), squad_hud.callsign(token.op_id), pal["ink"])
+		var sp: String = sprite_paths[token.op_id % sprite_paths.size()]
+		if ResourceLoader.exists(sp):
+			var tex := ResourceLoader.load(sp, "Texture2D") as Texture2D
+			if tex != null:
+				token.set_sprite(tex)
 
 
 func _setup_hud() -> void:
 	var settings := ThemeManager.load_settings()
 	_hud_canvas = CanvasLayer.new()
 	add_child(_hud_canvas)
+	loupe = PipLoupe.new()
+	_hud_canvas.add_child(loupe)
+	if controller != null:
+		controller.loupe = loupe
 	radial_menu = RadialMenu.new()
 	radial_menu.go_code_selected.connect(_on_radial_go_code)
 	_hud_canvas.add_child(radial_menu)
@@ -284,9 +325,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _on_radial_go_code(code: StringName) -> void:
-	if world != null:
-		world.issue_go_code(code)
-		print("[TacPlan] radial go_code: " + String(code))
+	_select_go_code(code)
+
+
+func _on_execute_pressed() -> void:
 	if world == null or _result_view != null or SimClock.phase != SimClock.Phase.PLANNING:
 		return
 	if not _invalid_routes.is_empty():
@@ -299,6 +341,7 @@ func _on_radial_go_code(code: StringName) -> void:
 	if routed == 0:
 		_set_status(_planning_hint())
 		return
+	_initial_snapshot = MissionSnapshot.capture(world)
 	_pending_go_codes.clear()
 	SimClock.start_execution()
 	_set_phase_controls(true)
@@ -577,6 +620,9 @@ func _rebuild_world() -> void:
 	world.setup(map, DEV_SEED)
 	_reached_checkpoints.clear()
 	renderer.setup(world.map)
+	if props != null:
+		props.map = world.map
+		props.rebuild()
 	_populate_world()
 	_sync_tokens()
 	if squad_hud != null:
@@ -629,20 +675,19 @@ func _maybe_aar() -> void:
 	var all_finished := true
 	var halted := false
 	var at_exit := false
+	for op in world.operatives:
+		if op.is_alive():
+			alive += 1
+		all_finished = all_finished and (op.done or op.halted or not op.is_alive())
+		halted = halted or op.halted
+		var cell := GridUtil.cell_of(op.pos)
+		if _checkpoints.has(cell):
+			_reached_checkpoints[cell] = true
+		at_exit = at_exit or (op.done and _exits.has(cell))
 	var mission := world.check_mission()
-	if mission.complete:
-		for op in world.operatives:
-			if op.is_alive():
-				alive += 1
-			all_finished = all_finished and (op.done or op.halted)
-			halted = halted or op.halted
-			var cell := GridUtil.cell_of(op.pos)
-			if _checkpoints.has(cell):
-				_reached_checkpoints[cell] = true
-			at_exit = at_exit or (op.done and _exits.has(cell))
-		if alive == 0:
-			_show_result(false, "No operatives remaining.", alive)
-		elif all_finished and world.pending.is_empty() and world.entities.is_empty():
+	if alive == 0:
+		_show_result(false, "No operatives remaining.", alive)
+	elif bool(mission.get("complete", false)) and all_finished and world.pending.is_empty() and world.entities.is_empty():
 		var complete := not halted and _reached_checkpoints.size() == _checkpoints.size() and (_exits.is_empty() or at_exit)
 		var reason := "All routes completed."
 		if halted:
@@ -655,6 +700,9 @@ func _maybe_aar() -> void:
 
 
 func _show_result(complete: bool, reason: String, alive: int) -> void:
+	_recorded_go_codes = world.go_code_stream.duplicate(true)
+	_recorded_overrides = world.override_stream.duplicate(true)
+	_recorded_max_tick = world.tick
 	_result_view = AarScreen.new()
 	_result_view.name = "OperationResult"
 	_result_view.result = {
@@ -666,12 +714,49 @@ func _show_result(complete: bool, reason: String, alive: int) -> void:
 		"alive": alive,
 		"operatives": world.operatives.size(),
 		"ticks": world.tick,
+		"journal": world.journal.duplicate(true),
 	}
 	_result_view.retry_requested.connect(_on_reset_pressed)
 	_result_view.leave_requested.connect(_go_back)
+	_result_view.scrub_requested.connect(scrub_replay_to_tick)
+	_result_view.replay_requested.connect(_on_replay_requested)
 	_hud_canvas.add_child(_result_view)
 	SimClock.reset_to_planning()
 	_set_phase_controls(false)
+
+
+func scrub_replay_to_tick(target_tick: int) -> void:
+	if _initial_snapshot == null or world == null:
+		return
+	world.restore_from_data(_initial_snapshot.data)
+	world.go_code_stream = _recorded_go_codes.duplicate(true)
+	world.override_stream = _recorded_overrides.duplicate(true)
+	if fog != null:
+		fog.reset_fog()
+	if overlay != null:
+		overlay.reset()
+	var steps := clampi(target_tick, 0, _recorded_max_tick)
+	for i in range(steps):
+		world.step()
+	if renderer != null:
+		renderer.setup(world.map)
+	_sync_tokens()
+	_update_fog()
+	if squad_hud != null:
+		squad_hud.refresh(world)
+
+
+func _on_replay_requested() -> void:
+	if _result_view != null:
+		_hud_canvas.remove_child(_result_view)
+		_result_view.queue_free()
+		_result_view = null
+	scrub_replay_to_tick(0)
+	_reached_checkpoints.clear()
+	_pending_go_codes.clear()
+	SimClock.start_execution()
+	_set_phase_controls(true)
+	_set_status("REPLAYING recorded plan...")
 
 
 func _populate_world() -> void:

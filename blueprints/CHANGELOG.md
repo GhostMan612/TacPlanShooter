@@ -3,6 +3,15 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 17 — 2026-11-24 — Post-merge integration fixes, PipLoupe, CP-071 replay scrubbing & M9 Audio
+
+- Fixed `.github/workflows/headless-ci.yml` Import Pass 2 missing `run:` block and byte-size class-cache verification (`> 1000` bytes).
+- Fixed `SimWorld` (`check_mission()`, `_has_spawns_at()`, fatal-funnel tracking in `_step_move()` + snapshot/restore), `MapLoader` (`chokepoints` loading), and added `[5, 2]` doorway chokepoint to `data/maps/op01_glass_house.json`.
+- Rewrote `scripts/audio/tactical_audio.gd` without colliding `class_name`, fixed `EventBus` bridging from `PlanningRoot._physics_process()`, ambient bus ducking/unducking, low-pass heartbeat filter on damage, and seeded randomized radio squelch/UI blips.
+- Finished planning & UI stack: created `scripts/planning/pip_loupe.gd` (`PipLoupe` 3x magnifier during routing), fixed `PropsPlacement` (`MultiMeshInstance2D` + `QuadMesh` + vertex colors), fixed `RadialMenu` (`position`, thumb sizing, CQS routing via `_select_go_code`), fixed `PlanningController` tap coordinates + tap-to-cell A* helper, and restored `PlanningRoot._on_execute_pressed()` + `_maybe_aar()`.
+- Completed **CP-071** timeline & replay scrubbing in `AarScreen` (`ReplayScrubber` HSlider + journal event formatting) and `PlanningRoot.scrub_replay_to_tick()`, verified by expanded `tests/scene_smoke.gd` and `tests/ui_audio_smoke.gd`.
+- Rebuilt local class cache (`79` classes) and passed all 12 Godot 4.0 headless gates (`parse_all` 92 scripts / 13 scenes `failures=0`, boot smoke, `scene_smoke` `failures=0`, `aaa_ai_harness` 6/6, `determinism_harness`, `meta_progression_harness`, `ui_polish_audit`, `map_validation_harness`, `ui_audio_smoke`, `map_editor_harness`, `fog_layer_harness`, `simclock_probe`) + `0` hygiene failures.
+
 ## Session 13 — 2026-11-24 — FULL ACCESS + FULL ALLOW grant (user-directed)
 
 ### Files

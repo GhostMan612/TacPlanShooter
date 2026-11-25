@@ -30,5 +30,19 @@ func _initialize() -> void:
 	ok = ok and int(ar["reaction_ticks"]) == 22
 	var sr := ScreenRouter.new()
 	ok = ok and sr.stage == ScreenRouter.Stage.SPLASH
+	var ta_script := load("res://scripts/audio/tactical_audio.gd") as GDScript
+	ok = ok and ta_script != null
+	if ta_script != null:
+		var ta: Node = ta_script.new()
+		ta._setup_buses()
+		var amb := AudioServer.get_bus_index(&"Ambient")
+		ok = ok and amb >= 0 and AudioServer.get_bus_effect_count(amb) >= 1
+		ta._duck_ambient(0.45)
+		ok = ok and is_equal_approx(ta._duck_factor, 0.45)
+		ta._on_operative_damaged(0, 40)
+		ok = ok and ta._heartbeat_time_left > 0.0
+		ta._unduck()
+		ok = ok and is_equal_approx(ta._duck_factor, 1.0)
+		ta.free()
 	print("[HARNESS] ui_audio_smoke %s" % ("PASS" if ok else "FAIL"))
 	quit()

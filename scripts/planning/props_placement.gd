@@ -9,70 +9,70 @@ extends Node2D
 const MAX_UNITS: int = 48
 var map: GreyboxMap = null
 var mm: MultiMesh = null
-var mesh: MeshInstance2D = null
+var multimesh_node: MultiMeshInstance2D = null
 var color_map: Dictionary = {}
-var placed_cells: Array = []
+var placed_cells: Array[Vector2i] = []
 
 
 func setup(m: GreyboxMap) -> void:
 	map = m
+	if multimesh_node != null:
+		remove_child(multimesh_node)
+		multimesh_node.queue_free()
+		multimesh_node = null
 	mm = MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_2D
-	mm.multimesh_format_version = 1
+	mm.use_colors = true
+	var qm := QuadMesh.new()
+	qm.size = Vector2(6.0, 6.0)
+	mm.mesh = qm
 	mm.instance_count = 0
-	mesh = MeshInstance2D.new()
-	mesh.multimesh = mm
-	add_child(mesh)
+	multimesh_node = MultiMeshInstance2D.new()
+	multimesh_node.multimesh = mm
+	add_child(multimesh_node)
 	_build_colors()
+	rebuild()
 
 
 func _build_colors() -> void:
 	color_map[&"patrol_sentry"] = Color(0.3, 0.8, 1.0)
 	color_map[&"breacher"] = Color(0.9, 0.6, 0.3)
-	color_map[&"flanker"] = Color(0.7, 0.35, 0.9)
-	color_map[&"tower"] = Color(0.9, 0.9, 0.2)
+	color_map[&"tactical_flanker"] = Color(0.7, 0.35, 0.9)
+	color_map[&"room_anchor"] = Color(0.9, 0.55, 0.25)
+	color_map[&"heavy_gunner"] = Color(0.95, 0.35, 0.35)
+	color_map[&"hostage_guard"] = Color(0.95, 0.75, 0.2)
+	color_map[&"tech_jammer"] = Color(0.75, 0.45, 0.95)
 	color_map[&"defender"] = Color(1.0, 0.5, 0.5)
 
 
 func rebuild() -> void:
-	var n := 0
-	if mm != null:
-		for e in map.ai_spawns:
-			if n < MAX_UNITS and not map.is_solid(Vector2i(int(e["cell"][0]), int(e["cell"][1]))):
-				n += 1
-		for z in map.defender_zones:
-			for c in z["cells"]:
-				if n < MAX_UNITS and not map.is_solid(Vector2i(int(c[0]), int(c[1]))):
-					n += 1
-	if mm != null:
-		mm.instance_count = n
-	placed_cells = []
-	if mm != null:
-		var i := 0
-		for e in map.ai_spawns:
-			var t: Transform2D = Transform2D.new()
-			t.translate(Vector2(float(e["cell"][0]) + 0.5, float(e["cell"][1]) + 0.5) * float(SimConstants.GRID_CELL_SIZE_PX))
-			mm.set_instance_transform_2d(i, t)
-			mm.set_instance_color(i, color_map.get(StringName(String(e.get("archetype", ""))), Color.WHITE))
-			i += 1
-		for z in map.defender_zones:
-			for c in z["cells"]:
-				if i < MAX_UNITS:
-					var t2: Transform2D = Transform2D.new()
-				t2.translate(Vector2(float(c[0]) + 0.5, float(c[1]) + 0.5) * float(SimConstants.GRID_CELL_SIZE_PX))
-				mm.set_instance_transform_2d(i, t2)
-					mm.set_instance_color(i, color_map[&"defender"])
-					i += 1
-		while i < mm.instance_count:
-			mm.set_instance_transform_2d(i, Transform2D())
-			i += 1
+	placed_cells.clear()
+	if map == null or mm == null:
+		return
+	var entries: Array[Dictionary] = []
+	for e in map.ai_spawns:
+		var cell := CpuCommander._cell_from_entry(e)
+		if entries.size() < MAX_UNITS and map.in_bounds(cell) and not map.is_solid(cell):
+			var arch := StringName(String(e.get("archetype", "patrol_sentry"))) if typeof(e) == TYPE_DICTIONARY else &"patrol_sentry"
+			entries.append({"cell": cell, "color": color_map.get(arch, Color.WHITE)})
+	for z in map.defender_zones:
+		if typeof(z) != TYPE_DICTIONARY:
+			continue
+		for raw_c in z.get("cells", []):
+			var cell := CpuCommander._cell_from_entry(raw_c)
+			if entries.size() < MAX_UNITS and map.in_bounds(cell) and not map.is_solid(cell):
+				entries.append({"cell": cell, "color": color_map[&"defender"]})
+	mm.instance_count = entries.size()
+	for i in range(entries.size()):
+		var cell: Vector2i = entries[i]["cell"]
+		var col: Color = entries[i]["color"]
+		var xf := Transform2D(0.0, GridUtil.cell_center_px(cell))
+		mm.set_instance_transform_2d(i, xf)
+		mm.set_instance_color(i, col)
+		placed_cells.append(cell)
 
 
 func add_unit(cell: Vector2i, archetype: StringName) -> void:
 	if map != null and not map.is_solid(cell) and map.ai_spawns.size() < MAX_UNITS:
-		map.ai_spawns.append({"cell": [int(cell.x), int(cell.y)], "archetype": archetype})
+		map.ai_spawns.append({"cell": [int(cell.x), int(cell.y)], "archetype": String(archetype)})
 		rebuild()
-
-
-func rebuild_legacy() -> void:
-	pass

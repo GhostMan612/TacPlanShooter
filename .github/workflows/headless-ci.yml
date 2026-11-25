@@ -29,18 +29,26 @@ jobs:
           ./bin/godot --headless --path . --editor > import1.log 2>&1 &
           pid=$!
           for i in $(seq 1 110); do
-            if [ -f .godot/global_script_class_cache.cfg ]; then
+            if [ -f .godot/global_script_class_cache.cfg ] && [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]; then
               echo "class cache written after ${i}s"
               break
             fi
             sleep 1
           done
-          sleep 5
+          sleep 3
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           cat import1.log
-          test -f .godot/global_script_class_cache.cfg
+          [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]
       - name: Import pass 2 (refreshes dependents of new classes)
+        run: |
+          ./bin/godot --headless --path . --editor > import2.log 2>&1 &
+          pid=$!
+          sleep 15
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          cat import2.log
+          [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]
       - name: Parse gate (every script and scene)
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/parse_all.tscn 2>&1 | tee parse_all.log || true

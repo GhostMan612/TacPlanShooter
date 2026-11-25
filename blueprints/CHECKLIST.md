@@ -30,7 +30,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Operative selection via long-press (screen-space hit radius 72 px / zoom; camera finger-offset nudge deferred to M8 polish)
 - ✅ Route draw pipeline: decimation (tail preserved) → Catmull-Rom Curve2D Bezier → baked points → Line2D (G10) — CP-031 re-PASSED 2026-11-23 (`corner_dev=7.39`, `tail_kept=true`)
 - ✅ Planning board stores committed cell-waypoint routes per operative; persistent per-operative `Line2D`s
-- 🔄 Tap-to-cell strict mode: straight polyline ships now; A* path computation deferred to BP-04/M5 grid landing
+- ✅ Tap-to-cell strict mode: freehand Curve2D Bezier ships alongside `PlanningController.commit_tap_cell()` A* pathing (M3 L33)
 - ✅ Desktop testing enabled: emulate_touch_from_mouse=true
 
 ## S3 — Audit remediation (2026-11-23)
@@ -71,18 +71,18 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Patrol routes + idle/chase states; detection = visual cone (LOS-gated) + acoustic radius vs stance noise (CP-070)
 - ✅ Engagement resolution deterministic (seeded RNG for spread/reaction only)
 - ✅ Phase L: AAA Tactical CPU & GOAP Squad AI (`InfluenceMap`, `GoapActions`/`GoapPlanner`, `SquadTactics`, `CpuCommander`, bounding overwatch, anti-drone & tactical reload) (CP-072)
-- v M7 line 74 timeline/replay scaffold: AarScreen TIMELINE caption + enabled REPLAY via ScreenRouter.goto_stage(LOADING).
-- ✅ Fatal funnels emphasis: doorway chokepoint encounters authored into map data (GreyboxMap.chokepoints in op01_glass_house.json) + `SimWorld.record_funnel_encounter()` journal entries (M7 line 75).
+- ✅ Timeline & replay scrubbing (CP-071): `AarScreen` journal timeline + `ReplayScrubber` HSlider + `PlanningRoot.scrub_replay_to_tick()`, verified in `scene_smoke.tscn` (CP-071)
+- ✅ Fatal funnels emphasis: doorway chokepoint encounters authored into map data (`op01_glass_house.json` `[5, 2]`, loaded by `MapLoader`) + `SimWorld.record_funnel_encounter()` journal entries (M7 line 75).
 
 ## M8 — Touch UX polish (BP-05)
-- ✓ PiP magnifier loupe during routing (exact pixel under finger) (CP-080, camera auto-offset added to PlanningController; USER)
-- ✓ Camera auto-offset so finger never occludes selected operative (CP-080; `MissionCamera.set_finger_offset` + `pan_by` hook in `PlanningController._handle_tap`)
-- ✅ UI texture atlas pass; MultiMesh props placement tooling (M8 line 80): `scripts/planning/props_placement.gd` (MultiMesh of spots, spawn markers for AI, defender zone props).
+- ✅ PiP magnifier loupe during routing (`PipLoupe` 3x under-finger magnifier mounted on HUD canvas, logic wired — CP-080 USER feel check open)
+- ✅ Camera auto-offset so finger never occludes selected operative (`MissionCamera.set_finger_offset` + edge nudge on routing start; CP-080)
+- ✅ UI texture atlas pass; MultiMesh props placement tooling (M8 line 80): `scripts/planning/props_placement.gd` (`MultiMeshInstance2D` + `QuadMesh`, spawn/defender markers, `rebuild()`).
 
 ## M9 — Audio pass (BP-08)
-- ✅ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (CP-090) — `TacticalAudio._duck_ambient(0.45)` on `EventBus.breach_detonated` (30% ducked, recover via `_unduck` in `_physics_process`)
-- ⬜ Randomized radio squelch + telemetry blips on planning UI ops
-- ⬜ Damage → heartbeat synth drives LowPassFilter over environment mix
+- ✅ Audio bus layout w/ ducking: breach/explosion compresses ambient bus (`CP-090` logic PASS — `TacticalAudio._duck_ambient(0.45)` on `EventBus.breach_detonated`, recovers via `_unduck`)
+- ✅ Randomized radio squelch + telemetry blips on planning UI ops (`TacticalAudio.play_blip` / `_play_squelch`, verified in `ui_audio_smoke.gd`)
+- ✅ Damage → heartbeat synth drives LowPassFilter over `Ambient` bus (`TacticalAudio._on_operative_damaged`, cutoff scaled by HP peak, verified in `ui_audio_smoke.gd`)
 
 ## M10 — Android release track (BP-10) — ACTIVE (Route A default)
 - ✅ Route A clean-checkout preset verified with Godot 4.0.4, ARM64 packaging, signature, and all ten source maps (CP-100).

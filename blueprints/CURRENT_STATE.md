@@ -1,5 +1,5 @@
 # CURRENT_STATE.md — Component Inventory Snapshot
-**Snapshot date:** 2026-11-24 (Phase L — AAA Tactical CPU & GOAP Squad AI)
+**Snapshot date:** 2026-11-24 (Session 17 — Integration fixes, PipLoupe, CP-071 replay scrubbing & M9 Audio)
 
 ## Repo layout (`C:\TacPlan Shooter\`)
 
@@ -58,9 +58,9 @@
 | **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + per-op lines + clamped camera + resize wired | CP-030 feel verdict = USER device test |
 | **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 slice 1: `GridPathfinder` A* movement + adherence + collision-halt + wall/door/bounds + action range; `PlanningRoot` Execute/Go-Code Alpha/Reset HUD + live token sync | CP-050/051/052 ✅ PASS; next: M5 remainder, then M4 stances/actions/FoF |
 | Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware GPU masks with live and last-seen map contacts | Handset rendering and frame time |
-| **Tests & harnesses** | 🟢 12 headless gates green (`parse_all` 89 scripts / 13 scenes, `aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `_init()` fixed) | CI remote run on push |
-| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander (`CpuCommander`, `SquadTactics`, `InfluenceMap`, bounding overwatch, anti-drone, reload-in-cover) | Upper floors, dedicated objective rules, timeline, and scrubbing |
-| Audio pass (M9/BP-08) | ⬜ not started | content |
+| **Tests & harnesses** | 🟢 12 headless gates green (`parse_all` 92 scripts / 13 scenes, `aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `scene_smoke` replay scrub PASS) | CI remote run on push |
+| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander, `check_mission()`, AAR timeline + `ReplayScrubber` deterministic rewind | Multi-floor objectives |
+| Audio pass (M9/BP-08) | 🟢 `TacticalAudio` autoload (`Ambient` bus ducking, LP heartbeat on damage, seeded squelch/blips); `ui_audio_smoke` PASS | On-device listen (`CP-090` USER) |
 | **Android export track (M10/BP-10)** | 🟡 Route A verified from a clean checkout with Godot 4.0.4 | Handset boot and touch. Route B requires the JDK and SDK versions pinned by its template. |
 
 ## Known unknowns / open decisions

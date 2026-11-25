@@ -31,6 +31,8 @@ var ai := AiCoordinator.new()
 var combat := CombatSystem.new()
 var influence_map: InfluenceMap = ai.influence
 var cpu_commander: CpuCommander = ai.commander
+var fatal_funnel_history: Array = []
+var _funnel_visited: Dictionary = {}
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
@@ -52,6 +54,8 @@ func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	drones.clear()
 	vehicles.clear()
 	enemy_actors.clear()
+	fatal_funnel_history.clear()
+	_funnel_visited.clear()
 	ai = AiCoordinator.new()
 	influence_map = ai.influence
 	cpu_commander = ai.commander
@@ -153,24 +157,21 @@ func sound_event(cell: Vector2i, kind: StringName) -> void:
 func check_mission() -> Dictionary:
 	var dead := 0
 	var alive := 0
+	var all_finished := not operatives.is_empty()
 	var objectives_left := 0
 	for o in operatives:
 		if o.is_alive():
 			alive += 1
 		else:
 			dead += 1
-	for z in map.insertion_zones:
-		for c in z.get("cells", []):
-			if _has_ops_at(Vector2i(int(c[0]), int(c[1]))) or _has_spawns_at(Vector2i(int(c[0]), int(c[1]))):
-				objectives_left += 1
-	var fatal_funnel_history: Array = []
-var objectives_empty := true
-	for o in map.objectives:
-		if _has_ops_at(Vector2i(int(o["cell"][0]), int(o["cell"][1]))) or not map.is_solid(Vector2i(int(o["cell"][0]), int(o["cell"][1]))):
-			objectives_empty = false
-	if objectives_empty:
-		objectives_left = 0
-	return {"complete": objectives_empty or dead == len(operatives), "dead": dead, "alive": alive, "objectives_left": objectives_left}
+		all_finished = all_finished and (o.done or o.halted or not o.is_alive())
+	for obj in map.objectives:
+		var cell := CpuCommander._cell_from_entry(obj)
+		if map.in_bounds(cell) and not _has_ops_at(cell):
+			objectives_left += 1
+	var all_dead := not operatives.is_empty() and dead == operatives.size()
+	var complete := all_dead or (all_finished and pending.is_empty() and entities.is_empty())
+	return {"complete": complete, "dead": dead, "alive": alive, "objectives_left": objectives_left}
 
 
 func _has_ops_at(c: Vector2i) -> bool:
@@ -181,15 +182,16 @@ func _has_ops_at(c: Vector2i) -> bool:
 
 
 func _has_spawns_at(c: Vector2i) -> bool:
-	for o in ai.spawns:
-		if GridUtil.cell_of(o.pos) == c and not o.destroyed:
+	for op in enemy_actors.values():
+		var e: SimOperative = op
+		if e.is_alive() and GridUtil.cell_of(e.pos) == c:
 			return true
 	return false
 
 
 func record_funnel_encounter(cell: Vector2i, op_id: int) -> void:
 	fatal_funnel_history.append({"t": tick, "cell": [int(cell.x), int(cell.y)], "op": op_id})
-	journal.append({"t": tick, "ev": &"funnel_hit", "cell": [int(cell.x), int(cell.y)]})
+	journal.append({"t": tick, "ev": &"funnel_hit", "op": op_id, "cell": [int(cell.x), int(cell.y)]})
 
 
 func step() -> void:
@@ -306,7 +308,18 @@ func snapshot_data() -> Dictionary:
 		"tapin_player_cooldown": tapin_player_cooldown,
 		"tapin_unit_cooldowns": _int_dict_pairs(tapin_unit_cooldowns),
 		"tapin_bursts": _int_dict_pairs(tapin_bursts),
+		"fatal_funnels": fatal_funnel_history.duplicate(true),
+		"funnel_visited": _funnel_visited_arr(),
 	}
+
+
+func _funnel_visited_arr() -> Array:
+	var keys: Array = _funnel_visited.keys()
+	keys.sort()
+	var out: Array = []
+	for k in keys:
+		out.append(String(k))
+	return out
 
 
 static func _int_dict_pairs(d: Dictionary) -> Array:
@@ -359,6 +372,10 @@ func restore_from_data(d: Dictionary) -> void:
 	tapin_player_cooldown = int(d.get("tapin_player_cooldown", 0))
 	tapin_unit_cooldowns = _pairs_to_int_dict(d.get("tapin_unit_cooldowns", []))
 	tapin_bursts = _pairs_to_int_dict(d.get("tapin_bursts", []))
+	fatal_funnel_history = d.get("fatal_funnels", []).duplicate(true)
+	_funnel_visited.clear()
+	for fk in d.get("funnel_visited", []):
+		_funnel_visited[String(fk)] = true
 
 	drones.clear()
 	for dd in d.get("drones", []):
@@ -514,6 +531,15 @@ func _step_move(o: SimOperative, cmd: AgentCommand) -> void:
 		var nxt := o.queue.peek_next()
 		o.move_carry = remaining if nxt != null and nxt.command_type == AgentCommand.CommandType.MOVE_TO_CELL else 0.0
 	if committed:
+		if not map.chokepoints.is_empty():
+			var c_now := GridUtil.cell_of(o.pos)
+			for cp in map.chokepoints:
+				var cp_cell := CpuCommander._cell_from_entry(cp)
+				if cp_cell == c_now:
+					var fk := "%d:%d,%d" % [o.id, cp_cell.x, cp_cell.y]
+					if not _funnel_visited.has(fk):
+						_funnel_visited[fk] = true
+						record_funnel_encounter(cp_cell, o.id)
 		_check_collision(o)
 
 

@@ -50,6 +50,7 @@ static func from_data(d: Dictionary) -> GreyboxMap:
 	m.insertion_zones = floor_filter(d.get("insertion_zones", []), GROUND_FLOOR)
 	m.extraction_zones = floor_filter(d.get("extraction_zones", []), GROUND_FLOOR)
 	m.defender_zones = floor_filter(d.get("defender_zones", []), GROUND_FLOOR)
+	m.chokepoints = floor_filter(d.get("chokepoints", []), GROUND_FLOOR)
 	m.objectives = floor_filter(d.get("objectives", []), GROUND_FLOOR)
 	m.ai_spawns = floor_filter(d.get("ai_spawns", []), GROUND_FLOOR)
 	m.hostage_spawns = floor_filter(d.get("hostage_spawns", []), GROUND_FLOOR)

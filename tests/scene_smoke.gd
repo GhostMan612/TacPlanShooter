@@ -177,6 +177,10 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	if pr._result_view != null:
 		var title := pr._result_view.find_child("ResultTitle", true, false) as Label
 		_check(title != null and title.text == "OPERATION COMPLETE", "successful operation renders a result screen")
+		_check(pr.props != null and pr.loupe != null, "planning mounts props and loupe")
+		_check(pr._result_view.scrubber != null, "result renders replay scrubber")
+		pr.scrub_replay_to_tick(10)
+		_check(pr.world.tick == 10, "replay scrubber rewinds to tick 10")
 	_inspect_contacts(pr)
 	_inspect_enemy_fire(pr)
 	_inspect_node_orders(pr)

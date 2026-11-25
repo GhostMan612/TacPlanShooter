@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-24 (Session 16 — Phase L AAA Tactical CPU & GOAP Squad AI)
+**Last updated:** 2026-11-24 (Session 17 — Integration fixes, PipLoupe, CP-071 replay scrubbing & M9 Audio)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable for CI and verified Route A export.
@@ -23,15 +23,15 @@ BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/brea
 
 **FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
-- Phase L (`AAA-TACTICAL-AI-CPU-SPEC.md` + SceneTree `_init()` fix across all harnesses) is complete and verified: `InfluenceMap`, `GoapActions`, `GoapPlanner`, `SquadTactics`, and `CpuCommander` integrate cleanly into `EnemyAi`, `AiCoordinator`, `CombatSystem`, and `SimWorld` with full snapshot/hash determinism (`aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `parse_all` 89 scripts / 13 scenes `failures=0`, all 12 headless gates green).
-- `.github/workflows/headless-ci.yml` polls `.godot/global_script_class_cache.cfg` (`> 1000` bytes) during import passes and runs `aaa_ai_harness.gd` in CI.
-- Upper-floor objectives, dedicated objective rules, timeline, and replay scrubbing remain open alongside handset verification of the Route A APK.
+- Integration fixes & completion (Session 17): fixed `.github/workflows/headless-ci.yml` Import Pass 2, `SimWorld.check_mission()` / chokepoint tracking, `TacticalAudio` autoload (`Ambient` ducking, LP heartbeat, seeded squelch/blips), `PropsPlacement` (`MultiMeshInstance2D`), `RadialMenu`, `PlanningController` (`PipLoupe` 3x magnifier + `commit_tap_cell()`), and **CP-071** `AarScreen` timeline + `ReplayScrubber` rewind (`scrub_replay_to_tick`).
+- All 12 local Godot 4.0 headless gates pass cleanly (`parse_all` 92 scripts / 13 scenes `failures=0`, `scene_smoke` replay scrub PASS, `aaa_ai_harness` 6/6 PASS, `determinism_harness` PASS, `ui_audio_smoke` PASS, `fog_layer_harness` PASS).
+- Remaining items are hardware/device checks (`CP-030`, `CP-080`, `CP-090`, `CP-101` Route A APK on Android phone), multi-floor objectives, and store release signing.
 
 ## Immediate next actions
 
-1. Push `main` so GitHub Actions Headless CI confirms all 12 Linux Godot 4.0.4 gates (including `AAA AI harness`) green remotely.
-2. Verify the Route A APK on an Android handset using the [build guide](../docs/BUILD-IN-ANDROID-STUDIO.md). Check boot, touch controls, fog appearance, and execution frame time.
-3. Implement CP-071 timeline / replay scrubbing UI and multi-floor objectives (M7/M8).
+1. Confirm GitHub Actions Headless CI passes all 12 Linux Godot 4.0.4 gates on pushed `main`.
+2. Verify the Route A APK on an Android handset using the [build guide](../docs/BUILD-IN-ANDROID-STUDIO.md) (`CP-030` / `CP-080` / `CP-090` / `CP-101`).
+3. Extend maps with multi-floor stair links and objective variants beyond ground floor.
 
 ## Gotchas / constraints (DO NOT FORGET)
 

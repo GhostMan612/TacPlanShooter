@@ -19,11 +19,14 @@ const PREVIEW_COLOR := Color(0.25, 0.85, 1.0, 0.9)
 const COMMITTED_COLOR := Color(0.25, 0.85, 1.0, 0.5)
 
 var camera: MissionCamera = null
+var map: GreyboxMap = null
+var loupe: PipLoupe = null
 var tokens: Array[OperativeToken] = []
 var board := PlanBoard.new()
 var line_container: Node2D = null
 var mode := Mode.OBSERVATION
 var routing_enabled := true
+var tap_to_cell_mode := false
 var op_colors := {}
 
 var _touches := {}
@@ -38,6 +41,7 @@ var _preview: Line2D = null
 var _route_lines := {}
 var _pinch_base_dist := 0.0
 var _pinch_base_zoom := 1.0
+var _tap_selected_op: int = -1
 
 
 func _process(delta: float) -> void:
@@ -98,7 +102,9 @@ func _on_release(idx: int, pos: Vector2) -> void:
 		_pinch_base_dist = 0.0
 	if dt <= TAP_MAX_SEC and not moved and not long_fired and _touches.size() == 0:
 		_handle_tap(pos)
-		TacticalAudio.play_blip(&"sfx_ui_blip_01")
+		var ta := get_node_or_null("/root/TacticalAudio")
+		if ta != null:
+			ta.play_blip(&"")
 
 
 func _on_drag(idx: int, pos: Vector2, relative: Vector2) -> void:
@@ -107,6 +113,9 @@ func _on_drag(idx: int, pos: Vector2, relative: Vector2) -> void:
 	_touches[idx] = pos
 	if idx == _routing_finger and mode == Mode.ROUTING:
 		_extend_route(_to_world(pos))
+		if loupe != null and _preview != null:
+			var vp_sz := get_viewport().get_visible_rect().size
+			loupe.show_at(pos, _to_world(pos), vp_sz, map, _preview.points, PREVIEW_COLOR)
 		return
 	if mode != Mode.OBSERVATION or camera == null:
 		return
@@ -153,10 +162,15 @@ func _try_begin_routing(idx: int, vp_pos: Vector2) -> void:
 	_routing_token = best
 	best.set_routing_highlight(true)
 	mode = Mode.ROUTING
+	if camera != null and vp_pos.y > camera.get_viewport_rect().size.y * 0.72:
+		camera.set_finger_offset(Vector2(0.0, -72.0))
 	_raw_route = PackedVector2Array([best.position])
 	_kept_route = PackedVector2Array([best.position])
 	_ensure_preview()
 	_preview.points = PackedVector2Array([best.position])
+	if loupe != null:
+		var vp_sz := get_viewport().get_visible_rect().size
+		loupe.show_at(vp_pos, world, vp_sz, map, _preview.points, PREVIEW_COLOR)
 	mode_changed.emit(mode)
 	print("[PLAN] routing op %d" % best.op_id)
 
@@ -180,6 +194,8 @@ func _commit_route() -> void:
 func _exit_routing() -> void:
 	if _routing_token != null:
 		_routing_token.set_routing_highlight(false)
+	if loupe != null:
+		loupe.hide_loupe()
 	mode = Mode.OBSERVATION
 	_routing_finger = -1
 	_routing_token = null
@@ -188,12 +204,40 @@ func _exit_routing() -> void:
 	mode_changed.emit(mode)
 
 
+func commit_tap_cell(op_id: int, start_cell: Vector2i, target_cell: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	if map == null:
+		return cells
+	cells = GridPathfinder.find_path(map, start_cell, target_cell)
+	if cells.is_empty():
+		return cells
+	var pts := PackedVector2Array()
+	for c in cells:
+		pts.append(GridUtil.cell_center_px(c))
+	_line_for(op_id).points = pts
+	board.set_route(op_id, cells)
+	route_committed.emit(op_id, cells)
+	return cells
+
+
 func _handle_tap(pos: Vector2) -> void:
-	if camera != null:
-		var off := pos - camera.get_viewport_rect().size * 0.5
-		camera.pan_by(-off * 0.5)
-	if routing_enabled:
-		cell_tapped.emit(GridUtil.px_to_cell(_to_world(pos)))
+	if not routing_enabled:
+		return
+	var world := _to_world(pos)
+	var cell := GridUtil.px_to_cell(world)
+	if tap_to_cell_mode and map != null:
+		var picked_token := false
+		for t in tokens:
+			if GridUtil.px_to_cell(t.position) == cell:
+				_tap_selected_op = t.op_id
+				picked_token = true
+				break
+		if not picked_token and _tap_selected_op >= 0:
+			for t in tokens:
+				if t.op_id == _tap_selected_op:
+					commit_tap_cell(_tap_selected_op, GridUtil.px_to_cell(t.position), cell)
+					break
+	cell_tapped.emit(cell)
 
 
 func _ensure_preview() -> void:
