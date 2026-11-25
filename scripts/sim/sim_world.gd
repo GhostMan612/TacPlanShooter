@@ -163,7 +163,8 @@ func check_mission() -> Dictionary:
 		for c in z.get("cells", []):
 			if _has_ops_at(Vector2i(int(c[0]), int(c[1]))) or _has_spawns_at(Vector2i(int(c[0]), int(c[1]))):
 				objectives_left += 1
-	var objectives_empty := true
+	var fatal_funnel_history: Array = []
+var objectives_empty := true
 	for o in map.objectives:
 		if _has_ops_at(Vector2i(int(o["cell"][0]), int(o["cell"][1]))) or not map.is_solid(Vector2i(int(o["cell"][0]), int(o["cell"][1]))):
 			objectives_empty = false
@@ -184,6 +185,11 @@ func _has_spawns_at(c: Vector2i) -> bool:
 		if GridUtil.cell_of(o.pos) == c and not o.destroyed:
 			return true
 	return false
+
+
+func record_funnel_encounter(cell: Vector2i, op_id: int) -> void:
+	fatal_funnel_history.append({"t": tick, "cell": [int(cell.x), int(cell.y)], "op": op_id})
+	journal.append({"t": tick, "ev": &"funnel_hit", "cell": [int(cell.x), int(cell.y)]})
 
 
 func step() -> void:

@@ -15,6 +15,7 @@ var wall_materials := {}
 var insertion_zones := []
 var extraction_zones := []
 var defender_zones := []
+var chokepoints := []
 var objectives := []
 var ai_spawns := []
 var hostage_spawns := []
@@ -152,6 +153,7 @@ func to_dict() -> Dictionary:
 		"insertion_zones": insertion_zones.duplicate(true),
 		"extraction_zones": extraction_zones.duplicate(true),
 		"defender_zones": defender_zones.duplicate(true),
+		"chokepoints": chokepoints.duplicate(true),
 		"objectives": objectives.duplicate(true),
 		"ai_spawns": ai_spawns.duplicate(true),
 		"hostage_spawns": hostage_spawns.duplicate(true),
@@ -176,6 +178,7 @@ static func from_dict(d: Dictionary) -> GreyboxMap:
 	m.insertion_zones = (d.get("insertion_zones", []) as Array).duplicate(true)
 	m.extraction_zones = (d.get("extraction_zones", []) as Array).duplicate(true)
 	m.defender_zones = (d.get("defender_zones", []) as Array).duplicate(true)
+	m.chokepoints = (d.get("chokepoints", []) as Array).duplicate(true)
 	m.objectives = (d.get("objectives", []) as Array).duplicate(true)
 	m.ai_spawns = (d.get("ai_spawns", []) as Array).duplicate(true)
 	m.hostage_spawns = (d.get("hostage_spawns", []) as Array).duplicate(true)

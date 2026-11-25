@@ -72,7 +72,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Engagement resolution deterministic (seeded RNG for spread/reaction only)
 - ✅ Phase L: AAA Tactical CPU & GOAP Squad AI (`InfluenceMap`, `GoapActions`/`GoapPlanner`, `SquadTactics`, `CpuCommander`, bounding overwatch, anti-drone & tactical reload) (CP-072)
 - v M7 line 74 timeline/replay scaffold: AarScreen TIMELINE caption + enabled REPLAY via ScreenRouter.goto_stage(LOADING).
-- ⬜ Fatal funnels emphasis: doorway chokepoint encounter authored into first real map
+- ✅ Fatal funnels emphasis: doorway chokepoint encounters authored into map data (GreyboxMap.chokepoints in op01_glass_house.json) + `SimWorld.record_funnel_encounter()` journal entries (M7 line 75).
 
 ## M8 — Touch UX polish (BP-05)
 - ✓ PiP magnifier loupe during routing (exact pixel under finger) (CP-080, camera auto-offset added to PlanningController; USER)
