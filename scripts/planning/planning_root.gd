@@ -132,6 +132,7 @@ func _ready() -> void:
 	add_child(camera)
 	var map_px := Vector2(map.width_cells, map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX)
 	camera.configure_for_map(map_px, get_viewport_rect().size)
+	call_deferred("_fit_camera_to_screen")
 	_center_camera_if_short(map_px)
 	camera.make_current()
 	controller = PlanningController.new()
@@ -188,6 +189,16 @@ func _follow_execution_camera() -> void:
 		return
 	var density := clampf(float(world.operatives.size()) / 6.0, 0.0, 1.0)
 	camera.follow_world(GridUtil.cell_center_px(GridUtil.cell_of(active.pos)), density)
+
+
+func _fit_camera_to_screen() -> void:
+	if camera == null or map == null:
+		return
+	var map_px_x := float(map.width_cells * SimConstants.GRID_CELL_SIZE_PX)
+	var vp_x := get_viewport_rect().size.x
+	camera.apply_uniform_zoom(vp_x / map_px_x)
+	camera.position = Vector2(map_px_x * 0.5, camera.position.y)
+	camera.clamp_to_limits()
 
 
 func _on_viewport_resized() -> void:
@@ -1141,6 +1152,7 @@ func _set_phase_controls(executing: bool) -> void:
 			b.disabled = result_visible or (not executing and _selected_node == RoutePlanner.NO_CELL)
 			var names := ["ALPHA", "BRAVO", "CHARLIE", "DELTA"]
 			b.text = names[i]
+			b.add_theme_font_size_override("font_size", 13)
 	if controller != null:
 		controller.routing_enabled = not executing and not result_visible
 	_refresh_node_menu()

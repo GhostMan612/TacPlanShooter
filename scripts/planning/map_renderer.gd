@@ -169,6 +169,8 @@ func _draw_door(c: Vector2i, s: float) -> void:
 func _stripe_zone(cells: Array, col: Color, label: String, s: float) -> void:
 	for entry in cells:
 		var c := Vector2i(int(entry[0]), int(entry[1]))
+		if not map.in_bounds(c):
+			continue
 		var r := GridUtil.cell_rect_px(c)
 		draw_rect(r, col, true)
 		var i := 0
@@ -181,9 +183,15 @@ func _stripe_zone(cells: Array, col: Color, label: String, s: float) -> void:
 
 func _draw_zones(s: float) -> void:
 	for z in map.insertion_zones:
-		_stripe_zone(z.get("cells", []), IN_COLOR, "IN", s)
+		for c in z.get("cells", []):
+			var cell := Vector2i(int(c[0]), int(c[1]))
+			if map.in_bounds(cell):
+				_stripe_zone([c], IN_COLOR, "IN", s)
 	for z in map.extraction_zones:
-		_stripe_zone(z.get("cells", []), EX_COLOR, "EX", s)
+		for c in z.get("cells", []):
+			var cell := Vector2i(int(c[0]), int(c[1]))
+			if map.in_bounds(cell):
+				_stripe_zone([c], EX_COLOR, "EX", s)
 	for o in map.objectives:
 		_stripe_zone([o.get("cell", [])], OBJ_COLOR, "OBJ", s)
 
