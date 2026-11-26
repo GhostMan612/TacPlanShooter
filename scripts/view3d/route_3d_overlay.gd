@@ -63,6 +63,7 @@ func _rebuild() -> void:
 	for child in _beacons.get_children():
 		child.free()
 	var lines := ImmediateMesh.new()
+	var added := false
 	lines.surface_begin(Mesh.PRIMITIVE_LINES)
 	var idx := 0
 	for key in routes.keys():
@@ -78,11 +79,13 @@ func _rebuild() -> void:
 			lines.surface_set_color(col)
 			lines.surface_add_vertex(Vector3(float(a.x) * CELL_UNITS + 0.75, y, float(a.y) * CELL_UNITS + 0.75))
 			lines.surface_add_vertex(Vector3(float(b.x) * CELL_UNITS + 0.75, y, float(b.y) * CELL_UNITS + 0.75))
+			added = true
 			i += 1
 		var last: Vector2i = cells[cells.size() - 1]
 		_add_node(last, col, idx + 1)
 		idx += 1
-	lines.surface_end()
+	if added:
+		lines.surface_end()
 	_ribbon.mesh = lines
 	for g in range(4):
 		var p := Vector3(float(4 + g * 3) * CELL_UNITS, float(active_floor) * FLOOR_RISE + 0.45, float(3 + active_floor) * CELL_UNITS)
