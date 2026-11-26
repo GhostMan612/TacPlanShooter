@@ -16,6 +16,11 @@ var pending_inputs: Array = []
 var received_packets: Array[Dictionary] = []
 var last_sync_hash: String = ""
 var session_active := false
+var state: StringName = &"IDLE"
+
+
+func state_text() -> String:
+	return String(state).to_upper()
 var ticks_since_sync := 0
 
 
@@ -32,6 +37,7 @@ func host_on_port(faction_id: int, port: int = PORT) -> int:
 		if is_inside_tree() and multiplayer != null:
 			multiplayer.multiplayer_peer = peer
 		session_active = true
+		state = &"HOSTING"
 	return err
 
 
@@ -48,6 +54,7 @@ func connect_on_port(address: String, port: int = PORT) -> int:
 		if is_inside_tree() and multiplayer != null:
 			multiplayer.multiplayer_peer = peer
 		session_active = true
+		state = &"CONNECTING"
 	return err
 
 
@@ -56,6 +63,7 @@ func close_session() -> void:
 		peer.close()
 	peer = null
 	session_active = false
+	state = &"IDLE"
 	pending_inputs.clear()
 	received_packets.clear()
 
@@ -125,6 +133,8 @@ func poll() -> void:
 		return
 	if multiplayer == null or multiplayer.multiplayer_peer != peer:
 		return
+	if is_peer_connected():
+		state = &"CONNECTED"
 	peer.poll()
 	while peer.get_available_packet_count() > 0:
 		var data := peer.get_packet()

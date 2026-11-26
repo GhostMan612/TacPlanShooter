@@ -111,6 +111,8 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if not is_inside_tree():
 		return
+	if status_label != null and session != null:
+		status_label.text = "LAN STATE: " + session.state_text()
 	if session == null or not session.session_active:
 		return
 	if multiplayer == null or multiplayer.multiplayer_peer != session.peer:

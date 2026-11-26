@@ -20,6 +20,23 @@ func bind_portraits() -> void:
 		portraits[n] = tex
 
 
+func _ready() -> void:
+	bind_portraits()
+	var x := 8.0
+	for key in portraits.keys():
+		var tex: Texture2D = portraits[key]
+		if tex == null:
+			continue
+		var rect := TextureRect.new()
+		rect.texture = tex
+		rect.position = Vector2(x, 8.0)
+		rect.custom_minimum_size = Vector2(64.0, 64.0)
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		add_child(rect)
+		x += 72.0
+
+
 func assign_role(profile: UnitProfile, role: int) -> void:
 	profile.assign_role(role)
 
