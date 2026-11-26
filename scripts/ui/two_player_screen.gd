@@ -62,14 +62,14 @@ func _ready() -> void:
 	col.add_child(UiKit.heading("MATCH CONFIG", pal, 36))
 	mode_button = UiKit.button("", _cycle_mode, settings)
 	mode_button.name = "ModeButton"
-	mode_button.add_theme_font_size_override("font_size", 22)
+	mode_button.add_theme_font_size_override("font_size", 24)
 	mode_button.clip_text = true
 	col.add_child(mode_button)
 	mode_caption = UiKit.caption("", pal)
 	col.add_child(mode_caption)
 	map_button = UiKit.button("", _cycle_map, settings)
 	map_button.name = "MapButton"
-	map_button.add_theme_font_size_override("font_size", 22)
+	map_button.add_theme_font_size_override("font_size", 24)
 	map_button.clip_text = true
 	col.add_child(map_button)
 	col.add_child(UiKit.heading("PASS & PLAY  (1 PHONE)", pal, 36))
@@ -90,11 +90,11 @@ func _ready() -> void:
 	lan_row.add_theme_constant_override("separation", 10)
 	var host_btn := UiKit.button("HOST LAN", start_lan_host, settings)
 	host_btn.name = "HostLanButton"
-	host_btn.add_theme_font_size_override("font_size", 22)
+	host_btn.add_theme_font_size_override("font_size", 24)
 	lan_row.add_child(host_btn)
 	var join_btn := UiKit.button("JOIN HOST", join_lan_host, settings)
 	join_btn.name = "JoinLanButton"
-	join_btn.add_theme_font_size_override("font_size", 22)
+	join_btn.add_theme_font_size_override("font_size", 24)
 	lan_row.add_child(join_btn)
 	col.add_child(lan_row)
 	lan_launch_button = UiKit.button("LAUNCH LAN BOARD", launch_lan_match, settings)
@@ -109,7 +109,11 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if not is_inside_tree():
+		return
 	if session == null or not session.session_active:
+		return
+	if multiplayer == null or multiplayer.multiplayer_peer != session.peer:
 		return
 	session.poll()
 	while not session.received_packets.is_empty():
