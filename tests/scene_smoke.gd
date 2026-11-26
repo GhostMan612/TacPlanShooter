@@ -78,7 +78,8 @@ func _check_wall_graze_and_multifloor() -> void:
 	var leg0 := RoutePlanner.plan(f0, start, [from_cell])
 	var leg1 := RoutePlanner.plan(f1, to_cell, [exit_cell])
 	_check(leg0["blocked_at"] == RoutePlanner.NO_CELL and leg1["blocked_at"] == RoutePlanner.NO_CELL, "op05 ground and upper floor legs path cleanly")
-	_check((leg1["cells"] as Array).has(to_cell), "op05 F2 path passes reverse stair cell on way to exit")
+	var leg1_cells: Array = leg1["cells"]
+	_check(not leg1_cells.is_empty() and leg1_cells[leg1_cells.size() - 1] == exit_cell, "op05 F2 path reaches the upper-floor exit from the stair cell")
 	var segs := [
 		{"floor": 0, "start": start, "cells": leg0["cells"], "stair_to_floor": 1, "stair_to_cell": to_cell},
 		{"floor": 1, "start": to_cell, "cells": [], "stair_to_floor": -1, "stair_to_cell": Vector2i.ZERO},
