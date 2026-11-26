@@ -6,14 +6,14 @@ class_name MapRenderer
 extends Node2D
 
 
-const FLOOR_A := Color(0x18, 0x22, 0x2E)
-const FLOOR_B := Color(0x1D, 0x28, 0x36)
+const FLOOR_A := Color.html("#18222E")
+const FLOOR_B := Color.html("#1D2836")
 const BEVEL_HI := Color(0.36, 0.45, 0.56, 0.55)
 const BEVEL_LO := Color(0.03, 0.05, 0.09, 0.7)
 const GRID_COLOR := Color(0.45, 0.62, 0.78, 0.08)
-const WALL_CAP := Color(0x0E, 0x15, 0x1F)
-const WALL_RIM := Color(0x4B, 0x5E, 0x75)
-const WALL_FACE := Color(0x26, 0x33, 0x44)
+const WALL_CAP := Color.html("#0E151F")
+const WALL_RIM := Color.html("#4B5E75")
+const WALL_FACE := Color.html("#263344")
 const WALL_SEAM := Color(0.10, 0.15, 0.22, 0.8)
 const WALL_VENT := Color(0.35, 0.45, 0.55, 0.35)
 const SHADOW := Color(0, 0, 0, 0.42)
@@ -211,3 +211,4 @@ static func col_letter(x: int) -> String:
 	if x < 26:
 		return letters.substr(x, 1)
 	return letters.substr((x / 26) - 1, 1) + letters.substr(x % 26, 1)
+

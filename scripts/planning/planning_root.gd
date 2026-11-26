@@ -132,7 +132,6 @@ func _ready() -> void:
 	add_child(camera)
 	var map_px := Vector2(map.width_cells, map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX)
 	camera.configure_for_map(map_px, get_viewport_rect().size)
-	camera.apply_uniform_zoom(camera.zoom.x * 0.86)
 	_center_camera_if_short(map_px)
 	camera.make_current()
 	controller = PlanningController.new()
