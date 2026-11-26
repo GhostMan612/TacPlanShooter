@@ -76,8 +76,30 @@ static func default_settings() -> Dictionary:
 	}
 
 
+const SCHEMA_VERSION: int = 1
+
+
+static func load_from_string(raw: String) -> Dictionary:
+	var out := default_settings()
+	out["schema_version"] = SCHEMA_VERSION
+	if raw.is_empty():
+		return out
+	var parser := JSON.new()
+	if parser.parse(raw) != OK:
+		return out
+	var parsed: Variant = parser.data
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return out
+	var d: Dictionary = parsed
+	for k in out.keys():
+		if d.has(k):
+			out[k] = d[k]
+	return out
+
+
 static func load_settings() -> Dictionary:
 	var out := default_settings()
+	out["schema_version"] = SCHEMA_VERSION
 	if not FileAccess.file_exists(SETTINGS_PATH):
 		return out
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
@@ -87,6 +109,10 @@ static func load_settings() -> Dictionary:
 	f.close()
 	var parsed: Variant = JSON.parse_string(text)
 	if typeof(parsed) != TYPE_DICTIONARY:
+		var bak := FileAccess.open(SETTINGS_PATH + ".bak", FileAccess.WRITE)
+		if bak != null:
+			bak.store_string(text)
+			bak.close()
 		return out
 	var d: Dictionary = parsed
 	for k in out.keys():

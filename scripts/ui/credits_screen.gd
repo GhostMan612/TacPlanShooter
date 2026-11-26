@@ -13,6 +13,9 @@ const LINES: Array[String] = [
 	"Built with Godot Engine 4 (Compatibility renderer).",
 	"Tactical icon set generated in-repo by tools/generate_svg_assets.py.",
 	"All operatives, units and operations are fictional.",
+	"v1.0.0 — Godot 4 Compatibility renderer.",
+	"Assets: godot4-asset-vault@v0.2.0 (CC0 / ORIGINAL_PROCEDURAL).",
+	"Provenance: PROVENANCE.md — zero telemetry, offline-first.",
 ]
 
 

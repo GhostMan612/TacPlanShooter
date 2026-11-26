@@ -7,6 +7,7 @@ extends RefCounted
 
 
 const VERSION: int = 1
+const SCHEMA_VERSION: int = 1
 const SAVE_PATH := "user://progression.json"
 const DEFAULT_UNLOCKS: Array[String] = [
 	"weapon_smg_standard",
@@ -74,13 +75,25 @@ func save_to_disk() -> void:
 		f.close()
 
 
+static func load_from_string(raw: String) -> ProgressionSave:
+	var s := ProgressionSave.new()
+	s.load_json(raw)
+	return s
+
+
 static func load_from_disk() -> ProgressionSave:
 	var s := ProgressionSave.new()
 	if FileAccess.file_exists(SAVE_PATH):
 		var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 		if f != null:
-			s.load_json(f.get_as_text())
+			var raw := f.get_as_text()
 			f.close()
+			if not s.load_json(raw):
+				var bak := FileAccess.open(SAVE_PATH + ".bak", FileAccess.WRITE)
+				if bak != null:
+					bak.store_string(raw)
+					bak.close()
+				return ProgressionSave.new()
 	return s
 
 

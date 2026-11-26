@@ -17,6 +17,7 @@ func _ready() -> void:
 	var col := UiKit.build_screen(self, pal)
 	col.add_child(UiKit.spacer(48))
 	col.add_child(UiKit.heading("TACPLAN SHOOTER", pal, 88))
+	col.add_child(UiKit.caption("v1.0.0  •  OFFLINE TACTICAL PLANNER", pal, false))
 	col.add_child(UiKit.caption("Plan the breach. Commit the plan. Watch it hold.", pal))
 	col.add_child(UiKit.spacer(48))
 	_add(col, &"campaign", "CAMPAIGN", _on_campaign)

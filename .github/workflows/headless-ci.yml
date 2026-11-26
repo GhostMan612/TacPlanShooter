@@ -56,6 +56,16 @@ jobs:
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/campaign_balance_harness.gd 2>&1 | tee campaign_balance.log || true
           bash tools/ci_gate.sh campaign_balance.log "[HARNESS] RESULT PASS"
+      - name: Release readiness harness
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/release_readiness_harness.gd 2>&1 | tee release_readiness.log || true
+          bash tools/ci_gate.sh release_readiness.log "[HARNESS] RESULT PASS"
+      - name: Secret and binary hygiene
+        if: ${{ !cancelled() }}
+        run: |
+          if git ls-files | grep -Ei '\.(keystore|jks|apk|aab|exe)$'; then echo "tracked binary/secret" && exit 1; fi
+          echo "binary hygiene ok"
       - name: Asset pipeline integrity gate
         if: ${{ !cancelled() }}
         run: python3 tools/verify_assets.py --game
