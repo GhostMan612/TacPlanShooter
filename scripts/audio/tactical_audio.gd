@@ -10,6 +10,8 @@ signal heartbeat_intensity(level: float)
 
 
 const DUCK_SECONDS: float = 3.0
+const ADAPTIVE_BGM_SCRIPT := preload("res://scripts/audio/adaptive_bgm.gd")
+const BUS_GRAPH_SCRIPT := preload("res://scripts/audio/bus_graph.gd")
 const HEARTBEAT_INTERVAL_SEC: float = 1.2
 var _duck_until: int = -1
 var _duck_factor: float = 1.0
@@ -18,13 +20,13 @@ var _heartbeat_hp_peak: float = 1.0
 var _heartbeat_time_left: float = 0.0
 var _heartbeat_pulse_cd: float = 0.0
 var _rng := RandomNumberGenerator.new()
-var bgm: AdaptiveBgm = null
+var bgm: Node = null
 
 
 func _ready() -> void:
 	_rng.seed = 9001
 	_setup_buses()
-	bgm = AdaptiveBgm.new()
+	bgm = ADAPTIVE_BGM_SCRIPT.new()
 	bgm.name = "AdaptiveBgm"
 	add_child(bgm)
 	var eb := get_node_or_null("/root/EventBus")
@@ -35,7 +37,7 @@ func _ready() -> void:
 
 
 func _setup_buses() -> void:
-	BusGraph.ensure_buses()
+	BUS_GRAPH_SCRIPT.ensure_buses()
 	_ambient_bus_idx = AudioServer.get_bus_index(&"Ambient")
 	if _ambient_bus_idx >= 0 and AudioServer.get_bus_effect_count(_ambient_bus_idx) == 0:
 		var lp := AudioEffectLowPassFilter.new()

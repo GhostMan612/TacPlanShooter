@@ -4,6 +4,9 @@
 # ============================================================
 extends Node
 
+
+const SC := preload("res://scripts/sim/sim_constants.gd")
+
 enum Phase { PLANNING, EXECUTION }
 
 var phase: Phase = Phase.PLANNING
@@ -40,4 +43,4 @@ func advance_tick() -> void:
 
 
 func _apply_fps_cap() -> void:
-	Engine.max_fps = SimConstants.PLANNING_FPS_CAP if phase == Phase.PLANNING else SimConstants.EXECUTION_FPS_CAP
+	Engine.max_fps = SC.PLANNING_FPS_CAP if phase == Phase.PLANNING else SC.EXECUTION_FPS_CAP

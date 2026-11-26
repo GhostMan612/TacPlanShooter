@@ -9,7 +9,7 @@ const DEFAULT_ID: StringName = &"tactical_compound"
 const REGISTRY_PATH := "res://addons/godot4-asset-vault/themes/registry.json"
 
 
-static func for_id(id: StringName) -> TilesetTheme:
+static func for_id(id: StringName) -> Resource:
 	var data := _registry()
 	var entries: Array = data.get("themes", [])
 	var target := String(id)
@@ -49,7 +49,7 @@ static func _registry() -> Dictionary:
 
 
 static func _build(id: String, entry: Dictionary, textures: Dictionary) -> TilesetTheme:
-	var t := TilesetTheme.new()
+	var t: Resource = ResourceLoader.load("res://scripts/tileset_theme.gd").new()
 	t.theme_id = StringName(id)
 	var floors: Array[Texture2D] = []
 	for path in textures.get("floor", []):
