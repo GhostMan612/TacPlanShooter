@@ -31,3 +31,17 @@ To support true camera height, pitch tilt, 90° auto-snap rotation, and razor-sh
 ## 4. Phased Rollout
 - **Step 1 (Immediate):** Upgrade `OP-01` to `32×24` 5-ft compound, remove white gridlines, add edge-to-edge exterior apron, and formalize `TilesetTheme` resource in `godot4-asset-vault`.
 - **Step 2 (HD-2D View Prototype):** Build parallel `scripts/view3d/` (`world_view_3d.gd`, `tactical_camera_3d.gd`, `wall_cutaway.gdshader`) reading live `SimWorld` state so players can toggle between Classic Blueprint and 2.5D Tilt/Rotate 3D View with zero simulation rewrite.
+
+## 5. Locked Camera Controls (HUD pill strip + direct multi-touch)
+
+Right-edge vertical HUD pill strip (`CanvasLayer`, hitboxes >= 56x56 px, damped ease-out 0.22 s):
+- `MAP`: 88° high-altitude Blueprint Top-Down camera for route drawing.
+- `2.5D`: 52° Space Grunts / XCOM tactical angle (default).
+- `EYE`: 22° just-above-eye-level close zoom focused on the selected operative / stack.
+- `↺` / `↻`: -90° / +90° cardinal yaw snap (0° / 90° / 180° / 270°), driving `wall_cutaway.gdshader` to lower walls between camera and active units.
+
+Direct multi-touch (Observation mode):
+- 1-finger drag = pan clamped to exterior apron bounds.
+- 2-finger pinch = continuous zoom (full building -> crisp close-up).
+- 2-finger vertical drag = continuous pitch tilt (88° <-> 18°).
+- 2-finger twist = free yaw preview, spring-snapped to the nearest 90° cardinal angle on release.

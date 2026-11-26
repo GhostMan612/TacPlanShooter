@@ -46,6 +46,7 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	if ResourceLoader.exists(shader_path):
 		_wall_material = ShaderMaterial.new()
 		_wall_material.shader = ResourceLoader.load(shader_path) as Shader
+		camera.cutaway_material = _wall_material
 	var paths := [
 		"res://assets/sprites/op_breacher.png",
 		"res://assets/sprites/op_pointman.png",
