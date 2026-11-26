@@ -199,7 +199,7 @@ func _fit_camera_to_screen() -> void:
 	var map_px_x := float(map.width_cells * SimConstants.GRID_CELL_SIZE_PX)
 	var vp_x := get_viewport_rect().size.x
 	camera.apply_uniform_zoom(vp_x / map_px_x)
-	camera.position = Vector2(map_px_x * 0.5, camera.position.y)
+	camera.position = Vector2(map_px_x * 0.5 - 20.0 / maxf(camera.zoom.x, 0.01), camera.position.y)
 	camera.clamp_to_limits()
 
 
@@ -382,8 +382,8 @@ func _setup_hud() -> void:
 	_charlie_button = UiKit.button("CHARLIE", _on_charlie_pressed, settings)
 	_delta_button = UiKit.button("DELTA", _on_delta_pressed, settings)
 	_reset_button = UiKit.button("RESET", _on_reset_pressed, settings)
-	_execute_button.size_flags_stretch_ratio = 2.4
-	_reset_button.size_flags_stretch_ratio = 1.35
+	_execute_button.size_flags_stretch_ratio = 1.9
+	_reset_button.size_flags_stretch_ratio = 1.1
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		b.add_theme_font_size_override("font_size", 24)
 		b.clip_text = true
@@ -1154,7 +1154,7 @@ func _set_phase_controls(executing: bool) -> void:
 			b.disabled = result_visible or (not executing and _selected_node == RoutePlanner.NO_CELL)
 			var names := ["ALPHA", "BRAVO", "CHARLIE", "DELTA"]
 			b.text = names[i]
-			b.add_theme_font_size_override("font_size", 13)
+			b.add_theme_font_size_override("font_size", 11)
 	if controller != null:
 		controller.routing_enabled = not executing and not result_visible
 	_refresh_node_menu()

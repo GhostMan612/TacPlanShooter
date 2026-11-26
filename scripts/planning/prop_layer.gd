@@ -27,7 +27,7 @@ func setup(m: GreyboxMap) -> void:
 			if _is_zone(c) or _near_spawn(c) or _near_wall(c):
 				continue
 			var h := (x * 73856093) ^ (y * 19349663)
-			if (h & 3) != 0:
+			if (h & 7) != 0:
 				continue
 			entries.append({"cell": c, "kind": (h >> 4) & 3, "y": y})
 	entries.sort_custom(_sort_by_y)

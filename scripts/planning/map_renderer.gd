@@ -120,8 +120,9 @@ func _draw_plate(c: Vector2i, s: float) -> void:
 	draw_rect(r, _cell_color(c), true)
 	if hd_atlas != null:
 		var h := (c.x * 73856093) ^ (c.y * 19349663)
-		var src := Rect2(float((h & 3) * 16), 176.0, 16.0, 16.0)
-		draw_texture_rect_region(hd_atlas, r, src, hd_modulate)
+		var src := Rect2(float((h & 1) * 16), 16.0, 16.0, 16.0)
+		var tint := Color(0.94, 0.96, 1.0, 1.0) if (h & 2) == 0 else Color(0.86, 0.90, 0.95, 1.0)
+		draw_texture_rect_region(hd_atlas, r, src, hd_modulate * tint)
 	draw_line(r.position, Vector2(r.end.x, r.position.y), BEVEL_HI, 1.0)
 	draw_line(r.position, Vector2(r.position.x, r.end.y), BEVEL_HI, 1.0)
 	draw_line(Vector2(r.position.x, r.end.y), r.end, BEVEL_LO, 1.0)
@@ -209,7 +210,7 @@ func _stripe_zone(cells: Array, col: Color, label: String, s: float) -> void:
 			var ox := float(k) * s * 0.25
 			draw_line(r.position + Vector2(ox, 2.0), r.position + Vector2(minf(ox + 8.0, s), s - 2.0), Color(col.r, col.g, col.b, 0.45), 1.0)
 			k += 1
-		draw_string(ThemeDB.fallback_font, r.position + Vector2(2.0, s - 3.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, INK)
+		draw_string(ThemeDB.fallback_font, r.position + Vector2(0.0, s - 2.0), label, HORIZONTAL_ALIGNMENT_CENTER, s, 8, INK)
 
 
 func _draw_zones(s: float) -> void:
