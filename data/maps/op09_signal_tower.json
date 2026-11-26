@@ -1,36 +1,1269 @@
 {
-	"map_id": "op09_signal_tower",
-	"title": "Signal Tower",
-	"floors": 3,
-	"width_cells": 16,
-	"height_cells": 12,
-	"lighting": "NIGHT",
-	"rp_reward": 600,
-	"walls": [
-		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
-		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
-		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
-		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
-		{"floor": 1, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
-		{"floor": 1, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
-		{"floor": 2, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
-		{"floor": 2, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
-		{"floor": 2, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
-		{"floor": 2, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"}
-	],
-	"doors": [
-		{"id": "d01", "floor": 0, "cell": [6, 2], "orientation": "H", "state": "CLOSED_UNLOCKED"},
-		{"id": "d02", "floor": 2, "cell": [6, 9], "orientation": "H", "state": "LOCKED"}
-	],
-	"stair_links": [
-		{"from_floor": 0, "from_cell": [7, 10], "to_floor": 1, "to_cell": [7, 1]},
-		{"from_floor": 1, "from_cell": [7, 10], "to_floor": 2, "to_cell": [7, 1]}
-	],
-	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 5]], "vehicle_req": "NONE"}],
-	"extraction_zones": [{"id": "ext01", "floor": 2, "cells": [[13, 6]]}],
-	"defender_zones": [{"floor": 2, "cells": [[6, 9]]}],
-	"objectives": [{"kind": "BOMB_DISARM", "floor": 2, "cell": [7, 8], "timer_ticks": 300}],
-	"ai_spawns": [{"id": "ai_s01", "archetype": "tech_jammer", "floor": 1, "cell": [8, 6], "facing_deg": 0, "patrol": []}],
-	"hostage_spawns": [],
-	"jammer_nodes": [{"id": "jm01", "floor": 1, "cell": [6, 6], "radius_cells": 2}]
+  "map_id": "op09_signal_tower",
+  "title": "Signal Tower",
+  "tileset_theme": "moonbase_lab",
+  "floors": 3,
+  "width_cells": 40,
+  "height_cells": 28,
+  "lighting": "NIGHT",
+  "rp_reward": 600,
+  "walls": [
+    {
+      "floor": 0,
+      "a": [
+        0,
+        0
+      ],
+      "b": [
+        40,
+        0
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 0,
+      "a": [
+        0,
+        27
+      ],
+      "b": [
+        40,
+        27
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 0,
+      "a": [
+        0,
+        0
+      ],
+      "b": [
+        0,
+        28
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 0,
+      "a": [
+        39,
+        0
+      ],
+      "b": [
+        39,
+        28
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 0,
+      "a": [
+        8,
+        1
+      ],
+      "b": [
+        8,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        8,
+        9
+      ],
+      "b": [
+        8,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        8,
+        17
+      ],
+      "b": [
+        8,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        16,
+        1
+      ],
+      "b": [
+        16,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        16,
+        9
+      ],
+      "b": [
+        16,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        16,
+        17
+      ],
+      "b": [
+        16,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        24,
+        1
+      ],
+      "b": [
+        24,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        24,
+        9
+      ],
+      "b": [
+        24,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        24,
+        17
+      ],
+      "b": [
+        24,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        1,
+        8
+      ],
+      "b": [
+        7,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        9,
+        8
+      ],
+      "b": [
+        15,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        17,
+        8
+      ],
+      "b": [
+        23,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        25,
+        8
+      ],
+      "b": [
+        38,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        1,
+        16
+      ],
+      "b": [
+        7,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        9,
+        16
+      ],
+      "b": [
+        15,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        17,
+        16
+      ],
+      "b": [
+        23,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 0,
+      "a": [
+        25,
+        16
+      ],
+      "b": [
+        38,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        0,
+        0
+      ],
+      "b": [
+        40,
+        0
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 1,
+      "a": [
+        0,
+        27
+      ],
+      "b": [
+        40,
+        27
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 1,
+      "a": [
+        0,
+        0
+      ],
+      "b": [
+        0,
+        28
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 1,
+      "a": [
+        39,
+        0
+      ],
+      "b": [
+        39,
+        28
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 1,
+      "a": [
+        8,
+        1
+      ],
+      "b": [
+        8,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        8,
+        9
+      ],
+      "b": [
+        8,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        8,
+        17
+      ],
+      "b": [
+        8,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        16,
+        1
+      ],
+      "b": [
+        16,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        16,
+        9
+      ],
+      "b": [
+        16,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        16,
+        17
+      ],
+      "b": [
+        16,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        24,
+        1
+      ],
+      "b": [
+        24,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        24,
+        9
+      ],
+      "b": [
+        24,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        24,
+        17
+      ],
+      "b": [
+        24,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        1,
+        8
+      ],
+      "b": [
+        7,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        9,
+        8
+      ],
+      "b": [
+        15,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        17,
+        8
+      ],
+      "b": [
+        23,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        25,
+        8
+      ],
+      "b": [
+        38,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        1,
+        16
+      ],
+      "b": [
+        7,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        9,
+        16
+      ],
+      "b": [
+        15,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        17,
+        16
+      ],
+      "b": [
+        23,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 1,
+      "a": [
+        25,
+        16
+      ],
+      "b": [
+        38,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        0,
+        0
+      ],
+      "b": [
+        40,
+        0
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 2,
+      "a": [
+        0,
+        27
+      ],
+      "b": [
+        40,
+        27
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 2,
+      "a": [
+        0,
+        0
+      ],
+      "b": [
+        0,
+        28
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 2,
+      "a": [
+        39,
+        0
+      ],
+      "b": [
+        39,
+        28
+      ],
+      "material": "CONCRETE"
+    },
+    {
+      "floor": 2,
+      "a": [
+        8,
+        1
+      ],
+      "b": [
+        8,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        8,
+        9
+      ],
+      "b": [
+        8,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        8,
+        17
+      ],
+      "b": [
+        8,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        16,
+        1
+      ],
+      "b": [
+        16,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        16,
+        9
+      ],
+      "b": [
+        16,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        16,
+        17
+      ],
+      "b": [
+        16,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        24,
+        1
+      ],
+      "b": [
+        24,
+        7
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        24,
+        9
+      ],
+      "b": [
+        24,
+        15
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        24,
+        17
+      ],
+      "b": [
+        24,
+        23
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        1,
+        8
+      ],
+      "b": [
+        7,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        9,
+        8
+      ],
+      "b": [
+        15,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        17,
+        8
+      ],
+      "b": [
+        23,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        25,
+        8
+      ],
+      "b": [
+        38,
+        8
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        1,
+        16
+      ],
+      "b": [
+        7,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        9,
+        16
+      ],
+      "b": [
+        15,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        17,
+        16
+      ],
+      "b": [
+        23,
+        16
+      ],
+      "material": "DRY_WALL"
+    },
+    {
+      "floor": 2,
+      "a": [
+        25,
+        16
+      ],
+      "b": [
+        38,
+        16
+      ],
+      "material": "DRY_WALL"
+    }
+  ],
+  "doors": [
+    {
+      "id": "d9_00",
+      "floor": 0,
+      "cell": [
+        8,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_01",
+      "floor": 0,
+      "cell": [
+        16,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_02",
+      "floor": 0,
+      "cell": [
+        24,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_03",
+      "floor": 0,
+      "cell": [
+        8,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_04",
+      "floor": 0,
+      "cell": [
+        16,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_05",
+      "floor": 0,
+      "cell": [
+        24,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_06",
+      "floor": 0,
+      "cell": [
+        4,
+        8
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_07",
+      "floor": 0,
+      "cell": [
+        12,
+        16
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_08",
+      "floor": 0,
+      "cell": [
+        20,
+        8
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_09",
+      "floor": 0,
+      "cell": [
+        28,
+        16
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_00",
+      "floor": 1,
+      "cell": [
+        8,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_01",
+      "floor": 1,
+      "cell": [
+        16,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_02",
+      "floor": 1,
+      "cell": [
+        24,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_03",
+      "floor": 1,
+      "cell": [
+        8,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_04",
+      "floor": 1,
+      "cell": [
+        16,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_05",
+      "floor": 1,
+      "cell": [
+        24,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_06",
+      "floor": 1,
+      "cell": [
+        4,
+        8
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_07",
+      "floor": 1,
+      "cell": [
+        12,
+        16
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_08",
+      "floor": 1,
+      "cell": [
+        20,
+        8
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_09",
+      "floor": 1,
+      "cell": [
+        28,
+        16
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_00",
+      "floor": 2,
+      "cell": [
+        8,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_01",
+      "floor": 2,
+      "cell": [
+        16,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_02",
+      "floor": 2,
+      "cell": [
+        24,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_03",
+      "floor": 2,
+      "cell": [
+        8,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_04",
+      "floor": 2,
+      "cell": [
+        16,
+        4
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_05",
+      "floor": 2,
+      "cell": [
+        24,
+        12
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_06",
+      "floor": 2,
+      "cell": [
+        4,
+        8
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_07",
+      "floor": 2,
+      "cell": [
+        12,
+        16
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_08",
+      "floor": 2,
+      "cell": [
+        20,
+        8
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    },
+    {
+      "id": "d9_09",
+      "floor": 2,
+      "cell": [
+        28,
+        16
+      ],
+      "orientation": "H",
+      "state": "OPEN"
+    }
+  ],
+  "stair_links": [
+    {
+      "from_floor": 0,
+      "from_cell": [
+        6,
+        6
+      ],
+      "to_floor": 1,
+      "to_cell": [
+        6,
+        6
+      ]
+    },
+    {
+      "from_floor": 1,
+      "from_cell": [
+        6,
+        6
+      ],
+      "to_floor": 2,
+      "to_cell": [
+        6,
+        6
+      ]
+    }
+  ],
+  "insertion_zones": [
+    {
+      "id": "ins9",
+      "floor": 0,
+      "vehicle_req": "VAN",
+      "cells": [
+        [
+          2,
+          2
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          3
+        ]
+      ]
+    }
+  ],
+  "extraction_zones": [
+    {
+      "id": "ext9",
+      "floor": 0,
+      "cells": [
+        [
+          36,
+          24
+        ],
+        [
+          37,
+          24
+        ]
+      ]
+    }
+  ],
+  "defender_zones": [
+    {
+      "id": "def9_a",
+      "floor": 0,
+      "cells": [
+        [
+          12,
+          11
+        ],
+        [
+          13,
+          11
+        ],
+        [
+          14,
+          11
+        ]
+      ]
+    },
+    {
+      "id": "def9_b",
+      "floor": 0,
+      "cells": [
+        [
+          20,
+          19
+        ],
+        [
+          21,
+          19
+        ],
+        [
+          22,
+          19
+        ]
+      ]
+    }
+  ],
+  "chokepoints": [
+    {
+      "floor": 0,
+      "cell": [
+        8,
+        4
+      ]
+    },
+    {
+      "floor": 0,
+      "cell": [
+        16,
+        12
+      ]
+    },
+    {
+      "floor": 0,
+      "cell": [
+        24,
+        4
+      ]
+    },
+    {
+      "floor": 0,
+      "cell": [
+        8,
+        12
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "kind": "INTEL_GRAB",
+      "floor": 0,
+      "cell": [
+        33,
+        22
+      ],
+      "timer_ticks": 0
+    },
+    {
+      "kind": "INTEL_GRAB",
+      "floor": 0,
+      "cell": [
+        28,
+        18
+      ],
+      "timer_ticks": 0
+    }
+  ],
+  "ai_spawns": [
+    {
+      "id": "ai9_s1",
+      "archetype": "hostage_guard",
+      "floor": 0,
+      "cell": [
+        34,
+        21
+      ],
+      "facing_deg": 90,
+      "patrol": []
+    },
+    {
+      "id": "ai9_s2",
+      "archetype": "patrol_sentry",
+      "floor": 0,
+      "cell": [
+        12,
+        18
+      ],
+      "facing_deg": 0,
+      "patrol": []
+    }
+  ],
+  "hostage_spawns": [
+    {
+      "id": "host9_1",
+      "floor": 0,
+      "cell": [
+        33,
+        22
+      ]
+    }
+  ],
+  "jammer_nodes": [
+    {
+      "id": "jam9_1",
+      "floor": 0,
+      "cell": [
+        18,
+        20
+      ]
+    }
+  ]
 }

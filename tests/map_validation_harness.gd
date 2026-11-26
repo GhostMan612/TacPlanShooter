@@ -7,19 +7,16 @@ extends SceneTree
 
 const EXPECTED_DIMS := {
 	"op01_glass_house": [32, 24],
+	"op02_night_shift": [32, 24], "op03_iron_shutter": [32, 24], "op04_silent_relay": [32, 24],
+	"op05_penthouse_lock": [32, 24], "op06_redline_terminal": [32, 24], "op08_cold_vault": [32, 24],
+	"op07_blackwater_pier": [40, 28], "op09_signal_tower": [40, 28], "op10_sovereign_citadel": [40, 28],
 }
 
 const EXPECTED_SOLIDS := {
 	"op01_glass_house": 250,
-	"op02_night_shift": 68,
-	"op03_iron_shutter": 73,
-	"op04_silent_relay": 64,
-	"op05_penthouse_lock": 66,
-	"op06_redline_terminal": 72,
-	"op07_blackwater_pier": 68,
-	"op08_cold_vault": 68,
-	"op09_signal_tower": 52,
-	"op10_sovereign_citadel": 68,
+	"op02_night_shift": 204, "op03_iron_shutter": 204, "op04_silent_relay": 204,
+	"op05_penthouse_lock": 204, "op06_redline_terminal": 204, "op08_cold_vault": 204,
+	"op07_blackwater_pier": 265, "op09_signal_tower": 265, "op10_sovereign_citadel": 265,
 }
 
 var _initialized := false

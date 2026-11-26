@@ -6,43 +6,49 @@ class_name AdaptiveBgm
 extends Node
 
 
-enum State { PLANNING_STEALTH, CAUTION_INVESTIGATE, COMBAT_ALERT, AAR_VICTORY, AAR_DEFEAT }
+signal track_changed(name: StringName)
 
 
-var state := int(State.PLANNING_STEALTH)
+const TRACKS: Array[StringName] = [&"bgm_stealth_pad", &"bgm_caution_pulse", &"bgm_combat_alert"]
+var track: int = 0
+var _players: Array[AudioStreamPlayer] = []
+var _bus := "BGM"
 
 
 func _ready() -> void:
-	EventBus.breach_detonated.connect(_on_breach_detonated)
-	EventBus.operative_damaged.connect(_on_operative_damaged)
+	for n in TRACKS:
+		var p := AudioStreamPlayer.new()
+		p.name = String(n)
+		p.bus = _bus
+		var path := "res://assets/audio/" + String(n) + ".wav"
+		if ResourceLoader.exists(path):
+			p.stream = ResourceLoader.load(path, "AudioStream") as AudioStream
+		p.volume_db = -80.0
+		add_child(p)
+		_players.append(p)
+	_play(0)
 
 
-func set_state(s: int) -> void:
-	state = s
+func _play(idx: int) -> void:
+	track = clampi(idx, 0, _players.size() - 1)
+	for i in range(_players.size()):
+		_players[i].volume_db = 0.0 if i == track else -80.0
+		if i == track and not _players[i].playing:
+			_players[i].play()
+	track_changed.emit(TRACKS[track])
 
 
-func is_alert() -> bool:
-	return state == int(State.COMBAT_ALERT)
+func set_state(state: int) -> void:
+	_play(state)
 
 
-func apply() -> void:
-	match state:
-		State.AAR_VICTORY:
-			pass
-		State.AAR_DEFEAT:
-			pass
-		State.COMBAT_ALERT:
-			pass
-		State.CAUTION_INVESTIGATE:
-			pass
-		State.PLANNING_STEALTH:
-			pass
+func on_alert() -> void:
+	_play(2)
 
 
-func _on_breach_detonated(world_pos: Vector2) -> void:
-	set_state(int(State.COMBAT_ALERT))
+func on_caution() -> void:
+	_play(1)
 
 
-func _on_operative_damaged(operative_id: int, remaining_hp: int) -> void:
-	if remaining_hp <= 20 and state != int(State.COMBAT_ALERT):
-		set_state(int(State.COMBAT_ALERT))
+func on_stealth() -> void:
+	_play(0)

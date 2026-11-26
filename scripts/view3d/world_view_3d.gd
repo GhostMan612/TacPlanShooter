@@ -17,6 +17,8 @@ var camera: TacticalCamera3D = null
 var route_overlay: Route3DOverlay = null
 var fog_overlay: Fog3DOverlay = null
 var vfx: Vfx3D = null
+var drone_layer: Drone3DLayer = null
+var vehicle_layer: Vehicle3DLayer = null
 var _floor_root: Node3D = null
 var _actor_root: Node3D = null
 var _floor_meshes: Dictionary = {}
@@ -48,6 +50,12 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	vfx = Vfx3D.new()
 	vfx.name = "Vfx3D"
 	add_child(vfx)
+	drone_layer = Drone3DLayer.new()
+	drone_layer.name = "Drones3D"
+	add_child(drone_layer)
+	vehicle_layer = Vehicle3DLayer.new()
+	vehicle_layer.name = "Vehicles3D"
+	add_child(vehicle_layer)
 	var bus := get_node_or_null("/root/EventBus")
 	if bus != null:
 		if not bus.breach_detonated.is_connected(_on_breach_3d):
@@ -342,6 +350,10 @@ func sync_from_world(w: SimWorld, floor: int, local_faction: int) -> void:
 	var seen := {}
 	for o in w.operatives:
 		_sync_actor(o, seen, local_faction)
+	if drone_layer != null:
+		drone_layer.sync(w, active_floor)
+	if vehicle_layer != null:
+		vehicle_layer.sync(w, active_floor)
 	if not w.operatives.is_empty() and _wall_material != null:
 		var lead: SimOperative = w.operatives[0]
 		_wall_material.set_shader_parameter("focus_pos", actor_to_world(lead))

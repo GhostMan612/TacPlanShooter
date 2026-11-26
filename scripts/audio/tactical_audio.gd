@@ -18,11 +18,15 @@ var _heartbeat_hp_peak: float = 1.0
 var _heartbeat_time_left: float = 0.0
 var _heartbeat_pulse_cd: float = 0.0
 var _rng := RandomNumberGenerator.new()
+var bgm: AdaptiveBgm = null
 
 
 func _ready() -> void:
 	_rng.seed = 9001
 	_setup_buses()
+	bgm = AdaptiveBgm.new()
+	bgm.name = "AdaptiveBgm"
+	add_child(bgm)
 	var eb := get_node_or_null("/root/EventBus")
 	if eb != null:
 		eb.operative_damaged.connect(_on_operative_damaged)
@@ -52,9 +56,20 @@ func play_blip(sound_name: StringName = &"") -> void:
 
 
 func _on_breach(_pos: Vector2) -> void:
-	_duck_ambient(0.45)
+	_duck_ambient(0.251)
+	_play_path("res://assets/audio/sfx_breach_c4.wav", &"TacticalSFX")
 	_play_squelch(&"ui_squelch_strong")
 	squelch_played.emit(&"breach")
+
+
+func play_gun(loud: bool) -> void:
+	_play_path("res://assets/audio/sfx_gun_loud.wav" if loud else "res://assets/audio/sfx_gun_suppressed.wav", &"TacticalSFX")
+
+
+func play_alert() -> void:
+	_play_path("res://assets/audio/sfx_alert_sting.wav", &"TacticalSFX")
+	if bgm != null:
+		bgm.on_alert()
 
 
 func _duck_ambient(factor: float) -> void:
@@ -101,7 +116,7 @@ func _physics_process(delta: float) -> void:
 				lp = e as AudioEffectLowPassFilter
 				break
 		if lp != null:
-			lp.cutoff_hz = 18000.0 if _heartbeat_time_left <= 0.0 else float(350.0 + _heartbeat_hp_peak * 1200.0)
+			lp.cutoff_hz = 18000.0 if _heartbeat_time_left <= 0.0 else 850.0
 
 
 func _play_squelch(kind: StringName) -> void:
