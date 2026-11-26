@@ -51,6 +51,9 @@ jobs:
           wait "$pid" 2>/dev/null || true
           cat import2.log
           [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]
+      - name: Asset pipeline integrity gate
+        if: ${{ !cancelled() }}
+        run: python3 tools/verify_assets.py --game
       - name: Parse gate (every script and scene)
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . res://tests/parse_all.tscn 2>&1 | tee parse_all.log || true
