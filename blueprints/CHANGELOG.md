@@ -3,6 +3,12 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 23 — 2026-11-26 — M8 HD-2D visual polish
+- `4fd23b4`: Headless CI 23/23 green (SimClock decoupling, OP-05 dynamic stairs, TilesetTheme atlas tracked).
+- `5dd23a5`: textured floor + normal map, batched wall-base AO strips, breach visual swap + pooled 24-cube rubble (4 OmniLights cap), true 8-direction `Sprite3D` atlases with camera-relative frames; `tools/generate_8dir_sprites.py` + 6 PNG/`.import` pairs committed.
+- `view3d_combat_harness` asserts 8-dir frames 0..7 across 90° yaw snaps and >=12 rubble debris cubes.
+
+
 ## Session 23 — 2026-11-26 — WO-25D-ENGINE-5FT-TILESET-ARCHITECTURE Steps 1 & 2 (CP-103)
 - Step 1: `data/maps/op01_glass_house.json` upgraded from `16x12` to `32x24` (1 cell = 5 ft): exterior street/courtyard apron, vestibule, central corridor, side offices, security/server room, hostage suite, and 9 doors including 4 named breach entries (`d_alpha`/`d_bravo`/`d_charlie`/`d_delta`). Door `(5,2)` stays `OPEN`; `wall_materials` anchors preserved. `tests/map_validation_harness.gd` now uses per-map dimensions and `EXPECTED_SOLIDS[op01]=250`.
 - Step 1: whisper-subtle planning gridlines use `Color(0.06, 0.14, 0.20, 0.14)` and remain hidden during EXECUTION; theme supply via `tileset_theme` map field.
