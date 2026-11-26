@@ -27,9 +27,10 @@ func host_on_port(faction_id: int, port: int = PORT) -> int:
 	close_session()
 	local_faction_id = faction_id
 	peer = ENetMultiplayerPeer.new()
-	var err: int = peer.create_host(port, 4)
+	var err: int = peer.create_server(port, 4)
 	if err == OK:
-		multiplayer.multiplayer_peer = peer
+		if is_inside_tree() and multiplayer != null:
+			multiplayer.multiplayer_peer = peer
 		session_active = true
 	return err
 
@@ -44,7 +45,8 @@ func connect_on_port(address: String, port: int = PORT) -> int:
 	peer = ENetMultiplayerPeer.new()
 	var err: int = peer.create_client(address, port)
 	if err == OK:
-		multiplayer.multiplayer_peer = peer
+		if is_inside_tree() and multiplayer != null:
+			multiplayer.multiplayer_peer = peer
 		session_active = true
 	return err
 
@@ -120,6 +122,8 @@ func process_tick(world: SimWorld) -> void:
 
 func poll() -> void:
 	if not session_active or peer == null:
+		return
+	if multiplayer == null or multiplayer.multiplayer_peer != peer:
 		return
 	peer.poll()
 	while peer.get_available_packet_count() > 0:
