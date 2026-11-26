@@ -3,6 +3,11 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 24 — 2026-11-26 — M9 onboarding / difficulty / beta polish
+- `f12577d`: 5-step interactive `TutorialOverlay` on OP-01 (route -> Go-Code -> camera -> EXECUTE -> Tap-In; SKIP + REPLAY TUTORIAL); difficulty doctrines RECRUIT 1.35x/24, VETERAN 1.0x/12, TIER_ONE 0.8x/8; mobile haptics on Go-Code/Tap-In; `campaign_balance_harness` (25th CI gate).
+- Gates: HYGIENE_COMMENTS=0, VERIFY_ASSETS PASS, parse_all 110 scripts, scene_smoke PASS, balance harness PASS.
+
+
 ## Session 23 — 2026-11-26 — M8 HD-2D visual polish
 - `4fd23b4`: Headless CI 23/23 green (SimClock decoupling, OP-05 dynamic stairs, TilesetTheme atlas tracked).
 - `5dd23a5`: textured floor + normal map, batched wall-base AO strips, breach visual swap + pooled 24-cube rubble (4 OmniLights cap), true 8-direction `Sprite3D` atlases with camera-relative frames; `tools/generate_8dir_sprites.py` + 6 PNG/`.import` pairs committed.
