@@ -29,6 +29,7 @@ var _box_mesh: BoxMesh = null
 var _floor_material: StandardMaterial3D = null
 var _wall_material: ShaderMaterial = null
 var _actor_textures: Array[Texture2D] = []
+var _dir_textures: Dictionary = {}
 
 
 func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
@@ -82,8 +83,15 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	_box_mesh = BoxMesh.new()
 	_floor_material = StandardMaterial3D.new()
 	_floor_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_floor_material.albedo_color = Color(0.10, 0.15, 0.21)
+	_floor_material.albedo_color = Color(0.62, 0.70, 0.82)
 	_floor_material.roughness = 0.9
+	_floor_material.uv1_triplanar = true
+	var floor_tex := ResourceLoader.load("res://assets/textures/concrete_seamless_256.png", "Texture2D") as Texture2D
+	if floor_tex != null:
+		_floor_material.albedo_texture = floor_tex
+	var floor_normal := ResourceLoader.load("res://assets/textures/spacegrunts_25d_tileset_n.png", "Texture2D") as Texture2D
+	if floor_normal != null:
+		_floor_material.normal_texture = floor_normal
 	var shader_path := "res://scripts/view3d/wall_cutaway.gdshader"
 	if ResourceLoader.exists(shader_path):
 		_wall_material = ShaderMaterial.new()
@@ -101,6 +109,20 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 			var tex := ResourceLoader.load(path) as Texture2D
 			if tex != null:
 				_actor_textures.append(tex)
+	var dir_paths := {
+		&"pointman": "res://assets/sprites/8dir/op_pointman_8dir.png",
+		&"breacher": "res://assets/sprites/8dir/op_breacher_8dir.png",
+		&"shield": "res://assets/sprites/8dir/op_shield_8dir.png",
+		&"tech": "res://assets/sprites/8dir/op_tech_8dir.png",
+		&"hostile": "res://assets/sprites/8dir/hostile_sentry_8dir.png",
+		&"hostage": "res://assets/sprites/8dir/hostage_8dir.png",
+	}
+	for key in dir_paths.keys():
+		var path: String = dir_paths[key]
+		if ResourceLoader.exists(path):
+			var tex := ResourceLoader.load(path, "Texture2D") as Texture2D
+			if tex != null:
+				_dir_textures[key] = tex
 	rebuild()
 	camera.focus(cell_to_world(Vector2i(map.width_cells / 2, map.height_cells / 2), floor))
 	camera.on_resize(viewport)
@@ -221,8 +243,10 @@ func rebuild() -> void:
 		_floor_root.add_child(plate)
 		_floor_root.add_child(walls)
 		_floor_root.add_child(props)
+		var ao := _build_ao(fm, f)
+		_floor_root.add_child(ao)
 		_build_doors(fm, f)
-		_floor_meshes[f] = {"floor": plate, "walls": walls}
+		_floor_meshes[f] = {"floor": plate, "walls": walls, "ao": ao}
 	_door_signature = _signature()
 	_apply_floor_visibility()
 
@@ -301,6 +325,33 @@ func _build_props(fm: GreyboxMap, floor: int) -> MultiMeshInstance3D:
 	return inst
 
 
+func _build_ao(fm: GreyboxMap, floor: int) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.mesh = _box_mesh
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var spots: Array[Vector2i] = []
+	for y in range(fm.height_cells):
+		for x in range(fm.width_cells):
+			var c := Vector2i(x, y)
+			if fm.is_solid(c):
+				continue
+			if fm.solid_cells.has(c + Vector2i(0, -1)) or fm.solid_cells.has(c + Vector2i(-1, 0)) or fm.solid_cells.has(c + Vector2i(1, 0)):
+				spots.append(c)
+	mm.instance_count = spots.size()
+	for i in range(spots.size()):
+		var c: Vector2i = spots[i]
+		var p: Vector3 = cell_to_world(c, floor) + Vector3(0.0, 0.02, 0.0)
+		mm.set_instance_transform(i, Transform3D().translated(p).scaled(Vector3(CELL_UNITS, 0.02, CELL_UNITS)))
+	var inst := MultiMeshInstance3D.new()
+	inst.name = "WallAO%d" % floor
+	inst.multimesh = mm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.02, 0.04, 0.07, 0.42)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	inst.material_override = mat
+	return inst
+
+
 func _build_doors(fm: GreyboxMap, floor: int) -> void:
 	for key in fm.door_cells.keys():
 		var c := Vector2i(key)
@@ -313,9 +364,13 @@ func _build_doors(fm: GreyboxMap, floor: int) -> void:
 		mat.albedo_color = Color(0.24, 0.30, 0.38) if state == &"OPEN" else Color(0.55, 0.20, 0.12)
 		mat.emission_enabled = true
 		mat.emission = mat.albedo_color * 0.3
+		if state == &"BREACHED_DESTROYED":
+			mat.albedo_color = Color(0.16, 0.18, 0.21)
+			mat.emission = Color(0.95, 0.45, 0.10)
+			mat.emission_energy_multiplier = 0.6
 		box.material_override = mat
 		box.position = cell_to_world(c, floor) + Vector3(0.0, 1.1, 0.0)
-		box.scale = Vector3(1.35, 2.2, 0.25)
+		box.scale = Vector3(0.45, 0.55, 0.25) if state == &"BREACHED_DESTROYED" else Vector3(1.35, 2.2, 0.25)
 		_floor_root.add_child(box)
 
 
@@ -325,6 +380,8 @@ func _apply_floor_visibility() -> void:
 		var shown: bool = int(f) == active_floor
 		(entry.get("floor") as Node3D).visible = shown
 		(entry.get("walls") as Node3D).visible = shown
+		if entry.has("ao"):
+			(entry.get("ao") as Node3D).visible = shown
 
 
 func _signature() -> String:
@@ -338,12 +395,24 @@ func _signature() -> String:
 	return "|".join(out)
 
 
+func _emit_breach_rubble() -> void:
+	if world == null or vfx == null:
+		return
+	for key in world.door_system.doors.keys():
+		if world.door_system.state(key) == int(DoorSystem.State.BREACHED_DESTROYED):
+			var cell := Vector2i(key)
+			vfx.spawn_breach_rubble(cell_to_world(cell, active_floor))
+			return
+
+
 func sync_from_world(w: SimWorld, floor: int, local_faction: int) -> void:
 	if w == null:
 		return
 	world = w
 	active_floor = floor
-	if _signature() != _door_signature:
+	var sig := _signature()
+	if sig != _door_signature:
+		_emit_breach_rubble()
 		rebuild()
 	else:
 		_apply_floor_visibility()
@@ -375,8 +444,13 @@ func _sync_actor(o: SimOperative, seen: Dictionary, local_faction: int) -> void:
 		sprite.billboard = 2
 		sprite.shaded = false
 		sprite.centered = true
-		sprite.pixel_size = 0.022
-		if not _actor_textures.is_empty():
+		sprite.pixel_size = 0.035
+		sprite.hframes = 8
+		sprite.vframes = 1
+		var key: StringName = &"pointman" if o.faction_id == local_faction else &"hostile"
+		if _dir_textures.has(key):
+			sprite.texture = _dir_textures[key]
+		elif not _actor_textures.is_empty():
 			var idx: int = o.id if o.faction_id == local_faction else _actor_textures.size() - 1
 			sprite.texture = _actor_textures[posmod(idx, _actor_textures.size())]
 		_actor_root.add_child(sprite)
@@ -385,5 +459,5 @@ func _sync_actor(o: SimOperative, seen: Dictionary, local_faction: int) -> void:
 	seen[o.id] = true
 	s.global_position = actor_to_world(o)
 	s.visible = o.floor_idx == active_floor and o.is_alive()
-	var sector: int = posmod(int(roundf(fposmod(o.facing_deg, 360.0) / 45.0)), 8)
-	s.flip_h = sector >= 4
+	var rel_deg := wrapf(o.facing_deg - (camera.yaw_deg if camera != null else 0.0) + 22.5, 0.0, 360.0)
+	s.frame = int(floor(rel_deg / 45.0)) % 8

@@ -9,6 +9,7 @@ extends Node3D
 const LIGHT_POOL: int = 4
 const TRACER_POOL: int = 8
 const RING_POOL: int = 4
+const RUBBLE_POOL: int = 24
 
 
 var _lights: Array[OmniLight3D] = []
@@ -19,6 +20,9 @@ var _tracer_life: Array[float] = []
 var _ring_life: Array[float] = []
 var _light_mesh: BoxMesh = null
 var _ring_mesh: CylinderMesh = null
+var _rubble: Array[MeshInstance3D] = []
+var _rubble_vel: Array[Vector3] = []
+var _rubble_life: Array[float] = []
 
 
 func _ready() -> void:
@@ -59,6 +63,20 @@ func _ready() -> void:
 		add_child(r)
 		_rings.append(r)
 		_ring_life.append(0.0)
+	var cube := BoxMesh.new()
+	for i in range(RUBBLE_POOL):
+		var r := MeshInstance3D.new()
+		r.name = "Rubble%d" % i
+		r.mesh = cube
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.42, 0.45, 0.50) if i % 2 == 0 else Color(0.58, 0.48, 0.36)
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		r.material_override = mat
+		r.visible = false
+		add_child(r)
+		_rubble.append(r)
+		_rubble_vel.append(Vector3.ZERO)
+		_rubble_life.append(0.0)
 
 
 func muzzle(pos: Vector3, col: Color = Color(1.0, 0.72, 0.25)) -> void:
@@ -73,6 +91,25 @@ func flashbang(pos: Vector3) -> void:
 func breach(pos: Vector3) -> void:
 	_spawn_light(pos + Vector3.UP * 0.6, Color(1.0, 0.45, 0.1), 14.0)
 	_spawn_ring(pos, 2.4)
+	spawn_breach_rubble(pos)
+
+
+func spawn_breach_rubble(pos: Vector3) -> void:
+	var n := 0
+	for i in range(RUBBLE_POOL):
+		if _rubble_life[i] > 0.0:
+			continue
+		var a := float(i) * 2.39996
+		var speed := 1.6 + float(i % 5) * 0.45
+		_rubble_vel[i] = Vector3(cos(a) * speed, 2.4 + float(i % 3) * 0.6, sin(a) * speed)
+		_rubble[i].position = pos + Vector3(0.0, 0.4, 0.0)
+		_rubble[i].rotation = Vector3(float(i) * 0.31, float(i) * 0.77, float(i) * 0.19)
+		_rubble[i].scale = Vector3.ONE * (0.11 + float(i % 4) * 0.04)
+		_rubble[i].visible = true
+		_rubble_life[i] = 4.0
+		n += 1
+		if n >= 16:
+			break
 
 
 func tracer(from: Vector3, to: Vector3) -> void:
@@ -147,3 +184,17 @@ func _process(delta: float) -> void:
 		_rings[i].scale *= 1.0 + delta * 1.8
 		if _ring_life[i] <= 0.0:
 			_rings[i].visible = false
+	for i in range(RUBBLE_POOL):
+		if _rubble_life[i] <= 0.0:
+			continue
+		_rubble_life[i] -= delta
+		_rubble_vel[i].y -= 7.8 * delta
+		_rubble[i].position += _rubble_vel[i] * delta
+		_rubble[i].rotation += _rubble_vel[i] * delta * 0.35
+		if _rubble[i].position.y < 0.1:
+			_rubble[i].position.y = 0.1
+			_rubble_vel[i].y = absf(_rubble_vel[i].y) * 0.34
+			_rubble_vel[i].x *= 0.7
+			_rubble_vel[i].z *= 0.7
+		if _rubble_life[i] <= 0.0:
+			_rubble[i].visible = false

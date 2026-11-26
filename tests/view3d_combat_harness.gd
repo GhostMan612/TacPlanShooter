@@ -56,6 +56,21 @@ func _check_world_view_build() -> void:
 		var view := WorldView3D.new()
 		root.add_child(view)
 		view.setup(w, m, 0, Vector2(720.0, 1612.0))
+		view.sync_from_world(w, 0, 0)
+		var frames_ok := true
+		for yaw in [0.0, 90.0, 180.0, 270.0]:
+			view.camera.yaw_deg = yaw
+			view.sync_from_world(w, 0, 0)
+			for id in view._actors.keys():
+				var s: Sprite3D = view._actors[id] as Sprite3D
+				frames_ok = frames_ok and s.frame >= 0 and s.frame <= 7
+		_check(frames_ok, "8dir sprite frames stay 0..7 across 90-degree yaw snaps")
+		view.vfx.spawn_breach_rubble(Vector3(2.0, 0.0, 2.0))
+		var rubble := 0
+		for child in view.vfx.get_children():
+			if child is MeshInstance3D and child.name.begins_with("Rubble") and child.visible:
+				rubble += 1
+		_check(rubble >= 12, "breach rubble pool spawns >= 12 debris cubes")
 		_check(view.get_child_count() > 0, "builds 3D view for " + path)
 		_check(view.vfx != null and view.fog_overlay != null, "vfx + fog overlay active for " + path)
 		view.update_routes({&"red": [Vector2i(2, 2), Vector2i(3, 2)]})
