@@ -17,11 +17,15 @@ const ZONE_AMBER := Color(0.8, 0.7, 0.1, 0.6)
 const ZONE_RED := Color(0.8, 0.2, 0.2, 0.9)
 const HOSTAGE_COLOR := Color(0.23, 0.51, 0.96)
 const HD_TILESET_PATH := "res://addons/godot4-asset-vault/tacplanshooter_hd/tilesets/spacegrunts_25d_tileset.tres"
+const HD_FLOOR_PATH := "res://assets/textures/concrete_seamless_256.png"
+const HD_WALL_PATH := "res://assets/textures/spacegrunts_25d_tileset.png"
 
 
 var map: GreyboxMap = null
 var palette := {}
 var hd_tilemap: TileMap = null
+var hd_floor: Texture2D = null
+var hd_wall: Texture2D = null
 
 
 func setup(m: GreyboxMap) -> void:
@@ -39,6 +43,10 @@ func apply_palette(pal: Dictionary) -> void:
 
 
 func enable_hd_tiles() -> bool:
+	if hd_floor == null and ResourceLoader.exists(HD_FLOOR_PATH):
+		hd_floor = ResourceLoader.load(HD_FLOOR_PATH, "Texture2D") as Texture2D
+	if hd_wall == null and ResourceLoader.exists(HD_WALL_PATH):
+		hd_wall = ResourceLoader.load(HD_WALL_PATH, "Texture2D") as Texture2D
 	if hd_tilemap != null:
 		return true
 	if not ResourceLoader.exists(HD_TILESET_PATH):
@@ -71,6 +79,10 @@ func _draw() -> void:
 	var s := float(SimConstants.GRID_CELL_SIZE_PX)
 	var total := Rect2(Vector2.ZERO, Vector2(map.width_cells, map.height_cells) * s)
 	draw_rect(total, c_floor, true)
+	if hd_floor != null:
+		draw_texture_rect(hd_floor, total, true, Color(1.0, 1.0, 1.0, 0.65))
+	elif hd_tilemap == null:
+		draw_rect(total, c_floor, true)
 	var x := 0.0
 	while x <= total.size.x + 0.01:
 		var major := int(x / s) % 5 == 0
@@ -87,6 +99,9 @@ func _draw() -> void:
 		if map.door_cells.has(cell):
 			continue
 		var rect := GridUtil.cell_rect_px(cell)
+		if hd_wall != null and rect.size.x > 0:
+			draw_texture_rect_region(hd_wall, rect, Rect2(0, 0, 16, 16), Color(1.0, 1.0, 1.0, 0.85))
+			continue
 		var mat := StringName(map.wall_materials.get(cell, &"CONCRETE"))
 		if mat == &"DRY_WALL":
 			draw_rect(rect, c_wall.lerp(c_floor, 0.4), true)
