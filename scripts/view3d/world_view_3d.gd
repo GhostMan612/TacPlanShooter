@@ -39,6 +39,20 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	camera = TacticalCamera3D.new()
 	camera.name = "TacticalCamera3D"
 	add_child(camera)
+	var sun := DirectionalLight3D.new()
+	sun.name = "TacticalSun"
+	sun.light_energy = 1.6
+	sun.rotation_degrees = Vector3(-52.0, 38.0, 0.0)
+	add_child(sun)
+	var env := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0.05, 0.08, 0.12)
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(0.42, 0.52, 0.66)
+	e.ambient_light_energy = 1.1
+	env.environment = e
+	add_child(env)
 	_box_mesh = BoxMesh.new()
 	_floor_material = StandardMaterial3D.new()
 	_floor_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

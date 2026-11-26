@@ -127,10 +127,11 @@ func mount_hud() -> void:
 		return
 	_hud = CanvasLayer.new()
 	_hud.name = "CameraControlHud"
+	_hud.layer = 5
 	add_child(_hud)
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	box.position = Vector2(-84.0, 280.0)
+	box.position = Vector2(-76.0, 560.0)
 	_hud.add_child(box)
 	_add_pill(box, "MAP", "MAP", int(Tier.MAP))
 	_add_pill(box, "2.5D", "2.5D", int(Tier.TACTICAL))
