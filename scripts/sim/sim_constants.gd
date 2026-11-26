@@ -10,6 +10,10 @@ const BASE_SPEED_CELLS_PER_SEC: float = 4.0
 const PLANNING_FPS_CAP: int = 30
 const EXECUTION_FPS_CAP: int = 60
 
+enum Difficulty { RECRUIT, VETERAN, TIER_ONE }
+const REACTION_MULTIPLIERS: Array[float] = [1.35, 1.0, 0.8]
+const GOAP_CADENCE: Array[int] = [24, 12, 8]
+
 const STANCE_SPEED_MULTIPLIERS: Dictionary = {
 	&"blitz": 1.6,
 	&"normal": 1.0,

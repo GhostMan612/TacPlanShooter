@@ -17,6 +17,7 @@ var loupe: PipLoupe = null
 var prop_layer: PropLayer = null
 var camera: MissionCamera = null
 var view3d: WorldView3D = null
+var tutorial: TutorialOverlay = null
 var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
@@ -168,6 +169,8 @@ func _ready() -> void:
 	view3d.setup(world, map, _active_floor, get_viewport_rect().size)
 	view3d.visible = false
 	view3d.set_fog(fog)
+	tutorial = TutorialOverlay.new()
+	add_child(tutorial)
 	for i in range(spawn_cells.size()):
 		squads.add_member(_assigned_squad_for(i), i)
 	_setup_hud()
@@ -485,6 +488,8 @@ func _place_hud() -> void:
 
 
 func _toggle_view3d() -> void:
+	if tutorial != null:
+		tutorial.notify_camera()
 	if _result_view != null or view3d == null:
 		return
 	var enable: bool = not view3d.is_active()
@@ -705,7 +710,18 @@ func _on_execute_pressed() -> void:
 	_set_status("EXECUTING · Tap operative card + cell for Tap-In (-1 CP).")
 
 
+func _haptic() -> void:
+	if not OS.has_feature("mobile"):
+		return
+	var settings := ThemeManager.load_settings()
+	if bool(settings.get("haptics_enabled", true)):
+		Input.vibrate_handheld(16)
+
+
 func _select_go_code(code: StringName) -> void:
+	if tutorial != null:
+		tutorial.notify_gocode()
+	_haptic()
 	if world == null or _result_view != null:
 		return
 	if SimClock.phase == SimClock.Phase.EXECUTION:
@@ -847,6 +863,8 @@ func _node_storage_key(cell: Vector2i) -> Variant:
 
 
 func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
+	if tutorial != null:
+		tutorial.notify_route()
 	if view3d != null:
 		view3d.update_routes(route_cells)
 	if SimClock.phase != SimClock.Phase.PLANNING or op_id < 0 or op_id >= spawn_cells.size():
@@ -921,6 +939,9 @@ func _on_operative_selected(op_id: int) -> void:
 		_set_phase_controls(false)
 	elif SimClock.phase == SimClock.Phase.EXECUTION and tap_in != null:
 		tap_in.op_id = op_id
+		_haptic()
+		if tutorial != null:
+			tutorial.notify_tapin()
 		_set_status("TAP-IN %s · Tap any cell on map to redirect (-1 CP)." % squad_hud.callsign(op_id))
 
 
@@ -1359,6 +1380,8 @@ func _next_campaign_map() -> String:
 
 
 func _show_result(complete: bool, reason: String, alive: int, halted: bool = false) -> void:
+	if tutorial != null:
+		tutorial.notify_mission_end()
 	_recorded_go_codes = world.go_code_stream.duplicate(true)
 	_recorded_overrides.clear()
 	for oc in world.override_stream:

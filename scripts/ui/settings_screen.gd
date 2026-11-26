@@ -22,6 +22,7 @@ func _ready() -> void:
 	var pal := theme_manager.palette()
 	var col := UiKit.build_screen(self, pal)
 	col.add_child(UiKit.button("< BACK", _go_back, settings))
+	col.add_child(UiKit.button("REPLAY TUTORIAL", _replay_tutorial, settings))
 	col.add_child(UiKit.heading("SETTINGS", pal))
 	col.add_child(UiKit.caption("THEME", pal, false))
 	var group := ButtonGroup.new()
@@ -100,6 +101,14 @@ func _persist() -> void:
 		s[k] = settings.get(k, s[k])
 	s["haptics"] = bool(settings.get("haptics", true))
 	ThemeManager.save_settings(s)
+
+
+func _replay_tutorial() -> void:
+	settings["tutorial_completed"] = false
+	var f := FileAccess.open("user://settings.json", FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(settings))
+		f.close()
 
 
 func _go_back() -> void:

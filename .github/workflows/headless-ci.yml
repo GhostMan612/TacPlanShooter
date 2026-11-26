@@ -51,6 +51,11 @@ jobs:
           wait "$pid" 2>/dev/null || true
           cat import2.log
           [ "$(wc -c < .godot/global_script_class_cache.cfg)" -gt 1000 ]
+      - name: Campaign balance harness
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/campaign_balance_harness.gd 2>&1 | tee campaign_balance.log || true
+          bash tools/ci_gate.sh campaign_balance.log "[HARNESS] RESULT PASS"
       - name: Asset pipeline integrity gate
         if: ${{ !cancelled() }}
         run: python3 tools/verify_assets.py --game

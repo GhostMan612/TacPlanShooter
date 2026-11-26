@@ -22,3 +22,13 @@ const ARCHETYPES: Dictionary = {
 
 static func by_name(name: StringName) -> Dictionary:
 	return ARCHETYPES.get(name, ARCHETYPES[&"patrol_sentry"])
+
+
+static func reaction_ticks(name: StringName, difficulty: int) -> int:
+	var base := int(by_name(name).get("reaction_ticks", 20))
+	var mult: float = SimConstants.REACTION_MULTIPLIERS[clampi(difficulty, 0, 2)]
+	return int(roundf(float(base) * mult))
+
+
+static func goap_cadence(difficulty: int) -> int:
+	return SimConstants.GOAP_CADENCE[clampi(difficulty, 0, 2)]
