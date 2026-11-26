@@ -125,7 +125,7 @@ func _touch_points() -> Array:
 
 func _pan(screen_delta: Vector2) -> void:
 	var scale := _current_distance / 900.0
-	focus_point.x = clampf(focus_point.x + screen_delta.x * scale, bounds.position.x, bounds.end.x)
+	focus_point.x = clampf(focus_point.x - screen_delta.x * scale, bounds.position.x, bounds.end.x)
 	focus_point.z = clampf(focus_point.z - screen_delta.y * scale, bounds.position.y, bounds.end.y)
 
 
@@ -166,6 +166,12 @@ func mount_hud() -> void:
 	var right := _add_pill(box, "↻", "CW", 1)
 	_hud_buttons["CCW"] = left
 	_hud_buttons["CW"] = right
+	var rose := CompassRose.new()
+	rose.name = "CompassRose"
+	rose.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	rose.position = Vector2(-142.0, 980.0)
+	rose.size = Vector2(104.0, 104.0)
+	_hud.add_child(rose)
 
 
 func _add_pill(parent: Node, label: String, key: String, value: int) -> Button:
