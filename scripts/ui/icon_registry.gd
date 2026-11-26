@@ -39,5 +39,7 @@ static func icon(name: StringName) -> Texture2D:
 	if not ResourceLoader.exists(p):
 		p = "res://assets/icons/svg/" + str(name) + ".svg"
 	if not ResourceLoader.exists(p):
+		p = "res://addons/godot4-asset-vault/tacplanshooter/icons/" + str(name) + ".svg"
+	if not ResourceLoader.exists(p):
 		return null
 	return ResourceLoader.load(p, "Texture2D") as Texture2D

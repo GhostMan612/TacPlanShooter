@@ -16,10 +16,12 @@ const ZONE_GREEN := Color(0.2, 0.7, 0.2, 0.8)
 const ZONE_AMBER := Color(0.8, 0.7, 0.1, 0.6)
 const ZONE_RED := Color(0.8, 0.2, 0.2, 0.9)
 const HOSTAGE_COLOR := Color(0.23, 0.51, 0.96)
+const HD_TILESET_PATH := "res://addons/godot4-asset-vault/tacplanshooter_hd/tilesets/spacegrunts_25d_tileset.tres"
 
 
 var map: GreyboxMap = null
 var palette := {}
+var hd_tilemap: TileMap = null
 
 
 func setup(m: GreyboxMap) -> void:
@@ -34,6 +36,20 @@ func refresh() -> void:
 func apply_palette(pal: Dictionary) -> void:
 	palette = pal
 	queue_redraw()
+
+
+func enable_hd_tiles() -> bool:
+	if hd_tilemap != null:
+		return true
+	if not ResourceLoader.exists(HD_TILESET_PATH):
+		return false
+	var ts := ResourceLoader.load(HD_TILESET_PATH, "TileSet") as TileSet
+	if ts == null:
+		return false
+	hd_tilemap = TileMap.new()
+	hd_tilemap.tile_set = ts
+	add_child(hd_tilemap)
+	return true
 
 
 func _color(key: String, fallback: Color) -> Color:

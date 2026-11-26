@@ -16,6 +16,7 @@ const CONE_RANGE := 26.0
 const CONE_HALF_DEG := 35.0
 const CONE_STEPS := 8
 const LABEL_SIZE := 7
+const HD_RIG_PATH := "res://addons/godot4-asset-vault/tacplanshooter_hd/scenes/modular_operative.tscn"
 
 
 var op_id := -1
@@ -27,6 +28,7 @@ var callsign := ""
 var facing_deg := 0.0
 var status: StringName = &"ready"
 var ink := Color(0.9, 0.92, 0.95)
+var hd_rig: Node2D = null
 
 
 func _init(p_id := -1) -> void:
@@ -49,7 +51,25 @@ func configure(color: Color, sign_text: String, ink_color: Color) -> void:
 	squad_color = color
 	callsign = sign_text
 	ink = ink_color
+	_ensure_hd_rig()
 	queue_redraw()
+
+
+func _ensure_hd_rig() -> void:
+	if hd_rig != null or not ResourceLoader.exists(HD_RIG_PATH):
+		return
+	var ps := ResourceLoader.load(HD_RIG_PATH, "PackedScene") as PackedScene
+	if ps == null:
+		return
+	hd_rig = ps.instantiate() as Node2D
+	if hd_rig == null:
+		return
+	add_child(hd_rig)
+	var squad_idx := 0
+	if squad_color != BASE_COLOR:
+		squad_idx = int(squad_color.r * 255.0) % 4
+	if hd_rig.has_method("configure"):
+		hd_rig.call("configure", squad_idx, StringName(callsign), &"standard", &"smg")
 
 
 func sync_from(o: SimOperative, px_pos: Vector2) -> bool:

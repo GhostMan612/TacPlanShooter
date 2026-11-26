@@ -90,6 +90,7 @@ func _ready() -> void:
 	renderer = MapRenderer.new()
 	renderer.apply_palette(_tm.palette())
 	renderer.setup(map)
+	renderer.enable_hd_tiles()
 	add_child(renderer)
 	props = PropsPlacement.new()
 	props.z_index = 1
@@ -1102,7 +1103,7 @@ func _set_phase_controls(executing: bool) -> void:
 	if _execute_button != null:
 		_execute_button.disabled = executing or result_visible
 		if _is_pass_play() and not executing:
-			_execute_button.text = "COMMIT P1" if _pass_play_stage == 0 else "COMMIT & EXEC"
+			_execute_button.text = "COMMIT P1" if _pass_play_stage == 0 else "EXEC P2"
 		else:
 			_execute_button.text = "EXECUTE"
 	if _mode_button != null:
