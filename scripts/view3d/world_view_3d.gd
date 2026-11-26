@@ -41,7 +41,7 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	add_child(camera)
 	var sun := DirectionalLight3D.new()
 	sun.name = "TacticalSun"
-	sun.light_energy = 1.6
+	sun.light_energy = 0.8
 	sun.rotation_degrees = Vector3(-52.0, 38.0, 0.0)
 	add_child(sun)
 	var env := WorldEnvironment.new()
@@ -50,12 +50,14 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	e.background_color = Color(0.05, 0.08, 0.12)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.42, 0.52, 0.66)
-	e.ambient_light_energy = 1.1
+	e.ambient_light_energy = 0.6
 	env.environment = e
 	add_child(env)
 	_box_mesh = BoxMesh.new()
 	_floor_material = StandardMaterial3D.new()
 	_floor_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_floor_material.albedo_color = Color(0.10, 0.15, 0.21)
+	_floor_material.roughness = 0.9
 	var shader_path := "res://scripts/view3d/wall_cutaway.gdshader"
 	if ResourceLoader.exists(shader_path):
 		_wall_material = ShaderMaterial.new()
