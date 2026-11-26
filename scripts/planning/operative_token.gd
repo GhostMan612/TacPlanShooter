@@ -125,20 +125,21 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, RADIUS + 3.0, 0.0, TAU, 24, squad_color, 2.0)
 	var yoff := _bob() if alive else 0.0
 	var body_col := _uniform() if alive else KIA_COLOR
-	var gear := HOSTILE_GEAR if hostile else ARMOR
 	var px := Vector2(0, yoff - 5.0)
-	draw_rect(Rect2(px + Vector2(-5, -9), Vector2(10, 6)), gear, true)
-	draw_rect(Rect2(px + Vector2(-6, -3), Vector2(12, 9)), body_col, true)
-	draw_rect(Rect2(px + Vector2(-4, 1), Vector2(8, 4)), gear, true)
-	draw_rect(Rect2(px + Vector2(-3, -8), Vector2(6, 2)), VISOR if alive else Color(0.3, 0.3, 0.3), true)
+	if sprite_texture != null:
+		draw_texture_rect(sprite_texture, Rect2(Vector2(-16, -16), Vector2(32, 32)), false)
+	else:
+		var gear := HOSTILE_GEAR if hostile else ARMOR
+		draw_rect(Rect2(px + Vector2(-5, -9), Vector2(10, 6)), gear, true)
+		draw_rect(Rect2(px + Vector2(-6, -3), Vector2(12, 9)), body_col, true)
+		draw_rect(Rect2(px + Vector2(-4, 1), Vector2(8, 4)), gear, true)
+		draw_rect(Rect2(px + Vector2(-3, -8), Vector2(6, 2)), VISOR if alive else Color(0.3, 0.3, 0.3), true)
 	var dir := Vector2.from_angle(deg_to_rad(facing_deg))
 	var gun := dir * 13.0
 	draw_line(px + dir * 3.0, px + gun, Color(0.08, 0.10, 0.13), 3.0)
 	draw_line(px + dir * 3.0, px + gun, Color(0.62, 0.68, 0.75), 1.0)
 	if hostage:
 		draw_rect(Rect2(px + Vector2(-1, -12), Vector2(2, 3)), Color(1.0, 0.95, 0.6), true)
-	if sprite_texture != null:
-		draw_texture_rect(sprite_texture, Rect2(Vector2(-RADIUS, -RADIUS), Vector2(RADIUS, RADIUS) * 2.0), false)
 	var highlighted := selected or routing_highlight
 	var outline := SELECTED_COLOR if highlighted else body_col.darkened(0.4)
 	draw_arc(Vector2.ZERO, RADIUS + 5.0, 0.0, TAU, 24, outline, 2.0 if highlighted else 1.0)

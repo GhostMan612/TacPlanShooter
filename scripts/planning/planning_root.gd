@@ -94,9 +94,11 @@ func _ready() -> void:
 	renderer.enable_hd_tiles()
 	prop_layer = PropLayer.new()
 	prop_layer.setup(map)
-	add_child(prop_layer)
+	prop_layer.z_index = 1
 	y_sort_enabled = true
+	renderer.z_index = 0
 	add_child(renderer)
+	add_child(prop_layer)
 	props = PropsPlacement.new()
 	props.z_index = 1
 	props.setup(map)
@@ -334,11 +336,11 @@ func _on_theme_changed(pal: Dictionary) -> void:
 
 
 func _configure_tokens(pal: Dictionary) -> void:
-	var sprite_paths: Array[String] = ["res://assets/sprites/op_pointman.png", "res://assets/sprites/op_breacher.png"]
+	var sprite_paths: Array[String] = ["res://assets/sprites/op_pointman.png", "res://assets/sprites/op_breacher.png", "res://assets/sprites/op_heavy.png", "res://assets/sprites/op_tech.png"]
 	for token in controller.tokens:
 		var squad := squad_hud.squad_of(token.op_id)
 		token.configure(PlanBoard.squad_color(squad), squad_hud.callsign(token.op_id), pal["ink"])
-		var sp: String = sprite_paths[token.op_id % sprite_paths.size()]
+		var sp: String = sprite_paths[posmod(token.op_id, sprite_paths.size())]
 		if ResourceLoader.exists(sp):
 			var tex := ResourceLoader.load(sp, "Texture2D") as Texture2D
 			if tex != null:

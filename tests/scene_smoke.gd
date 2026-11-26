@@ -147,6 +147,13 @@ func _inspect_editor(ed: MapEditorScreen) -> void:
 
 
 func _inspect_planning(pr: PlanningRoot) -> void:
+	_check(pr.renderer != null and pr.renderer.enable_hd_tiles(), "HD atlas tileset loaded and rendered")
+	_check(pr.prop_layer != null and pr.renderer != null and pr.prop_layer.z_index > pr.renderer.z_index, "prop layer draws above floor")
+	var bound_sprites := 0
+	for tok in pr.controller.tokens:
+		if tok.sprite_texture != null:
+			bound_sprites += 1
+	_check(bound_sprites > 0, "operative sprites bound to real PNG textures")
 	_check(pr.world != null and pr.world.operatives.size() == 2, "planning world has 2 operatives")
 	_check(pr.squad_hud != null and pr.squad_hud.card_count() == 2, "squad hud shows red and blue cards")
 	_check(pr.squad_hud.operative_button(0) != null, "squad hud has operative buttons")
@@ -403,6 +410,13 @@ func _check_prep_tapin_and_pvp() -> void:
 	var commitment := cr.commit("{\"0\":[1,2]}", "salt42")
 	_check(commitment.length() == 64 and cr.verify("{\"0\":[1,2]}", "salt42", commitment) and not cr.verify("{\"0\":[9]}", "salt42", commitment), "CommitReveal SHA-256 verify holds")
 	cr.free()
+	var net := LockstepSession.new()
+	get_tree().root.add_child(net)
+	var host_err: int = net.host_on_port(0, 17605)
+	_check(host_err == OK and net.session_active, "LockstepSession ENet create_server opens UDP port")
+	net.close_session()
+	get_tree().root.remove_child(net)
+	net.free()
 
 	ScreenRouter.set_param("map_path", "res://data/maps/op01_glass_house.json")
 	ScreenRouter.set_param("two_player_config", {"transport": "pass_play", "mode": "pvp", "seed": 2026})
@@ -418,7 +432,7 @@ func _check_prep_tapin_and_pvp() -> void:
 	var p2_start := pvp_pr.spawn_cells[2]
 	pvp_pr._on_route_committed(2, [p2_start, p2_start + Vector2i(1, 0)])
 	pvp_pr._on_execute_pressed()
-	_check(SimClock.phase == SimClock.Phase.EXECUTION, "COMMIT & EXEC verifies P1 commitment and enters 60 Hz execution")
+	_check(SimClock.phase == SimClock.Phase.EXECUTION, "EXEC P2 verifies P1 commitment and enters 60 Hz execution")
 	SimClock.reset_to_planning()
 	get_tree().root.remove_child(pvp_pr)
 	pvp_pr.queue_free()

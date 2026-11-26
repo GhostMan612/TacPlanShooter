@@ -30,6 +30,9 @@ const INK := Color(0.86, 0.92, 0.98, 0.92)
 var map: GreyboxMap = null
 var palette: Dictionary = {}
 var hd_tilemap: TileMap = null
+var hd_atlas: Texture2D = null
+var hd_normal: Texture2D = null
+var hd_modulate := Color(1, 1, 1, 1)
 var show_overlay := true
 
 
@@ -44,11 +47,28 @@ func refresh() -> void:
 
 func apply_palette(pal: Dictionary) -> void:
 	palette = pal
+	var accent: Color = pal.get("accent", Color.WHITE)
+	var ink: Color = pal.get("ink", Color.WHITE)
+	hd_modulate = Color.WHITE.lerp(accent.lerp(ink, 0.35), 0.18)
+	hd_modulate.a = 1.0
 	queue_redraw()
 
 
 func enable_hd_tiles() -> bool:
-	return false
+	if hd_atlas != null:
+		return true
+	var p := "res://assets/textures/spacegrunts_25d_tileset.png"
+	if not ResourceLoader.exists(p):
+		return false
+	hd_atlas = ResourceLoader.load(p, "Texture2D") as Texture2D
+	if hd_atlas == null:
+		return false
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var np := "res://assets/textures/spacegrunts_25d_tileset_n.png"
+	if ResourceLoader.exists(np):
+		hd_normal = ResourceLoader.load(np, "Texture2D") as Texture2D
+	queue_redraw()
+	return true
 
 
 func _cell_color(cell: Vector2i) -> Color:
@@ -98,6 +118,10 @@ func _draw() -> void:
 func _draw_plate(c: Vector2i, s: float) -> void:
 	var r := GridUtil.cell_rect_px(c)
 	draw_rect(r, _cell_color(c), true)
+	if hd_atlas != null:
+		var h := (c.x * 73856093) ^ (c.y * 19349663)
+		var src := Rect2(float((h & 3) * 16), 176.0, 16.0, 16.0)
+		draw_texture_rect_region(hd_atlas, r, src, hd_modulate)
 	draw_line(r.position, Vector2(r.end.x, r.position.y), BEVEL_HI, 1.0)
 	draw_line(r.position, Vector2(r.position.x, r.end.y), BEVEL_HI, 1.0)
 	draw_line(Vector2(r.position.x, r.end.y), r.end, BEVEL_LO, 1.0)
@@ -120,7 +144,10 @@ func _draw_wall(c: Vector2i, s: float) -> void:
 	if map.in_bounds(below) and not _solid(below):
 		var face := Rect2(r.position.x, r.end.y - 3.0, s, s * 0.85)
 		draw_rect(Rect2(r.position.x, r.end.y, s, s * 0.65), SHADOW, true)
-		draw_rect(face, WALL_FACE, true)
+		if hd_atlas != null:
+			draw_texture_rect_region(hd_atlas, face, Rect2(16, 0, 16, 16), hd_modulate)
+		else:
+			draw_rect(face, WALL_FACE, true)
 		draw_rect(Rect2(face.position.x, face.position.y, s, 2.0), Color(0.32, 0.43, 0.55, 0.6), true)
 		draw_rect(Rect2(face.position.x, face.end.y - 3.0, s, 3.0), Color(0.05, 0.08, 0.12), true)
 		for k in range(1, 4):
@@ -129,6 +156,8 @@ func _draw_wall(c: Vector2i, s: float) -> void:
 		if (h & 7) == 0:
 			draw_rect(Rect2(face.position.x + 3.0, face.position.y + s * 0.28, s - 6.0, 3.0), WALL_VENT, true)
 	draw_rect(r, WALL_CAP, true)
+	if hd_atlas != null:
+		draw_texture_rect_region(hd_atlas, r, Rect2(0, 0, 16, 16), hd_modulate)
 	for nb in [Vector2i(c.x - 1, c.y), Vector2i(c.x + 1, c.y), Vector2i(c.x, c.y - 1), Vector2i(c.x, c.y + 1)]:
 		if _solid(nb):
 			continue
@@ -153,6 +182,8 @@ func _draw_door(c: Vector2i, s: float) -> void:
 	var r := GridUtil.cell_rect_px(c).grow(1.0)
 	draw_rect(r, SHADOW, true)
 	draw_rect(r, DOOR_FRAME, false, 2.0)
+	if hd_atlas != null:
+		draw_texture_rect_region(hd_atlas, r, Rect2(32, 0, 16, 16), hd_modulate)
 	var state := map.door_state(c)
 	var open := state == &"OPEN" or state == &"BREACHED_DESTROYED"
 	var leaf := r.grow(-4.0)
@@ -173,11 +204,11 @@ func _stripe_zone(cells: Array, col: Color, label: String, s: float) -> void:
 			continue
 		var r := GridUtil.cell_rect_px(c)
 		draw_rect(r, col, true)
-		var i := 0
-		while i < int(s * 2.0):
-			var ox := float(i) * 8.0 - s
-			draw_line(r.position + Vector2(ox, 0), r.position + Vector2(ox + s, s), Color(col.r, col.g, col.b, 0.45), 1.0)
-			i += 1
+		var k := 0
+		while k < 4:
+			var ox := float(k) * s * 0.25
+			draw_line(r.position + Vector2(ox, 2.0), r.position + Vector2(minf(ox + 8.0, s), s - 2.0), Color(col.r, col.g, col.b, 0.45), 1.0)
+			k += 1
 		draw_string(ThemeDB.fallback_font, r.position + Vector2(2.0, s - 3.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, INK)
 
 
