@@ -71,6 +71,12 @@ func apply_theme(t: TilesetTheme) -> void:
 	queue_redraw()
 
 
+func _color(key: String, fallback: Color) -> Color:
+	if palette.has(key):
+		return palette[key]
+	return fallback
+
+
 func _tinted(c: Color) -> Color:
 	return Color(c.r * floor_tint.r, c.g * floor_tint.g, c.b * floor_tint.b, c.a)
 
@@ -106,6 +112,15 @@ func _solid(cell: Vector2i) -> bool:
 	return map != null and map.is_solid(cell)
 
 
+func _is_planning_phase() -> bool:
+	if not is_inside_tree():
+		return true
+	var sc: Node = get_tree().root.get_node_or_null("SimClock")
+	if sc == null:
+		return true
+	return int(sc.get("phase")) == 0
+
+
 func _draw() -> void:
 	if map == null:
 		return
@@ -117,7 +132,7 @@ func _draw() -> void:
 	for y in range(h):
 		for x in range(w):
 			_draw_plate(Vector2i(x, y), s)
-	if show_overlay and SimClock.phase == SimClock.Phase.PLANNING:
+	if show_overlay and _is_planning_phase():
 		_draw_grid(w, h, s)
 	for y in range(h):
 		for x in range(w):
@@ -132,7 +147,7 @@ func _draw() -> void:
 		for nb in [Vector2i(cell.x - 1, cell.y), Vector2i(cell.x + 1, cell.y), Vector2i(cell.x, cell.y - 1), Vector2i(cell.x, cell.y + 1)]:
 			if map.door_cells.has(nb):
 				_draw_hazard(nb, s, cell)
-	if show_overlay and SimClock.phase == SimClock.Phase.PLANNING:
+	if show_overlay and _is_planning_phase():
 		_draw_headers(w, h, s)
 
 
