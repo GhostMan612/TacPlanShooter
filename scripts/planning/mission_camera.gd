@@ -5,8 +5,10 @@
 class_name MissionCamera
 extends Camera2D
 
-const MIN_ZOOM := 1.0
+const MIN_ZOOM := 0.2
 const MAX_ZOOM := 8.0
+const EXECUTION_ZOOM_MIN := 2.2
+const EXECUTION_ZOOM_MAX := 2.8
 
 var _viewport_px := Vector2(1080, 1920)
 var _finger_offset := Vector2.ZERO
@@ -25,8 +27,8 @@ func configure_for_map(map_px: Vector2, viewport_px: Vector2, padding := 48.0) -
 	limit_right = int(map_px.x + padding)
 	limit_bottom = int(map_px.y + padding)
 	position = map_px / 2.0
-	var fit := minf(viewport_px.x / map_px.x, viewport_px.y / map_px.y)
-	zoom = Vector2.ONE * clampf(fit * 0.92, MIN_ZOOM, MAX_ZOOM)
+	var fit := viewport_px.x / map_px.x
+	zoom = Vector2.ONE * clampf(fit, MIN_ZOOM, MAX_ZOOM)
 	clamp_to_limits()
 
 
@@ -55,6 +57,18 @@ func zoom_about(target: float, screen_point: Vector2) -> void:
 
 func base_zoom() -> float:
 	return zoom.x
+
+
+func follow_world(world_pos: Vector2, intensity: float = 0.0) -> void:
+	var target := clampf(lerpf(EXECUTION_ZOOM_MIN, EXECUTION_ZOOM_MAX, clampf(intensity, 0.0, 1.0)), MIN_ZOOM, MAX_ZOOM)
+	zoom = Vector2.ONE * target
+	position = world_pos
+	clamp_to_limits()
+
+
+func shake(amount: float) -> void:
+	position += Vector2(sin(Time.get_ticks_msec() * 0.12), cos(Time.get_ticks_msec() * 0.17)) * amount
+	clamp_to_limits()
 
 
 func clamp_to_limits() -> void:

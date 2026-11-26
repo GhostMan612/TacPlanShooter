@@ -168,7 +168,7 @@ func _rebuild() -> void:
 		col.add_theme_constant_override("separation", 6)
 		card.add_child(col)
 		var header := Label.new()
-		header.text = String(sq).to_upper()
+		header.text = String(sq).to_upper() + " SQUAD"
 		header.add_theme_color_override("font_color", PlanBoard.squad_color(sq))
 		header.add_theme_font_size_override("font_size", 28 if total_ops <= 2 else 22)
 		col.add_child(header)

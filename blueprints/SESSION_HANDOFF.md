@@ -19,17 +19,19 @@
 
 ## Where we are (TL;DR)
 
+WO-SPACE-GRUNTS-25D-VISUAL-UPGRADE (2026-11-25) — in progress: beveled floor plates, 2.5D extruded walls + doors + shadows, translucent zone decals, `PropLayer` y-sorted props, chunky 3/4 pixel operatives, full-screen edge-to-edge camera + follow-cam, ALPHA/BRAVO/CHARLIE/DELTA HUD. HYGIENE_COMMENTS=0.
+
 BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/breach, heartbeat on op_damaged), placeholders in `assets/audio`, autoload registered. Next: M5 remainder.
 
 **FULL ACCESS + FULL ALLOW granted (2026-11-24, user-directed):** RULES.md §1.1 (external dirs writable), AGENTS.md "Hard boundaries" flipped. All denies → FULL ALLOW.
 
-- **Session 21 (`CP-074`, `CP-075` headless PASS):** Shipped interactive `ArmoryScreen` RP unlocks + `ProgressionSave`, 5-tab `MissionPrepScreen` (`scenes/prep.tscn` — `BRIEF`/`INTEL`/`ROSTER`/`KIT`/`SQUAD` deploying 2–4 operatives with weapon caliber, armor class, heartbeat sensor, and squad colors), live `TapInController` cell-redirect during Execution (`-1 CP`, `REL AI`, deterministic `override_stream` replay), and 2-Player Co-Op/PvP (`TitleScreen` 7/7 enabled -> `scenes/two_player.tscn` / `TwoPlayerScreen` Pass-and-Play blind SHA-256 `CommitReveal` + `LockstepSession` UDP 7600 host/join).
-- Exported & `apksigner`-verified `builds\TacPlan-debug.apk` (`28,399,175` bytes, `INTERNET` + `ACCESS_NETWORK_STATE`) and installed onto connected BLU `B160V` (`7040016025040287`). Live on-device UI walkthrough (`CP-102`) is pending phone unlock (`B160V` in `RUNNING_LOCKED` BFU) or USB reconnect of Moto G (`ZT4222BMWN`).
+- **Session 21 (`CP-074`, `CP-075`, `CP-102` ✅ PASSED):** Shipped interactive `ArmoryScreen` RP unlocks + `ProgressionSave`, 5-tab `MissionPrepScreen` (`scenes/prep.tscn` — `BRIEF`/`INTEL`/`ROSTER`/`KIT`/`SQUAD` deploying 2–4 operatives with weapon caliber, armor class, heartbeat sensor, and squad colors), live `TapInController` cell-redirect during Execution (`-1 CP`, `REL AI`, deterministic `override_stream` replay), and 2-Player Co-Op/PvP (`TitleScreen` 7/7 enabled -> `scenes/two_player.tscn` / `TwoPlayerScreen` Pass-and-Play blind SHA-256 `CommitReveal` + `LockstepSession` UDP 7600 `create_server`/`connect_on_port`).
+- Exported & `apksigner`-verified `builds\TacPlan-debug.apk` (`28,399,175` bytes, `v1`/`v2`/`v3`, `INTERNET` + `ACCESS_NETWORK_STATE`) and verified end-to-end on BOTH **Moto G (2025)** (`ZT4222BMWN`, Android 16, `720x1604`) and **BLU `B160V`** (`7040016025040287`, Android 14, `720x1612`) with `0` `godot:E`/`AndroidRuntime:E` logcat errors, plus all 12 headless CI gates green (`HYGIENE_COMMENTS=0`).
 
 ## Immediate next actions
 
-1. Unlock BLU `B160V` (`7040016025040287`) and/or reconnect Moto G (`ZT4222BMWN`) via USB to install & run live touch/screencap/logcat verification for `CP-102` (`Title`, `HQ & Armory`, `MissionPrepScreen`, `TwoPlayerScreen`, `Tap-In` Execution).
-2. Optional 2-device Wi-Fi LAN Co-Op/PvP session test between Moto G & BLU `B160V` on UDP `7600`.
+1. Optional 2-device live Wi-Fi match playthrough (`Moto G` `10.1.10.240` <-> `BLU B160V` `10.1.10.15` over UDP `7600`).
+2. Add custom portraits/icons (`assets/portraits/`) or `MissionPrepPanels` unit trait/skill radar charts if desired for visual polish.
 3. Configure release keystore signing outside the repo when ready for distribution.
 
 ## Gotchas / constraints (DO NOT FORGET)

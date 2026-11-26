@@ -14,6 +14,7 @@ var squad_hud: SquadHud = null
 var _tm: ThemeManager = null
 var radial_menu: RadialMenu = null
 var loupe: PipLoupe = null
+var prop_layer: PropLayer = null
 var camera: MissionCamera = null
 var controller: PlanningController = null
 var world: SimWorld = null
@@ -91,6 +92,10 @@ func _ready() -> void:
 	renderer.apply_palette(_tm.palette())
 	renderer.setup(map)
 	renderer.enable_hd_tiles()
+	prop_layer = PropLayer.new()
+	prop_layer.setup(map)
+	add_child(prop_layer)
+	y_sort_enabled = true
 	add_child(renderer)
 	props = PropsPlacement.new()
 	props.z_index = 1
@@ -172,6 +177,20 @@ func _load_selected_map() -> GreyboxMap:
 	return GreyboxMap.build_default()
 
 
+func _follow_execution_camera() -> void:
+	if camera == null or world == null:
+		return
+	var active: SimOperative = null
+	for o in world.operatives:
+		if o.faction_id == local_faction_id and o.is_alive():
+			active = o
+			break
+	if active == null:
+		return
+	var density := clampf(float(world.operatives.size()) / 6.0, 0.0, 1.0)
+	camera.follow_world(GridUtil.cell_center_px(GridUtil.cell_of(active.pos)), density)
+
+
 func _on_viewport_resized() -> void:
 	if camera != null:
 		camera.set_viewport_size(get_viewport_rect().size)
@@ -187,6 +206,7 @@ func _physics_process(_delta: float) -> void:
 	if radial_menu != null and Input.is_action_just_pressed(&"ui_right"):
 		radial_menu.open_at(Vector2(get_viewport_rect().size.x / 2.0, get_viewport_rect().size.y / 2.0))
 	if world != null and SimClock.phase == SimClock.Phase.EXECUTION:
+		_follow_execution_camera()
 		if lockstep != null and lockstep.session_active:
 			lockstep.process_tick(world)
 		for code in _pending_go_codes:
@@ -345,12 +365,12 @@ func _setup_hud() -> void:
 	_hud.add_theme_constant_override("separation", 8)
 	_hud_canvas.add_child(_hud)
 	_execute_button = UiKit.button("EXECUTE", _on_execute_pressed, settings)
-	_alpha_button = UiKit.button("W:A", _on_alpha_pressed, settings)
-	_bravo_button = UiKit.button("W:B", _on_bravo_pressed, settings)
-	_charlie_button = UiKit.button("W:C", _on_charlie_pressed, settings)
-	_delta_button = UiKit.button("W:D", _on_delta_pressed, settings)
+	_alpha_button = UiKit.button("ALPHA", _on_alpha_pressed, settings)
+	_bravo_button = UiKit.button("BRAVO", _on_bravo_pressed, settings)
+	_charlie_button = UiKit.button("CHARLIE", _on_charlie_pressed, settings)
+	_delta_button = UiKit.button("DELTA", _on_delta_pressed, settings)
 	_reset_button = UiKit.button("RESET", _on_reset_pressed, settings)
-	_execute_button.size_flags_stretch_ratio = 1.6
+	_execute_button.size_flags_stretch_ratio = 2.4
 	_reset_button.size_flags_stretch_ratio = 1.35
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		b.add_theme_font_size_override("font_size", 24)

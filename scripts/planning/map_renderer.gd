@@ -6,26 +6,31 @@ class_name MapRenderer
 extends Node2D
 
 
-const FLOOR_COLOR := Color(0.016, 0.031, 0.055)
-const SOLID_COLOR := Color(0.075, 0.11, 0.16)
-const GRID_COLOR := Color(0.09, 0.2, 0.32, 0.22)
-const MAJOR_COLOR := Color(0.16, 0.4, 0.62)
-const DOOR_CLOSED_COLOR := Color(0.85, 0.52, 0.13)
-const DOOR_OPEN_COLOR := Color(0.16, 0.7, 0.33)
-const ZONE_GREEN := Color(0.2, 0.7, 0.2, 0.8)
-const ZONE_AMBER := Color(0.8, 0.7, 0.1, 0.6)
-const ZONE_RED := Color(0.8, 0.2, 0.2, 0.9)
-const HOSTAGE_COLOR := Color(0.23, 0.51, 0.96)
-const HD_TILESET_PATH := "res://addons/godot4-asset-vault/tacplanshooter_hd/tilesets/spacegrunts_25d_tileset.tres"
-const HD_FLOOR_PATH := "res://assets/textures/concrete_seamless_256.png"
-const HD_WALL_PATH := "res://assets/textures/spacegrunts_25d_tileset.png"
+const FLOOR_A := Color(0x18, 0x22, 0x2E)
+const FLOOR_B := Color(0x1D, 0x28, 0x36)
+const BEVEL_HI := Color(0.36, 0.45, 0.56, 0.55)
+const BEVEL_LO := Color(0.03, 0.05, 0.09, 0.7)
+const GRID_COLOR := Color(0.45, 0.62, 0.78, 0.08)
+const WALL_CAP := Color(0x0E, 0x15, 0x1F)
+const WALL_RIM := Color(0x4B, 0x5E, 0x75)
+const WALL_FACE := Color(0x26, 0x33, 0x44)
+const WALL_SEAM := Color(0.10, 0.15, 0.22, 0.8)
+const WALL_VENT := Color(0.35, 0.45, 0.55, 0.35)
+const SHADOW := Color(0, 0, 0, 0.42)
+const DOOR_FRAME := Color(0.42, 0.49, 0.58)
+const DOOR_LEAF := Color(0.20, 0.28, 0.38)
+const LED_RED := Color(0.95, 0.22, 0.18)
+const LED_GREEN := Color(0.18, 0.85, 0.38)
+const IN_COLOR := Color(0.20, 0.85, 0.42, 0.26)
+const EX_COLOR := Color(0.95, 0.72, 0.10, 0.26)
+const OBJ_COLOR := Color(0.95, 0.25, 0.22, 0.26)
+const INK := Color(0.86, 0.92, 0.98, 0.92)
 
 
 var map: GreyboxMap = null
-var palette := {}
+var palette: Dictionary = {}
 var hd_tilemap: TileMap = null
-var hd_floor: Texture2D = null
-var hd_wall: Texture2D = null
+var show_overlay := true
 
 
 func setup(m: GreyboxMap) -> void:
@@ -43,113 +48,160 @@ func apply_palette(pal: Dictionary) -> void:
 
 
 func enable_hd_tiles() -> bool:
-	if hd_floor == null and ResourceLoader.exists(HD_FLOOR_PATH):
-		hd_floor = ResourceLoader.load(HD_FLOOR_PATH, "Texture2D") as Texture2D
-	if hd_wall == null and ResourceLoader.exists(HD_WALL_PATH):
-		hd_wall = ResourceLoader.load(HD_WALL_PATH, "Texture2D") as Texture2D
-	if hd_tilemap != null:
-		return true
-	if not ResourceLoader.exists(HD_TILESET_PATH):
-		return false
-	var ts := ResourceLoader.load(HD_TILESET_PATH, "TileSet") as TileSet
-	if ts == null:
-		return false
-	hd_tilemap = TileMap.new()
-	hd_tilemap.tile_set = ts
-	add_child(hd_tilemap)
-	return true
+	return false
 
 
-func _color(key: String, fallback: Color) -> Color:
-	if palette.has(key):
-		return palette[key]
-	return fallback
+func _cell_color(cell: Vector2i) -> Color:
+	var h := (cell.x * 73856093) ^ (cell.y * 19349663)
+	var t := (h & 3)
+	return FLOOR_A if t < 2 else FLOOR_B
+
+
+func _is_wall(cell: Vector2i) -> bool:
+	return map != null and map.solid_cells.has(cell) and not map.door_cells.has(cell)
+
+
+func _solid(cell: Vector2i) -> bool:
+	return map != null and map.is_solid(cell)
 
 
 func _draw() -> void:
 	if map == null:
 		return
-	var c_floor := _color("bg", FLOOR_COLOR)
-	var c_major := _color("accent", MAJOR_COLOR)
-	var c_grid := _color("grid", GRID_COLOR)
-	var c_wall := _color("wall", SOLID_COLOR)
-	var c_door_closed := _color("door_closed", DOOR_CLOSED_COLOR)
-	var c_door_open := _color("door_open", DOOR_OPEN_COLOR)
-	var c_ink := _color("ink", Color(0.9, 0.92, 0.95))
 	var s := float(SimConstants.GRID_CELL_SIZE_PX)
-	var total := Rect2(Vector2.ZERO, Vector2(map.width_cells, map.height_cells) * s)
-	draw_rect(total, c_floor, true)
-	if hd_floor != null:
-		draw_texture_rect(hd_floor, total, true, Color(1.0, 1.0, 1.0, 0.65))
-	elif hd_tilemap == null:
-		draw_rect(total, c_floor, true)
-	var x := 0.0
-	while x <= total.size.x + 0.01:
-		var major := int(x / s) % 5 == 0
-		draw_line(Vector2(x, 0), Vector2(x, total.size.y), c_major if major else c_grid, 1.5 if major else 0.5)
-		x += s
-	var y := 0.0
-	while y <= total.size.y + 0.01:
-		var major := int(y / s) % 5 == 0
-		draw_line(Vector2(0, y), Vector2(total.size.x, y), c_major if major else c_grid, 1.5 if major else 0.5)
-		y += s
-	var c_red := _color("red", ZONE_RED)
+	var w := int(map.width_cells)
+	var h := int(map.height_cells)
+	var total := Rect2(Vector2.ZERO, Vector2(w, h) * s)
+	draw_rect(total, FLOOR_A, true)
+	for y in range(h):
+		for x in range(w):
+			_draw_plate(Vector2i(x, y), s)
+	if show_overlay and SimClock.phase == SimClock.Phase.PLANNING:
+		_draw_grid(w, h, s)
+	for y in range(h):
+		for x in range(w):
+			var c := Vector2i(x, y)
+			if _is_wall(c):
+				_draw_wall(c, s)
+	for c in map.door_cells.keys():
+		_draw_door(Vector2i(c), s)
+	_draw_zones(s)
 	for c in map.solid_cells.keys():
 		var cell := Vector2i(c)
-		if map.door_cells.has(cell):
+		for nb in [Vector2i(cell.x - 1, cell.y), Vector2i(cell.x + 1, cell.y), Vector2i(cell.x, cell.y - 1), Vector2i(cell.x, cell.y + 1)]:
+			if map.door_cells.has(nb):
+				_draw_hazard(nb, s, cell)
+	if show_overlay and SimClock.phase == SimClock.Phase.PLANNING:
+		_draw_headers(w, h, s)
+
+
+func _draw_plate(c: Vector2i, s: float) -> void:
+	var r := GridUtil.cell_rect_px(c)
+	draw_rect(r, _cell_color(c), true)
+	draw_line(r.position, Vector2(r.end.x, r.position.y), BEVEL_HI, 1.0)
+	draw_line(r.position, Vector2(r.position.x, r.end.y), BEVEL_HI, 1.0)
+	draw_line(Vector2(r.position.x, r.end.y), r.end, BEVEL_LO, 1.0)
+	draw_line(Vector2(r.end.x, r.position.y), r.end, BEVEL_LO, 1.0)
+	var h := (c.x * 73856093) ^ (c.y * 19349663)
+	if (h & 15) == 0:
+		draw_rect(r.grow(-4.0), Color(0.30, 0.38, 0.46, 0.35), false, 1.0)
+
+
+func _draw_grid(w: int, h: int, s: float) -> void:
+	for x in range(w + 1):
+		draw_line(Vector2(x * s, 0), Vector2(x * s, h * s), GRID_COLOR, 1.0)
+	for y in range(h + 1):
+		draw_line(Vector2(0, y * s), Vector2(w * s, y * s), GRID_COLOR, 1.0)
+
+
+func _draw_wall(c: Vector2i, s: float) -> void:
+	var r := GridUtil.cell_rect_px(c)
+	var below := Vector2i(c.x, c.y + 1)
+	if map.in_bounds(below) and not _solid(below):
+		var face := Rect2(r.position.x, r.end.y - 3.0, s, s * 0.85)
+		draw_rect(Rect2(r.position.x, r.end.y, s, s * 0.65), SHADOW, true)
+		draw_rect(face, WALL_FACE, true)
+		draw_rect(Rect2(face.position.x, face.position.y, s, 2.0), Color(0.32, 0.43, 0.55, 0.6), true)
+		draw_rect(Rect2(face.position.x, face.end.y - 3.0, s, 3.0), Color(0.05, 0.08, 0.12), true)
+		for k in range(1, 4):
+			draw_line(Vector2(face.position.x, face.position.y + k * s * 0.2), Vector2(face.end.x, face.position.y + k * s * 0.2), WALL_SEAM, 1.0)
+		var h := (c.x * 73856093) ^ (c.y * 19349663)
+		if (h & 7) == 0:
+			draw_rect(Rect2(face.position.x + 3.0, face.position.y + s * 0.28, s - 6.0, 3.0), WALL_VENT, true)
+	draw_rect(r, WALL_CAP, true)
+	for nb in [Vector2i(c.x - 1, c.y), Vector2i(c.x + 1, c.y), Vector2i(c.x, c.y - 1), Vector2i(c.x, c.y + 1)]:
+		if _solid(nb):
 			continue
-		var rect := GridUtil.cell_rect_px(cell)
-		if hd_wall != null and rect.size.x > 0:
-			draw_texture_rect_region(hd_wall, rect, Rect2(0, 0, 16, 16), Color(1.0, 1.0, 1.0, 0.85))
-			continue
-		var mat := StringName(map.wall_materials.get(cell, &"CONCRETE"))
-		if mat == &"DRY_WALL":
-			draw_rect(rect, c_wall.lerp(c_floor, 0.4), true)
-			draw_rect(rect.grow(-4.0), c_wall, true)
-		elif mat == &"ARMORED":
-			draw_rect(rect, c_wall, true)
-			draw_rect(rect.grow(-2.5), c_major, false, 1.0)
+		var a := Vector2.ZERO
+		var b := Vector2.ZERO
+		if nb.x < c.x:
+			a = r.position
+			b = Vector2(r.position.x, r.end.y)
+		elif nb.x > c.x:
+			a = Vector2(r.end.x, r.position.y)
+			b = r.end
+		elif nb.y < c.y:
+			a = r.position
+			b = Vector2(r.end.x, r.position.y)
 		else:
-			draw_rect(rect, c_wall, true)
-	for c in map.door_cells.keys():
-		var cell := Vector2i(c)
-		var rect := GridUtil.cell_rect_px(cell)
-		var state := map.door_state(cell)
-		draw_rect(rect, c_floor, true)
-		if state == &"OPEN" or state == &"BREACHED_DESTROYED":
-			draw_rect(rect.grow(-3.0), c_door_open, false, 1.0)
-			continue
-		draw_rect(rect.grow(-2.0), c_door_closed, true)
-		if state == &"LOCKED":
-			draw_rect(Rect2(rect.get_center() - Vector2(3.0, 2.0), Vector2(6.0, 5.0)), c_floor, true)
-			draw_arc(rect.get_center() - Vector2(0.0, 2.0), 2.0, PI, TAU, 8, c_floor, 1.0)
-		elif state == &"BARRICADED":
-			draw_line(rect.position + Vector2(2, 2), rect.end - Vector2(2, 2), c_red, 1.5)
-			draw_line(Vector2(rect.end.x - 2, rect.position.y + 2), Vector2(rect.position.x + 2, rect.end.y - 2), c_red, 1.5)
+			a = Vector2(r.position.x, r.end.y)
+			b = r.end
+		draw_line(a, b, WALL_RIM, 2.0)
+
+
+func _draw_door(c: Vector2i, s: float) -> void:
+	var r := GridUtil.cell_rect_px(c).grow(1.0)
+	draw_rect(r, SHADOW, true)
+	draw_rect(r, DOOR_FRAME, false, 2.0)
+	var state := map.door_state(c)
+	var open := state == &"OPEN" or state == &"BREACHED_DESTROYED"
+	var leaf := r.grow(-4.0)
+	if not open:
+		draw_rect(leaf, DOOR_LEAF, true)
+		draw_line(leaf.position, leaf.end, Color(0.55, 0.62, 0.7, 0.5), 1.0)
+	draw_rect(Rect2(r.position.x + 3.0, r.position.y - 3.0, s - 6.0, 3.0), LED_GREEN if open else (LED_RED if state == &"LOCKED" or state == &"BARRICADED" else Color(0.95, 0.65, 0.12)), true)
+	if state == &"BREACHED_DESTROYED":
+		for i in range(4):
+			var a := float(i) * TAU / 4.0
+			draw_line(r.get_center(), r.get_center() + Vector2(cos(a), sin(a)) * s * 0.45, Color(1.0, 0.7, 0.2, 0.8), 1.2)
+
+
+func _stripe_zone(cells: Array, col: Color, label: String, s: float) -> void:
+	for entry in cells:
+		var c := Vector2i(int(entry[0]), int(entry[1]))
+		var r := GridUtil.cell_rect_px(c)
+		draw_rect(r, col, true)
+		var i := 0
+		while i < int(s * 2.0):
+			var ox := float(i) * 8.0 - s
+			draw_line(r.position + Vector2(ox, 0), r.position + Vector2(ox + s, s), Color(col.r, col.g, col.b, 0.45), 1.0)
+			i += 1
+		draw_string(ThemeDB.fallback_font, r.position + Vector2(2.0, s - 3.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, INK)
+
+
+func _draw_zones(s: float) -> void:
 	for z in map.insertion_zones:
-		for c in z.get("cells", []):
-			draw_rect(GridUtil.cell_rect_px(Vector2i(int(c[0]), int(c[1]))), ZONE_GREEN)
+		_stripe_zone(z.get("cells", []), IN_COLOR, "IN", s)
 	for z in map.extraction_zones:
-		for c in z.get("cells", []):
-			draw_rect(GridUtil.cell_rect_px(Vector2i(int(c[0]), int(c[1]))), ZONE_AMBER)
+		_stripe_zone(z.get("cells", []), EX_COLOR, "EX", s)
 	for o in map.objectives:
-		draw_rect(GridUtil.cell_rect_px(Vector2i(int(o["cell"][0]), int(o["cell"][1]))), ZONE_RED)
-	for h in map.hostage_spawns:
-		var hrect := GridUtil.cell_rect_px(MapEditorValidator.cell_of(h)).grow(-2.0)
-		draw_rect(hrect, HOSTAGE_COLOR, false, 1.5)
-		draw_string(ThemeDB.fallback_font, hrect.position + Vector2(0.5, hrect.size.y - 3.0), "HST", HORIZONTAL_ALIGNMENT_LEFT, -1, 5, HOSTAGE_COLOR)
-	for s_link in map.stairs_from_floor(map.floor_index):
-		var sc: Array = s_link.get("from_cell", [])
-		if sc.size() >= 2:
-			var srect := GridUtil.cell_rect_px(Vector2i(int(sc[0]), int(sc[1]))).grow(-1.5)
-			draw_rect(srect, Color(0.2, 0.9, 0.95, 0.35), true)
-			draw_rect(srect, Color(0.25, 0.95, 1.0, 0.95), false, 1.5)
-			draw_string(ThemeDB.fallback_font, srect.position + Vector2(1.0, 9.0), "F%d" % (int(s_link.get("to_floor", 0)) + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.9, 1.0, 1.0))
-	var font := ThemeDB.fallback_font
-	for i in range(map.width_cells):
-		draw_string(font, Vector2(i * s + 3.0, -6.0), col_letter(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, c_ink)
-	for i in range(map.height_cells):
-		draw_string(font, Vector2(-22.0, i * s + 12.0), str(i + 1).pad_zeros(2), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, c_ink)
+		_stripe_zone([o.get("cell", [])], OBJ_COLOR, "OBJ", s)
+
+
+func _draw_hazard(cell: Vector2i, s: float, wall: Vector2i) -> void:
+	var r := GridUtil.cell_rect_px(cell)
+	var d := cell - wall
+	if d.x != 0:
+		draw_rect(Rect2(r.position.x + (0.0 if d.x > 0 else s - 3.0), r.position.y, 3.0, s), Color(0.86, 0.68, 0.12, 0.35), true)
+	else:
+		draw_rect(Rect2(r.position.x, r.position.y + (0.0 if d.y > 0 else s - 3.0), s, 3.0), Color(0.86, 0.68, 0.12, 0.35), true)
+
+
+func _draw_headers(w: int, h: int, s: float) -> void:
+	for i in range(w):
+		draw_string(ThemeDB.fallback_font, Vector2(i * s + 2.0, -4.0), col_letter(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
+	for i in range(h):
+		draw_string(ThemeDB.fallback_font, Vector2(-20.0, i * s + 11.0), str(i + 1).pad_zeros(2), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
 
 
 static func col_letter(x: int) -> String:
