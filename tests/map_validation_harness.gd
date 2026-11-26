@@ -5,8 +5,12 @@
 extends SceneTree
 
 
+const EXPECTED_DIMS := {
+	"op01_glass_house": [32, 24],
+}
+
 const EXPECTED_SOLIDS := {
-	"op01_glass_house": 69,
+	"op01_glass_house": 250,
 	"op02_night_shift": 68,
 	"op03_iron_shutter": 73,
 	"op04_silent_relay": 64,
@@ -46,7 +50,8 @@ func _initialize() -> void:
 func _validate_map(map_id: String, expected_solids: int) -> int:
 	var path := "res://data/maps/%s.json" % map_id
 	var m := MapLoader.load_from_json(path)
-	var ok := m.width_cells == 16 and m.height_cells == 12
+	var dims: Array = EXPECTED_DIMS.get(map_id, [16, 12])
+	var ok := m.width_cells == int(dims[0]) and m.height_cells == int(dims[1])
 	ok = ok and m.solid_cells.size() == expected_solids
 	var flags := MapEditorValidator.validate(m, true)
 	ok = ok and flags.is_empty()
@@ -58,8 +63,8 @@ func _validate_map(map_id: String, expected_solids: int) -> int:
 	for s in segs:
 		var a: Vector2 = s[0]
 		var b: Vector2 = s[1]
-		ok = ok and a.x >= 0.0 and a.y >= 0.0 and b.x <= 16.0 and b.y <= 12.0
-		if not (a.x == b.x and (a.x == 0.0 or a.x == 16.0)) and not (a.y == b.y and (a.y == 0.0 or a.y == 12.0)):
+		ok = ok and a.x >= 0.0 and a.y >= 0.0 and b.x <= float(dims[0]) and b.y <= float(dims[1])
+		if not (a.x == b.x and (a.x == 0.0 or a.x == float(dims[0]))) and not (a.y == b.y and (a.y == 0.0 or a.y == float(dims[1]))):
 			interior += 1
 	ok = ok and interior > 0
 	var first := "" if flags.is_empty() else "%s at %s" % [String(flags[0]["reason"]), str(flags[0]["cell"])]

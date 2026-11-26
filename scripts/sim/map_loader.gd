@@ -50,6 +50,7 @@ static func from_data(d: Dictionary) -> GreyboxMap:
 static func _build_floor(d: Dictionary, floor_idx: int) -> GreyboxMap:
 	var m := GreyboxMap.new()
 	m.floor_index = floor_idx
+	m.tileset_theme = StringName(String(d.get("tileset_theme", "tactical_compound")))
 	m.width_cells = int(d.get("width_cells", 16))
 	m.height_cells = int(d.get("height_cells", 12))
 	if floor_idx > 0:

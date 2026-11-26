@@ -6,7 +6,7 @@
 - Contains: working-directory and signing rules, technical laws, and verification gates.
 - **If any document contradicts RULES.md, RULES.md wins.**
 
-**Last updated:** 2026-11-25 (Session 21 — Mission Prep, Armory RP Unlocks, Live Tap-In Control & 2-Player Co-Op/PvP Lobby)
+**Last updated:** 2026-11-26 (Session 23 — WO-25D Steps 1 & 2, CP-103) — Mission Prep, Armory RP Unlocks, Live Tap-In Control & 2-Player Co-Op/PvP Lobby)
 **Repo:** [GhostMan612/TacPlanShooter](https://github.com/GhostMan612/TacPlanShooter) · `main`
 **Source document:** `blueprints\Tactical Android Game Development.rtf` → canonical text at `blueprints\architecture-blueprint-source.txt`
 **Godot:** 4.0.4.stable / 4.0.stable (`C:\Godot\Godot_v4.0-stable_win64_console.exe`) for headless gates & Route A export.
@@ -19,7 +19,7 @@
 
 ## Where we are (TL;DR)
 
-WO-SPACE-GRUNTS-25D-VISUAL-UPGRADE (2026-11-25) — in progress: beveled floor plates, 2.5D extruded walls + doors + shadows, translucent zone decals, `PropLayer` y-sorted props, chunky 3/4 pixel operatives, full-screen edge-to-edge camera + follow-cam, ALPHA/BRAVO/CHARLIE/DELTA HUD. HYGIENE_COMMENTS=0.
+WO-25D-ENGINE-5FT-TILESET-ARCHITECTURE Steps 1 & 2 (2026-11-26, CP-103 ✅) — `op01` is a 32×24 5-ft compound with edge-to-edge apron, subtle planning-only gridlines, a 5-theme `TilesetTheme` registry, and a toggleable `scripts/view3d/` HD-2D layer (batched MultiMesh floors/walls, Sprite3D actors, cutaway shader, 88°/52°/20° pitch + 90° yaw snap) reading `SimWorld` read-only. The earlier 2D visual upgrade (beveled plates, extruded walls, PropLayer, chunky operatives, follow-cam, squad HUD) remains the classic blueprint mode. Device visual pass is the next human gate.
 
 BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/breach, heartbeat on op_damaged), placeholders in `assets/audio`, autoload registered. Next: M5 remainder.
 
@@ -30,9 +30,9 @@ BP-08 (M9 Audio) — done: `TacticalAudio` (buses, duck, squelch on go-code/brea
 
 ## Immediate next actions
 
-1. Optional 2-device live Wi-Fi match playthrough (`Moto G` `10.1.10.240` <-> `BLU B160V` `10.1.10.15` over UDP `7600`).
-2. Add custom portraits/icons (`assets/portraits/`) or `MissionPrepPanels` unit trait/skill radar charts if desired for visual polish.
-3. Configure release keystore signing outside the repo when ready for distribution.
+1. USER visual pass of the 2.5D toggle on desktop OpenGL and a physical handset (`720×1612` / `1080×2400`): confirm no black margins, waist-height interior readability at all four cardinal yaws, and 2 MultiMesh draw calls per floor.
+2. Optional 2-device live Wi-Fi match playthrough (`Moto G` `10.1.10.240` <-> `BLU B160V` `10.1.10.15` over UDP `7600`).
+3. Author 8-direction Sprite3D atlases (current PNGs give quantized facing only) and finish fixing the two pre-existing `--script` harnesses (`ui_polish_audit`, `map_editor_harness`).
 
 ## Gotchas / constraints (DO NOT FORGET)
 

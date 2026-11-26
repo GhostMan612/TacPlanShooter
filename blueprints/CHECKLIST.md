@@ -86,13 +86,20 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Randomized radio squelch + telemetry blips on planning UI ops (`TacticalAudio.play_blip` / `_play_squelch`, verified in `ui_audio_smoke.gd`)
 - ✅ Damage → heartbeat synth drives LowPassFilter over `Ambient` bus (`TacticalAudio._on_operative_damaged`, cutoff scaled by HP peak, verified in `ui_audio_smoke.gd`)
 
+## M11 — 5-ft 2.5D Engine & Tileset Themes (WO-25D, CP-103)
+- ✅ OP-01 expanded to `32x24` 5-ft compound with edge-to-edge exterior apron, 4 named breach entries, and 5 authored chokepoints.
+- ✅ Planning gridlines changed to `Color(0.06, 0.14, 0.20, 0.14)`; hidden completely during EXECUTION.
+- ✅ `TilesetTheme` contract + 5 registry palettes; map JSON `tileset_theme` field round-trips through `GreyboxMap`/`MapLoader` and colours `MapRenderer`.
+- ✅ `scripts/view3d/` HD-2D view reads live `SimWorld` state only: batched MultiMesh floors/walls, Sprite3D actors, wall cutaway, 88°/52°/20° pitch, 90° yaw snap, toggle with zero sim rewrite.
+- ✅ Headless evidence: `parse_all` 100/15, `scene_smoke`, `map_validation`, `tileset_theme`, determinism, AAA, meta, audio, fog gates green.
+
 ## M10 — Android release track (BP-10) — ACTIVE (Route A default)
 - ✅ Route A clean-checkout preset verified with Godot 4.0.4, ARM64 packaging, signature, and all ten source maps (CP-100).
 - ✅ Handoff doc rewritten: `docs\BUILD-IN-ANDROID-STUDIO.md` (Route A walkthrough, `adb.exe install`, CP-030 1–7 test script, Route B blocker details)
 - ✅ Install Route A debug APK (`builds\TacPlan-debug.apk`) on physical Android device (`BLU B160V`, `7040016025040287`) and verify boot + touch planning/execution/AAR/editor controls (CP-101, CP-030).
 - ✅ Update `CHANGELOG.md` + `CHECKPOINTS.md` + N64 Mission Prep 5-tab flow (`scenes/prep.tscn` + `MissionPrepScreen`: `BRIEF`/`INTEL`/`ROSTER`/`KIT`/`SQUAD`) + RPG `ArmoryScreen` RP unlocks + `ProgressionSave` (`CP-074`)
 - ✅ Live Tap-In Direct Control (`TapInController.ingest_cell_target` + `REL AI` + `override_stream` replay) and 2-Player Co-Op/PvP Lobby (`TitleScreen` 7/7 enabled -> `scenes/two_player.tscn` / `TwoPlayerScreen` Pass-and-Play SHA-256 `CommitReveal` + LAN `LockstepSession` UDP 7600, `CP-075`)
-- ⬜ Device UI walkthrough (`CP-102`): Route A APK (`INTERNET` + `ACCESS_NETWORK_STATE`) built, `apksigner`-verified & installed on `B160V` (`7040016025040287`); live launch awaits phone unlock / `ZT4222BMWN` USB reconnect
+- ✅ Device UI walkthrough (`CP-102`): Route A APK (`INTERNET` + `ACCESS_NETWORK_STATE`, `28,399,175` B, `apksigner` v1/v2/v3 PASS) installed & live-verified via screencap + `logcat` on BOTH **Moto G 2025** (`ZT4222BMWN`, `720x1604`) and **BLU `B160V`** (`7040016025040287`, `720x1612`) with `0` errors
 - ⬜ Route B requires JDK 11 and the SDK platform, build-tools, and NDK versions pinned by the generated template.
 - ⬜ Release signing flow (deferred until store-ready; debug keystore only, never committed)
 

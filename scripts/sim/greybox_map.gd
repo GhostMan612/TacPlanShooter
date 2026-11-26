@@ -9,6 +9,7 @@ var width_cells := 16
 var height_cells := 12
 var floor_index := 0
 var floor_count := 1
+var tileset_theme: StringName = &"tactical_compound"
 var solid_cells := {}
 var door_cells := {}
 var door_open := {}
@@ -28,6 +29,7 @@ var floor_slices := []
 
 static func build_default() -> GreyboxMap:
 	var m := GreyboxMap.new()
+	m.tileset_theme = &"tactical_compound"
 	m.width_cells = 16
 	m.height_cells = 12
 	for x in range(m.width_cells):
@@ -179,6 +181,7 @@ func to_slice_dict() -> Dictionary:
 		"h": height_cells,
 		"floor_index": floor_index,
 		"floor_count": floor_count,
+		"tileset_theme": String(tileset_theme),
 		"solids": solids,
 		"door_cells": doors,
 		"door_open": opens,
@@ -206,6 +209,7 @@ static func from_dict(d: Dictionary) -> GreyboxMap:
 	m.height_cells = int(d.get("h", 12))
 	m.floor_index = int(d.get("floor_index", 0))
 	m.floor_count = int(d.get("floor_count", 1))
+	m.tileset_theme = StringName(String(d.get("tileset_theme", "tactical_compound")))
 	for s in d.get("solids", []):
 		m.solid_cells[Vector2i(int(s[0]), int(s[1]))] = true
 	for dc in d.get("door_cells", []):

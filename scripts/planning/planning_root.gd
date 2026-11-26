@@ -16,6 +16,7 @@ var radial_menu: RadialMenu = null
 var loupe: PipLoupe = null
 var prop_layer: PropLayer = null
 var camera: MissionCamera = null
+var view3d: WorldView3D = null
 var controller: PlanningController = null
 var world: SimWorld = null
 var fog: FogLayer = null
@@ -74,6 +75,13 @@ var _charlie_button: Button = null
 var _delta_button: Button = null
 var _reset_button: Button = null
 var _hud_canvas: CanvasLayer = null
+var _view_bar: VBoxContainer = null
+var _view_button: Button = null
+var _yaw_ccw_button: Button = null
+var _yaw_cw_button: Button = null
+var _pitch_button: Button = null
+var _twist_touches: Dictionary = {}
+var _twist_active: bool = false
 
 
 func _ready() -> void:
@@ -90,6 +98,7 @@ func _ready() -> void:
 	_apply_theme()
 	renderer = MapRenderer.new()
 	renderer.apply_palette(_tm.palette())
+	renderer.apply_theme(ThemeRegistry.for_id(map.tileset_theme))
 	renderer.setup(map)
 	renderer.enable_hd_tiles()
 	prop_layer = PropLayer.new()
@@ -153,6 +162,11 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	world = SimWorld.new()
 	_rebuild_world()
+	view3d = WorldView3D.new()
+	view3d.name = "WorldView3D"
+	add_child(view3d)
+	view3d.setup(world, map, _active_floor, get_viewport_rect().size)
+	view3d.visible = false
 	for i in range(spawn_cells.size()):
 		squads.add_member(_assigned_squad_for(i), i)
 	_setup_hud()
@@ -191,6 +205,8 @@ func _follow_execution_camera() -> void:
 		return
 	var density := clampf(float(world.operatives.size()) / 6.0, 0.0, 1.0)
 	camera.follow_world(GridUtil.cell_center_px(GridUtil.cell_of(active.pos)), density)
+	if view3d != null and view3d.is_active():
+		view3d.follow_actor(active)
 
 
 func _fit_camera_to_screen() -> void:
@@ -208,6 +224,8 @@ func _on_viewport_resized() -> void:
 		camera.set_viewport_size(get_viewport_rect().size)
 		if map != null:
 			_center_camera_if_short(Vector2(map.width_cells, map.height_cells) * float(SimConstants.GRID_CELL_SIZE_PX))
+	if view3d != null:
+		view3d.on_resize(get_viewport_rect().size)
 	_place_hud()
 
 
@@ -236,6 +254,8 @@ func _physics_process(_delta: float) -> void:
 		if squad_hud != null:
 			squad_hud.refresh(world)
 		_maybe_aar()
+	if view3d != null and view3d.is_active():
+		view3d.sync_from_world(world, _active_floor, local_faction_id)
 
 
 func _emit_audio_events(from_idx: int) -> void:
@@ -301,17 +321,20 @@ func _sync_tokens() -> void:
 		if SimClock.phase == SimClock.Phase.PLANNING and _result_view == null:
 			var seg_floor := _planning_floor_for_op(token.op_id)
 			var seg_pos := _planning_cell_for_op(token.op_id, seg_floor)
-			token.visible = seg_floor == _active_floor
+			token.visible = seg_floor == _active_floor and (view3d == null or not view3d.is_active())
 			token.position = GridUtil.cell_center_px(seg_pos)
 			continue
 		for o in world.operatives:
 			if token.op_id == o.id:
-				token.visible = o.floor_idx == _active_floor
+				token.visible = o.floor_idx == _active_floor and (view3d == null or not view3d.is_active())
 				token.sync_from(o, o.pos * float(SimConstants.GRID_CELL_SIZE_PX))
 
 
 func _update_fog() -> void:
 	if fog == null or world == null or world.map == null:
+		return
+	if view3d != null and view3d.is_active():
+		fog.visible = false
 		return
 	fog.visible = true
 	fog.update_visibility(world, local_faction_id, _active_floor)
@@ -371,6 +394,18 @@ func _setup_hud() -> void:
 	_floor_button.add_theme_font_size_override("font_size", 24)
 	_floor_button.visible = map.floor_count > 1
 	_hud_canvas.add_child(_floor_button)
+	_view_bar = VBoxContainer.new()
+	_view_bar.name = "ViewControls"
+	_view_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_view_bar.add_theme_constant_override("separation", 8)
+	_hud_canvas.add_child(_view_bar)
+	_view_button = UiKit.button("2D", _toggle_view3d, settings)
+	_yaw_ccw_button = UiKit.button("↺", _on_yaw_ccw, settings)
+	_yaw_cw_button = UiKit.button("↻", _on_yaw_cw, settings)
+	_pitch_button = UiKit.button("TILT", _on_pitch_cycle, settings)
+	for b in [_view_button, _yaw_ccw_button, _yaw_cw_button, _pitch_button]:
+		b.add_theme_font_size_override("font_size", 20)
+		_view_bar.add_child(b)
 	_hud = HBoxContainer.new()
 	_hud.name = "ActionBar"
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -404,7 +439,7 @@ func _setup_hud() -> void:
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
-	for c in [_menu_button, _mode_button, _floor_button, _hud, squad_hud, _status_label, _node_menu]:
+	for c in [_menu_button, _mode_button, _floor_button, _hud, squad_hud, _status_label, _node_menu, _view_bar]:
 		(c as Control).theme = _tm.applied_theme
 	_configure_tokens(_tm.palette())
 	_place_hud()
@@ -418,7 +453,11 @@ func _place_hud() -> void:
 	var margin := 24.0
 	_hud.position = Vector2(margin, vp.y - bar_h - margin)
 	_hud.size = Vector2(vp.x - margin * 2.0, bar_h)
-	var row_w := vp.x - margin * 2.0
+	var right_col: float = bar_h + 12.0 if _view_bar != null else 0.0
+	var row_w := vp.x - margin * 2.0 - right_col
+	if _view_bar != null:
+		_view_bar.position = Vector2(vp.x - margin - bar_h, 64.0)
+		_view_bar.size = Vector2(bar_h, bar_h * 4.0 + 24.0)
 	var multi := _floor_button != null and _floor_button.visible
 	var btn_w := (row_w - (24.0 if multi else 12.0)) / (3.0 if multi else 2.0)
 	var cur_x := margin
@@ -442,6 +481,54 @@ func _place_hud() -> void:
 	if _node_menu != null:
 		_node_menu.position = Vector2(margin, status_y + 58.0)
 		_node_menu.size = Vector2(row_w, 0.0)
+
+
+func _toggle_view3d() -> void:
+	if _result_view != null or view3d == null:
+		return
+	var enable: bool = not view3d.is_active()
+	view3d.set_active(enable)
+	for n in [renderer, prop_layer, props, fog, overlay, vfx]:
+		if n != null:
+			n.visible = not enable
+	if controller != null:
+		controller.routing_enabled = not enable and SimClock.phase == SimClock.Phase.PLANNING and _result_view == null
+	if _view_button != null:
+		_view_button.text = "2.5D" if enable else "2D"
+	_set_status("2.5D TILT / ROTATE VIEW" if enable else "CLASSIC BLUEPRINT VIEW")
+
+
+func _on_yaw_ccw() -> void:
+	if view3d != null and view3d.is_active():
+		view3d.snap_yaw(-1)
+
+
+func _on_yaw_cw() -> void:
+	if view3d != null and view3d.is_active():
+		view3d.snap_yaw(1)
+
+
+func _on_pitch_cycle() -> void:
+	if view3d != null and view3d.is_active():
+		view3d.cycle_pitch()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if view3d == null or not view3d.is_active() or _result_view != null:
+		return
+	if event is InputEventScreenTouch:
+		var t := event as InputEventScreenTouch
+		if t.pressed:
+			_twist_touches[t.index] = true
+		else:
+			_twist_touches.erase(t.index)
+			if _twist_touches.size() < 2 and _twist_active:
+				view3d.snap_nearest()
+				_twist_active = false
+	elif event is InputEventScreenDrag and _twist_touches.size() >= 2:
+		var d := event as InputEventScreenDrag
+		view3d.twist_by(d.relative.x * 0.6)
+		_twist_active = true
 
 
 func _toggle_input_mode() -> void:
@@ -491,6 +578,8 @@ func _set_active_floor(fl: int) -> void:
 func _refresh_floor_visuals() -> void:
 	if world == null:
 		return
+	if view3d != null:
+		view3d.set_active_floor(_active_floor)
 	if renderer != null:
 		renderer.setup(world.map_on_floor(_active_floor))
 	if props != null:
@@ -1120,6 +1209,9 @@ func _rebuild_world() -> void:
 	_sync_tokens()
 	if squad_hud != null:
 		squad_hud.refresh(world)
+	if view3d != null:
+		view3d.rebuild()
+		view3d.sync_from_world(world, _active_floor, local_faction_id)
 
 
 func _set_phase_controls(executing: bool) -> void:
@@ -1147,6 +1239,8 @@ func _set_phase_controls(executing: bool) -> void:
 			_mode_button.text = "TAP" if controller.tap_to_cell_mode else "DRAW"
 	if _floor_button != null:
 		_floor_button.visible = (map != null and map.floor_count > 1) and not result_visible
+	if _view_bar != null:
+		_view_bar.visible = not result_visible
 	var code_buttons := [_alpha_button, _bravo_button, _charlie_button, _delta_button]
 	for i in range(code_buttons.size()):
 		var b: Button = code_buttons[i]
@@ -1332,6 +1426,9 @@ func scrub_replay_to_tick(target_tick: int) -> void:
 	_update_fog()
 	if squad_hud != null:
 		squad_hud.refresh(world)
+	if view3d != null:
+		view3d.set_active_floor(_active_floor)
+		view3d.sync_from_world(world, _active_floor, local_faction_id)
 
 
 func _on_replay_requested() -> void:

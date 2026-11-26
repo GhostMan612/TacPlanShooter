@@ -10,7 +10,7 @@ var FLOOR_A := Color.html("#18222E")
 var FLOOR_B := Color.html("#1D2836")
 const BEVEL_HI := Color(0.36, 0.45, 0.56, 0.55)
 const BEVEL_LO := Color(0.03, 0.05, 0.09, 0.7)
-const GRID_COLOR := Color(0.45, 0.62, 0.78, 0.08)
+const GRID_COLOR := Color(0.06, 0.14, 0.20, 0.14)
 var WALL_CAP := Color.html("#0E151F")
 var WALL_RIM := Color.html("#4B5E75")
 var WALL_FACE := Color.html("#263344")
@@ -34,6 +34,10 @@ var hd_atlas: Texture2D = null
 var hd_normal: Texture2D = null
 var hd_modulate := Color(1, 1, 1, 1)
 var show_overlay := true
+var theme: TilesetTheme = null
+var grid_color: Color = GRID_COLOR
+var floor_tint: Color = Color(1, 1, 1, 1)
+var theme_light: Color = Color(1, 1, 1, 1)
 
 
 func setup(m: GreyboxMap) -> void:
@@ -52,6 +56,23 @@ func apply_palette(pal: Dictionary) -> void:
 	hd_modulate = Color.WHITE.lerp(accent.lerp(ink, 0.35), 0.18)
 	hd_modulate.a = 1.0
 	queue_redraw()
+
+
+func apply_theme(t: TilesetTheme) -> void:
+	theme = t
+	if t == null:
+		grid_color = GRID_COLOR
+		floor_tint = Color(1, 1, 1, 1)
+		theme_light = Color(1, 1, 1, 1)
+	else:
+		grid_color = t.color(&"grid_color", GRID_COLOR)
+		floor_tint = t.color(&"floor_tint", Color(1, 1, 1, 1))
+		theme_light = t.color(&"light_color", Color(1, 1, 1, 1))
+	queue_redraw()
+
+
+func _tinted(c: Color) -> Color:
+	return Color(c.r * floor_tint.r, c.g * floor_tint.g, c.b * floor_tint.b, c.a)
 
 
 func enable_hd_tiles() -> bool:
@@ -92,7 +113,7 @@ func _draw() -> void:
 	var w := int(map.width_cells)
 	var h := int(map.height_cells)
 	var total := Rect2(Vector2.ZERO, Vector2(w, h) * s)
-	draw_rect(total, FLOOR_A, true)
+	draw_rect(total, _tinted(FLOOR_A), true)
 	for y in range(h):
 		for x in range(w):
 			_draw_plate(Vector2i(x, y), s)
@@ -117,7 +138,7 @@ func _draw() -> void:
 
 func _draw_plate(c: Vector2i, s: float) -> void:
 	var r := GridUtil.cell_rect_px(c)
-	draw_rect(r, _cell_color(c), true)
+	draw_rect(r, _tinted(_cell_color(c)), true)
 	if hd_atlas != null:
 		var h := (c.x * 73856093) ^ (c.y * 19349663)
 		var src := Rect2(float((h & 1) * 16), 16.0, 16.0, 16.0)
@@ -134,9 +155,9 @@ func _draw_plate(c: Vector2i, s: float) -> void:
 
 func _draw_grid(w: int, h: int, s: float) -> void:
 	for x in range(w + 1):
-		draw_line(Vector2(x * s, 0), Vector2(x * s, h * s), GRID_COLOR, 1.0)
+		draw_line(Vector2(x * s, 0), Vector2(x * s, h * s), grid_color, 1.0)
 	for y in range(h + 1):
-		draw_line(Vector2(0, y * s), Vector2(w * s, y * s), GRID_COLOR, 1.0)
+		draw_line(Vector2(0, y * s), Vector2(w * s, y * s), grid_color, 1.0)
 
 
 func _draw_wall(c: Vector2i, s: float) -> void:

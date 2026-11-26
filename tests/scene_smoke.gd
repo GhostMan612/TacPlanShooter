@@ -237,6 +237,36 @@ func _inspect_planning(pr: PlanningRoot) -> void:
 	_inspect_contacts(pr)
 	_inspect_enemy_fire(pr)
 	_inspect_node_orders(pr)
+	_inspect_view3d(pr)
+
+
+func _inspect_view3d(pr: PlanningRoot) -> void:
+	_check(pr.view3d != null, "2.5D view layer mounted")
+	_check(WorldView3D.cell_to_world(Vector2i(2, 3), 1) == Vector3(3.0, 3.2, 4.5), "grid projection matches 5-ft scale")
+	_check(pr._view_bar != null and pr._view_bar.get_child_count() == 4, "view controls expose view/yaw/pitch buttons")
+	var before_hash: String = pr.world.state_hash()
+	var before_tick: int = pr.world.tick
+	pr._toggle_view3d()
+	_check(pr.view3d.is_active() and not pr.renderer.visible, "2.5D toggle hides classic map layer")
+	_check(pr._view_button.text == "2.5D", "view button reflects 2.5D mode")
+	pr._on_yaw_cw()
+	_check(is_equal_approx(pr.view3d.camera.target_yaw, 90.0), "yaw snap lands on 90 degrees")
+	pr._on_yaw_ccw()
+	_check(is_equal_approx(pr.view3d.camera.target_yaw, 0.0), "yaw snap returns to zero")
+	pr._on_pitch_cycle()
+	_check(pr.view3d.camera.tier == 2, "pitch cycles to eye-level tier")
+	pr._on_pitch_cycle()
+	pr._on_pitch_cycle()
+	_check(pr.view3d.camera.tier == 1, "pitch cycles back to tactical tier")
+	var floors: Dictionary = pr.view3d._floor_meshes
+	var entry: Dictionary = floors[0]
+	var plates := entry.get("floor") as MultiMeshInstance3D
+	var walls := entry.get("walls") as MultiMeshInstance3D
+	_check(plates != null and plates.multimesh.instance_count == pr.map.width_cells * pr.map.height_cells, "floor plates batched in one multimesh")
+	_check(walls != null and walls.multimesh.instance_count == 250, "walls batched in one multimesh")
+	_check(pr.world.tick == before_tick and pr.world.state_hash() == before_hash, "view layer never mutates sim state")
+	pr._toggle_view3d()
+	_check(not pr.view3d.is_active() and pr.renderer.visible, "view toggle restores classic blueprint")
 
 
 func _plan_has(pr: PlanningRoot, op_id: int, kind: int, field: String = "", value: Variant = null) -> bool:

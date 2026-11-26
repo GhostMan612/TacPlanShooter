@@ -1,5 +1,5 @@
 # CURRENT_STATE.md — Component Inventory Snapshot
-**Snapshot date:** 2026-11-25 (Session 21 — Mission Prep, Armory RP Unlocks, Live Tap-In & 2-Player Co-Op/PvP Lobby)
+**Snapshot date:** 2026-11-26 (Session 23 — WO-25D Steps 1 & 2, CP-103; was Session 21 — Mission Prep, Armory RP Unlocks, Live Tap-In & 2-Player Co-Op/PvP Lobby)
 
 ## Repo layout (`C:\TacPlan Shooter\`)
 
@@ -22,6 +22,8 @@
 │   │   ├── greybox_map.gd · sim_world.gd · mission_snapshot.gd
 │   │   ├── grid_pathfinder.gd        ← integer-grid A* on GreyboxMap (D-023; doors pass, walls/bounds enforced in movement)
 │   │   └── ai\                       ← AAA tactical CPU (`CpuCommander`), GOAP planner (`GoapActions`/`GoapPlanner`), `InfluenceMap`, `SquadTactics`, `EnemyAi`, `AiCoordinator`
+│   ├── view3d\                      ← HD-2D 3D view layer (WorldView3D, TacticalCamera3D, cutaway shader)
+│   ├── tileset_theme.gd · tileset_theme_registry.gd ← TilesetTheme resource contract + 5-theme registry
 │   └── planning\                     ← C4I terminal layer (S2b/S3)
 │       ├── grid_util.gd              ← central px↔cell law
 │       ├── route_sanitizer.gd        ← decimate 12px (tail kept) → Catmull-Rom Bezier bake 8px (CP-031)
@@ -58,10 +60,11 @@
 | **Planning phase v1 (M3)** | 🟢 Catmull-Rom Bezier + wall-graze repair + `DRAW`/`TAP` mode + `0.28s` hold + compact above-map `NodeMenu` + `F1/N` switcher | CP-030 & CP-080 ✅ PASS on BLU B160V |
 | **Execution sim v1 (M5/BP-02+BP-04)** | 🟢 `GridPathfinder` A* movement + `USE_STAIRS` multi-floor traversal + adherence + collision-halt + `TacticalVfx` tracers/flashes/rings | CP-050/051/052 & CP-073 ✅ PASS on BLU B160V |
 | Visibility/fog (M6/BP-06) | 🟢 Cached, palette-aware per-floor GPU masks with live and last-seen map contacts | CP-061 ✅ PASS on BLU B160V (`PowerVR Rogue GE8300`, `median_ms=33.67`) |
-| **Tests & harnesses** | 🟢 All 12 headless gates green (`parse_all` 94 scripts / 15 scenes, `scene_smoke`, `determinism_harness`, `aaa_ai_harness`, `meta_progression_harness`, etc.) | CP-074 & CP-075 ✅ PASS headless |
-| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander across all floors, `OP-05..OP-10` stair links, `MissionPrepScreen` 2–4 op deployment, `ArmoryScreen` RP unlocks, `TwoPlayerScreen` Pass & Play + LAN UDP 7600, `TapInController` live `-1 CP` override | CP-074/075 ✅ PASS headless; live phone UI QA pending unlock (`CP-102`) |
+| **5-ft 2.5D engine (M11/CP-103)** | 🟢 `op01` 32x24 compound, WO-subtle planning grid, 5-theme `TilesetTheme` registry, batched MultiMesh floors/walls + Sprite3D actors + waist/near-focus cutaway, 88/52/20 pitch + 90° yaw snap | Visual device pass (Android + desktop OpenGL) remains a USER gate |
+| **Tests & harnesses** | 🟢 10 of 12 local headless gates green (`parse_all` 100 scripts / 15 scenes, `scene_smoke`, `determinism_harness`, `aaa_ai_harness`, `meta_progression_harness`, etc.) | CP-074 & CP-075 ✅ PASS headless |
+| Enemy AI / mission loop (M7/BP-09) | 🟢 Phase L GOAP + CPU Commander across all floors, `OP-05..OP-10` stair links, `MissionPrepScreen` 2–4 op deployment, `ArmoryScreen` RP unlocks, `TwoPlayerScreen` Pass & Play + LAN UDP 7600, `TapInController` live `-1 CP` override | CP-074, CP-075 & CP-102 ✅ PASS (Moto G + BLU B160V) |
 | Audio pass (M9/BP-08) | 🟢 `TacticalAudio` autoload (`Ambient` bus ducking, LP heartbeat on damage, seeded squelch/blips); 16-bit PCM WAVs (`0` import errors); `ui_audio_smoke` PASS | CP-090 ✅ PASS |
-| **Android export track (M10/BP-10)** | 🟢 Route A APK (`builds\TacPlan-debug.apk`, `INTERNET` + `ACCESS_NETWORK_STATE`) verified clean (`CP-100`) & installed on BLU `B160V` (`CP-101` ✅ PASS; `CP-102` pending PIN unlock / Moto G `ZT4222BMWN`) | Store release signing & optional Route B JDK11/NDK23 |
+| **Android export track (M10/BP-10)** | 🟢 Route A APK (`builds\TacPlan-debug.apk`, `INTERNET` + `ACCESS_NETWORK_STATE`) verified clean (`CP-100`) & live-verified on Moto G (`ZT4222BMWN`) + BLU `B160V` (`CP-101`, `CP-102` ✅ PASS) | Store release signing & optional Route B JDK11/NDK23 |
 
 ## Known unknowns / open decisions
 

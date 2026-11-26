@@ -1,29 +1,80 @@
 {
 	"map_id": "op01_glass_house",
 	"title": "Glass House",
+	"tileset_theme": "tactical_compound",
 	"floors": 1,
-	"width_cells": 16,
-	"height_cells": 12,
+	"width_cells": 32,
+	"height_cells": 24,
 	"lighting": "DAY",
 	"rp_reward": 150,
 	"walls": [
-		{"floor": 0, "a": [0, 0], "b": [16, 0], "material": "CONCRETE"},
-		{"floor": 0, "a": [0, 11], "b": [16, 11], "material": "CONCRETE"},
-		{"floor": 0, "a": [0, 0], "b": [0, 12], "material": "CONCRETE"},
-		{"floor": 0, "a": [15, 0], "b": [15, 12], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [32, 0], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 23], "b": [32, 23], "material": "CONCRETE"},
+		{"floor": 0, "a": [0, 0], "b": [0, 24], "material": "CONCRETE"},
+		{"floor": 0, "a": [31, 0], "b": [31, 24], "material": "CONCRETE"},
 		{"floor": 0, "a": [5, 2], "b": [5, 8], "material": "DRY_WALL"},
 		{"floor": 0, "a": [9, 2], "b": [9, 8], "material": "DRY_WALL"},
 		{"floor": 0, "a": [5, 2], "b": [9, 2], "material": "DRY_WALL"},
-		{"floor": 0, "a": [9, 2], "b": [9, 5], "material": "DRY_WALL"}
+		{"floor": 0, "a": [5, 8], "b": [9, 8], "material": "DRY_WALL"},
+		{"floor": 0, "a": [11, 9], "b": [29, 9], "material": "CONCRETE"},
+		{"floor": 0, "a": [11, 21], "b": [29, 21], "material": "CONCRETE"},
+		{"floor": 0, "a": [11, 9], "b": [11, 22], "material": "CONCRETE"},
+		{"floor": 0, "a": [29, 9], "b": [29, 22], "material": "CONCRETE"},
+		{"floor": 0, "a": [16, 9], "b": [16, 12], "material": "DRY_WALL"},
+		{"floor": 0, "a": [23, 9], "b": [23, 12], "material": "DRY_WALL"},
+		{"floor": 0, "a": [12, 12], "b": [28, 12], "material": "DRY_WALL"},
+		{"floor": 0, "a": [12, 16], "b": [28, 16], "material": "DRY_WALL"},
+		{"floor": 0, "a": [18, 16], "b": [18, 21], "material": "DRY_WALL"},
+		{"floor": 0, "a": [26, 16], "b": [26, 21], "material": "DRY_WALL"},
+		{"floor": 0, "a": [2, 14], "b": [8, 14], "material": "CONCRETE"},
+		{"floor": 0, "a": [18, 5], "b": [24, 5], "material": "CONCRETE"}
 	],
-	"doors": [{"id": "d01", "floor": 0, "cell": [5, 2], "orientation": "H", "state": "OPEN"}],
+	"doors": [
+		{"id": "d_alpha", "floor": 0, "cell": [5, 2], "orientation": "H", "state": "OPEN"},
+		{"id": "d_vestibule", "floor": 0, "cell": [7, 8], "orientation": "H", "state": "OPEN"},
+		{"id": "d_bravo", "floor": 0, "cell": [14, 9], "orientation": "H", "state": "OPEN"},
+		{"id": "d_charlie", "floor": 0, "cell": [11, 14], "orientation": "V", "state": "OPEN"},
+		{"id": "d_delta", "floor": 0, "cell": [29, 18], "orientation": "V", "state": "CLOSED_UNLOCKED"},
+		{"id": "d_north_office", "floor": 0, "cell": [14, 12], "orientation": "H", "state": "OPEN"},
+		{"id": "d_server", "floor": 0, "cell": [14, 16], "orientation": "H", "state": "CLOSED_UNLOCKED"},
+		{"id": "d_hostage", "floor": 0, "cell": [22, 16], "orientation": "H", "state": "OPEN"},
+		{"id": "d_utility", "floor": 0, "cell": [27, 16], "orientation": "H", "state": "LOCKED"}
+	],
 	"stair_links": [],
-	"insertion_zones": [{"id": "ins01", "floor": 0, "cells": [[2, 2], [2, 3]], "vehicle_req": "NONE"}],
-	"extraction_zones": [{"id": "ext01", "floor": 0, "cells": [[13, 2]]}],
-	"defender_zones": [],
-	"chokepoints": [{"floor": 0, "cell": [5, 2]}],
-	"objectives": [{"kind": "HOSTAGE_RESCUE", "floor": 0, "cell": [12, 2], "timer_ticks": 0}],
-	"ai_spawns": [{"id": "ai_s01", "archetype": "hostage_guard", "floor": 0, "cell": [7, 6], "facing_deg": 90, "patrol": []}],
-	"hostage_spawns": [{"id": "host_h01", "floor": 0, "cell": [7, 6]}],
-	"jammer_nodes": []
+	"insertion_zones": [
+		{"id": "ins_alpha", "floor": 0, "vehicle_req": "NONE", "cells": [[2, 2], [2, 3], [2, 4], [2, 5]]}
+	],
+	"extraction_zones": [
+		{"id": "ext01", "floor": 0, "cells": [[20, 6]]}
+	],
+	"defender_zones": [
+		{"id": "def_north", "floor": 0, "cells": [[13, 10], [14, 10], [15, 10]]},
+		{"id": "def_hostage", "floor": 0, "cells": [[19, 18], [20, 18], [21, 18]]},
+		{"id": "def_server", "floor": 0, "cells": [[12, 19], [13, 19], [14, 19]]}
+	],
+	"chokepoints": [
+		{"floor": 0, "cell": [5, 2]},
+		{"floor": 0, "cell": [14, 9]},
+		{"floor": 0, "cell": [11, 14]},
+		{"floor": 0, "cell": [29, 18]},
+		{"floor": 0, "cell": [20, 14]}
+	],
+	"objectives": [
+		{"kind": "HOSTAGE_RESCUE", "floor": 0, "cell": [22, 18], "timer_ticks": 0}
+	],
+	"ai_spawns": [
+		{"id": "ai_s01", "archetype": "hostage_guard", "floor": 0, "cell": [23, 19], "facing_deg": 90, "patrol": []},
+		{"id": "ai_s02", "archetype": "room_anchor", "floor": 0, "cell": [13, 11], "facing_deg": 180, "patrol": []},
+		{"id": "ai_s03", "archetype": "tech_jammer", "floor": 0, "cell": [14, 19], "facing_deg": 270, "patrol": []},
+		{"id": "ai_s04", "archetype": "tactical_flanker", "floor": 0, "cell": [27, 18], "facing_deg": 0, "patrol": []},
+		{"id": "ai_s05", "archetype": "heavy_gunner", "floor": 0, "cell": [20, 11], "facing_deg": 90, "patrol": []}
+	],
+	"hostage_spawns": [
+		{"id": "host_h01", "floor": 0, "cell": [22, 18]},
+		{"id": "host_h02", "floor": 0, "cell": [23, 18]},
+		{"id": "host_h03", "floor": 0, "cell": [24, 18]}
+	],
+	"jammer_nodes": [
+		{"id": "jam_01", "floor": 0, "cell": [15, 19]}
+	]
 }
