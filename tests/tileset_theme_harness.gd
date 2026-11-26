@@ -28,6 +28,7 @@ func _run() -> void:
 		ok = ok and t.door_texture(&"BREACHED_DESTROYED") != null
 		if not ok:
 			failures += 1
+			print("[THEME] theme %s FAIL valid=%s floors=%d faces=%d doors=%d atlas=%s breach=%s" % [String(id), str(t != null and bool(t.is_valid())), t.floor_tiles.size(), t.wall_face_variants.size(), t.doors.size(), str(t.props_atlas != null), str(t.door_texture(&"BREACHED_DESTROYED") != null)])
 		print("[THEME] theme %s %s" % [String(id), "PASS" if ok else "FAIL"])
 	var unknown: RefCounted = Registry.for_id(&"not_a_theme")
 	if unknown == null or unknown.theme_id != &"tactical_compound":
