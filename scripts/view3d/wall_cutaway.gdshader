@@ -12,7 +12,7 @@ uniform vec3 focus_pos = vec3(0.0, 0.0, 0.0);
 
 void vertex() {
 	v_cutaway = INSTANCE_CUSTOM.x;
-	v_world = (INSTANCE_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
