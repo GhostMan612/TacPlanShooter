@@ -105,6 +105,11 @@ jobs:
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/map_editor_harness.gd 2>&1 | tee map_editor.log || true
           bash tools/ci_gate.sh map_editor.log "PASS"
+      - name: View3D combat and planning harness
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/view3d_combat_harness.gd 2>&1 | tee view3d_combat.log || true
+          bash tools/ci_gate.sh view3d_combat.log "[VIEW3D] RESULT PASS"
       - name: Fog layer cache and mask harness
         if: ${{ !cancelled() }}
         run: |

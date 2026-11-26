@@ -14,6 +14,9 @@ var world: SimWorld = null
 var map: GreyboxMap = null
 var active_floor: int = 0
 var camera: TacticalCamera3D = null
+var route_overlay: Route3DOverlay = null
+var fog_overlay: Fog3DOverlay = null
+var vfx: Vfx3D = null
 var _floor_root: Node3D = null
 var _actor_root: Node3D = null
 var _floor_meshes: Dictionary = {}
@@ -36,6 +39,21 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	_actor_root = Node3D.new()
 	_actor_root.name = "Actors"
 	add_child(_actor_root)
+	route_overlay = Route3DOverlay.new()
+	route_overlay.name = "RouteOverlay3D"
+	add_child(route_overlay)
+	fog_overlay = Fog3DOverlay.new()
+	fog_overlay.name = "FogOverlay3D"
+	add_child(fog_overlay)
+	vfx = Vfx3D.new()
+	vfx.name = "Vfx3D"
+	add_child(vfx)
+	var bus := get_node_or_null("/root/EventBus")
+	if bus != null:
+		if not bus.breach_detonated.is_connected(_on_breach_3d):
+			bus.breach_detonated.connect(_on_breach_3d)
+		if not bus.operative_damaged.is_connected(_on_op_damaged_3d):
+			bus.operative_damaged.connect(_on_op_damaged_3d)
 	camera = TacticalCamera3D.new()
 	camera.name = "TacticalCamera3D"
 	add_child(camera)
@@ -83,6 +101,32 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 
 func is_active() -> bool:
 	return _active
+
+
+func set_fog(f: FogLayer) -> void:
+	if f != null and fog_overlay != null and map != null:
+		fog_overlay.configure(f, map, active_floor)
+
+
+func update_routes(src: Dictionary) -> void:
+	if route_overlay != null:
+		route_overlay.set_routes(src, active_floor)
+
+
+static func world_pos_to_3d(p: Vector2, floor: int) -> Vector3:
+	return Vector3(p.x * CELL_UNITS, float(floor) * FLOOR_RISE + 0.6, p.y * CELL_UNITS)
+
+
+func _on_breach_3d(p: Vector2) -> void:
+	if vfx != null:
+		vfx.breach(world_pos_to_3d(p, active_floor))
+	if camera != null:
+		camera.shake(0.45)
+
+
+func _on_op_damaged_3d(_id: int, _hp: int) -> void:
+	if camera != null:
+		camera.shake(0.18)
 
 
 func set_active(value: bool) -> void:
@@ -142,6 +186,12 @@ func cycle_pitch() -> void:
 func follow_actor(o: SimOperative) -> void:
 	if camera != null and o != null:
 		camera.focus(actor_to_world(o))
+		camera.enter_tap_in_follow()
+
+
+func release_tap_in() -> void:
+	if camera != null:
+		camera.release_tap_in()
 
 
 func rebuild() -> void:
@@ -159,8 +209,11 @@ func rebuild() -> void:
 			continue
 		var plate := _build_floor(fm, f)
 		var walls := _build_walls(fm, f)
+		var props := _build_props(fm, f)
 		_floor_root.add_child(plate)
 		_floor_root.add_child(walls)
+		_floor_root.add_child(props)
+		_build_doors(fm, f)
 		_floor_meshes[f] = {"floor": plate, "walls": walls}
 	_door_signature = _signature()
 	_apply_floor_visibility()
@@ -212,6 +265,50 @@ func _build_walls(fm: GreyboxMap, floor: int) -> MultiMeshInstance3D:
 	if _wall_material != null:
 		inst.material_override = _wall_material
 	return inst
+
+
+func _build_props(fm: GreyboxMap, floor: int) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.mesh = _box_mesh
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var spots: Array[Vector2i] = []
+	for y in range(1, fm.height_cells - 1):
+		for x in range(1, fm.width_cells - 1):
+			var c := Vector2i(x, y)
+			var h := (x * 73856093) ^ (y * 19349663)
+			if (h & 7) == 0 and not fm.is_solid(c):
+				spots.append(c)
+	mm.instance_count = spots.size()
+	for i in range(spots.size()):
+		var c: Vector2i = spots[i]
+		var p: Vector3 = cell_to_world(c, floor) + Vector3(0.0, 0.35, 0.0)
+		mm.set_instance_transform(i, Transform3D().translated(p).scaled(Vector3(0.55, 0.7, 0.55)))
+	var inst := MultiMeshInstance3D.new()
+	inst.name = "RoomProps%d" % floor
+	inst.multimesh = mm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.28, 0.33, 0.40)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	inst.material_override = mat
+	return inst
+
+
+func _build_doors(fm: GreyboxMap, floor: int) -> void:
+	for key in fm.door_cells.keys():
+		var c := Vector2i(key)
+		var box := MeshInstance3D.new()
+		box.name = "Door3D_%d_%d_f%d" % [c.x, c.y, floor]
+		var mesh := BoxMesh.new()
+		box.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		var state := fm.door_state(c)
+		mat.albedo_color = Color(0.24, 0.30, 0.38) if state == &"OPEN" else Color(0.55, 0.20, 0.12)
+		mat.emission_enabled = true
+		mat.emission = mat.albedo_color * 0.3
+		box.material_override = mat
+		box.position = cell_to_world(c, floor) + Vector3(0.0, 1.1, 0.0)
+		box.scale = Vector3(1.35, 2.2, 0.25)
+		_floor_root.add_child(box)
 
 
 func _apply_floor_visibility() -> void:

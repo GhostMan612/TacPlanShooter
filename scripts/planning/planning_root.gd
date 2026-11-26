@@ -167,6 +167,7 @@ func _ready() -> void:
 	add_child(view3d)
 	view3d.setup(world, map, _active_floor, get_viewport_rect().size)
 	view3d.visible = false
+	view3d.set_fog(fog)
 	for i in range(spawn_cells.size()):
 		squads.add_member(_assigned_squad_for(i), i)
 	_setup_hud()
@@ -637,7 +638,24 @@ func _notification(what: int) -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if UiKit.is_back_event(event):
+		if view3d != null and view3d.is_active():
+			view3d.release_tap_in()
 		_go_back()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if view3d == null or not view3d.is_active() or view3d.camera == null:
+		return
+	if event is InputEventScreenTouch:
+		var t := event as InputEventScreenTouch
+		if t.pressed or view3d.camera.gesture_active():
+			return
+		var cell := TouchRaycaster3D.screen_to_cell(view3d.camera, t.position, _active_floor, get_viewport_rect().size)
+		if cell.x >= 0 and cell.y >= 0:
+			if SimClock.phase == SimClock.Phase.EXECUTION:
+				_on_execution_cell_tapped(cell)
+			else:
+				_on_route_node_tapped(cell)
 
 
 func _on_radial_go_code(code: StringName) -> void:
@@ -835,6 +853,8 @@ func _node_storage_key(cell: Vector2i) -> Variant:
 
 
 func _on_route_committed(op_id: int, waypoints: Array[Vector2i]) -> void:
+	if view3d != null:
+		view3d.update_routes(route_cells)
 	if SimClock.phase != SimClock.Phase.PLANNING or op_id < 0 or op_id >= spawn_cells.size():
 		return
 	var fmap := world.map_on_floor(_active_floor) if world != null else map

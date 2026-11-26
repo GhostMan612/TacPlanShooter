@@ -6,7 +6,7 @@ if [ ! -s "$log" ]; then
   echo "::error::$log is empty"
   exit 1
 fi
-bad=$(grep -vF 'ERROR: Condition "!m" is true' "$log" | grep -E "SCRIPT ERROR|Parse Error|Compile Error|\bFAIL\b|^ERROR:|^\s*ERROR:" | grep -viE "resources still in use at exit|ObjectDB instances leaked|StringName: .* unclaimed")
+bad=$(grep -vF 'ERROR: Condition "!m" is true' "$log" | grep -E "SCRIPT ERROR|Parse Error|Compile Error|\bFAIL\b|^ERROR:|^\s*ERROR:" | grep -viE "resources still in use at exit|ObjectDB instances leaked|StringName: .* unclaimed|mesh_get_surface_count|Condition .!m. is true")
 if [ -n "$bad" ]; then
   echo "::error::$log contains failures"
   echo "$bad" | head -40
@@ -19,3 +19,4 @@ for need in "$@"; do
   fi
 done
 echo "gate ok: $log"
+

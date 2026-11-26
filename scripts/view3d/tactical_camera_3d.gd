@@ -36,6 +36,23 @@ var _twist_deg: float = 0.0
 var _two_y: float = 0.0
 var _hud: CanvasLayer = null
 var _hud_buttons: Dictionary = {}
+var _shake_amount: float = 0.0
+
+
+func shake(amount: float) -> void:
+	_shake_amount = maxf(_shake_amount, amount)
+
+
+func enter_tap_in_follow() -> void:
+	_pitch_override = -1.0
+	tier = int(Tier.EYE)
+	distance = DISTANCES[tier]
+
+
+func release_tap_in() -> void:
+	_pitch_override = -1.0
+	tier = int(Tier.TACTICAL)
+	distance = DISTANCES[tier]
 
 
 func _ready() -> void:
@@ -50,6 +67,7 @@ func _process(delta: float) -> void:
 	var want_pitch := _pitch_override if _pitch_override >= 0.0 else PITCHES[clampi(tier, 0, 2)]
 	_current_pitch = lerpf(_current_pitch, -want_pitch, k)
 	_current_distance = lerpf(_current_distance, distance, k)
+	_shake_amount = maxf(0.0, _shake_amount - delta * 1.6)
 	_apply()
 
 
@@ -184,6 +202,10 @@ func focus(point: Vector3) -> void:
 	focus_point = point
 
 
+func gesture_active() -> bool:
+	return _touches.size() > 0
+
+
 func set_tier(value: int) -> void:
 	_on_pill("TIER", value)
 
@@ -219,6 +241,8 @@ func _apply() -> void:
 	var horizontal: float = cos(pitch_rad) * _current_distance
 	var offset := Vector3(sin(yaw_rad) * horizontal, sin(pitch_rad) * _current_distance, cos(yaw_rad) * horizontal)
 	global_position = focus_point + offset
+	if _shake_amount > 0.0:
+		global_position += Vector3(sin(Time.get_ticks_msec() * 0.13), cos(Time.get_ticks_msec() * 0.19), 0.0) * _shake_amount
 	look_at(focus_point, Vector3.UP)
 	if cutaway_material != null:
 		cutaway_material.set_shader_parameter("focus_pos", focus_point)
