@@ -652,10 +652,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_go_back()
 
 
-func _suppress_duplicate_touch_routing() -> void:
-	pass
-
-
 func _on_radial_go_code(code: StringName) -> void:
 	_select_go_code(code)
 
