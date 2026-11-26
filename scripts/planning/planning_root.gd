@@ -1139,7 +1139,8 @@ func _set_phase_controls(executing: bool) -> void:
 		var b: Button = code_buttons[i]
 		if b != null:
 			b.disabled = result_visible or (not executing and _selected_node == RoutePlanner.NO_CELL)
-			b.text = ("GO:" if executing else "W:") + "ABCD".substr(i, 1)
+			var names := ["ALPHA", "BRAVO", "CHARLIE", "DELTA"]
+			b.text = names[i]
 	if controller != null:
 		controller.routing_enabled = not executing and not result_visible
 	_refresh_node_menu()
