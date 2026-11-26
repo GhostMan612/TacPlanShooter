@@ -74,6 +74,14 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not active:
 		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+			distance = clampf(distance * 0.9, MIN_DISTANCE, MAX_DISTANCE)
+			return
+		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+			distance = clampf(distance * 1.1, MIN_DISTANCE, MAX_DISTANCE)
+			return
 	if event is InputEventScreenTouch:
 		var t := event as InputEventScreenTouch
 		if t.pressed:
@@ -117,8 +125,8 @@ func _touch_points() -> Array:
 
 func _pan(screen_delta: Vector2) -> void:
 	var scale := _current_distance / 900.0
-	focus_point.x = clampf(focus_point.x - screen_delta.x * scale, bounds.position.x, bounds.end.x)
-	focus_point.z = clampf(focus_point.z + screen_delta.y * scale, bounds.position.y, bounds.end.y)
+	focus_point.x = clampf(focus_point.x + screen_delta.x * scale, bounds.position.x, bounds.end.x)
+	focus_point.z = clampf(focus_point.z - screen_delta.y * scale, bounds.position.y, bounds.end.y)
 
 
 func _gesture(delta: Vector2) -> void:
