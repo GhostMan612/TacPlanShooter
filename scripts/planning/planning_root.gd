@@ -530,6 +530,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		var d := event as InputEventScreenDrag
 		view3d.twist_by(d.relative.x * 0.6)
 		_twist_active = true
+	if event is InputEventScreenTouch and view3d.camera != null:
+		var tap := event as InputEventScreenTouch
+		if not tap.pressed and not view3d.camera.gesture_active() and not _twist_active:
+			var cell := TouchRaycaster3D.screen_to_cell(view3d.camera, tap.position, _active_floor, get_viewport_rect().size)
+			if cell.x >= 0 and cell.y >= 0:
+				if SimClock.phase == SimClock.Phase.EXECUTION:
+					_on_execution_cell_tapped(cell)
+				else:
+					_on_route_node_tapped(cell)
 
 
 func _toggle_input_mode() -> void:
@@ -643,19 +652,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_go_back()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if view3d == null or not view3d.is_active() or view3d.camera == null:
-		return
-	if event is InputEventScreenTouch:
-		var t := event as InputEventScreenTouch
-		if t.pressed or view3d.camera.gesture_active():
-			return
-		var cell := TouchRaycaster3D.screen_to_cell(view3d.camera, t.position, _active_floor, get_viewport_rect().size)
-		if cell.x >= 0 and cell.y >= 0:
-			if SimClock.phase == SimClock.Phase.EXECUTION:
-				_on_execution_cell_tapped(cell)
-			else:
-				_on_route_node_tapped(cell)
+func _suppress_duplicate_touch_routing() -> void:
+	pass
 
 
 func _on_radial_go_code(code: StringName) -> void:
