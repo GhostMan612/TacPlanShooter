@@ -432,32 +432,49 @@ func sync_from_world(w: SimWorld, floor: int, local_faction: int) -> void:
 			_sync_actor(enemy as SimOperative, seen, local_faction)
 	for id in _actors.keys():
 		if not seen.has(id):
-			(_actors[id] as Sprite3D).visible = false
+			var stale := _actors[id] as Node3D
+			if stale != null:
+				stale.visible = false
 
 
 func _sync_actor(o: SimOperative, seen: Dictionary, local_faction: int) -> void:
 	if o == null:
 		return
 	if not _actors.has(o.id):
-		var sprite := Sprite3D.new()
-		sprite.name = "Actor%d" % o.id
-		sprite.billboard = 2
-		sprite.shaded = false
-		sprite.centered = true
-		sprite.pixel_size = 0.035
-		sprite.hframes = 8
-		sprite.vframes = 1
-		var key: StringName = &"pointman" if o.faction_id == local_faction else &"hostile"
-		if _dir_textures.has(key):
-			sprite.texture = _dir_textures[key]
-		elif not _actor_textures.is_empty():
-			var idx: int = o.id if o.faction_id == local_faction else _actor_textures.size() - 1
-			sprite.texture = _actor_textures[posmod(idx, _actor_textures.size())]
-		_actor_root.add_child(sprite)
-		_actors[o.id] = sprite
-	var s := _actors[o.id] as Sprite3D
+		var is_friendly: bool = o.faction_id == local_faction
+		var tint := Color(0.82, 0.92, 1.0) if is_friendly else Color(1.0, 0.82, 0.78)
+		var rig := Unit8DirSpriteRig.new()
+		rig.name = "Actor%d" % o.id
+		if rig.configure(is_friendly, tint):
+			_actor_root.add_child(rig)
+			_actors[o.id] = rig
+		else:
+			rig.free()
+			var sprite := Sprite3D.new()
+			sprite.name = "Actor%d" % o.id
+			sprite.billboard = 2
+			sprite.shaded = false
+			sprite.centered = true
+			sprite.pixel_size = 0.035
+			sprite.hframes = 8
+			sprite.vframes = 1
+			var key: StringName = &"pointman" if is_friendly else &"hostile"
+			if _dir_textures.has(key):
+				sprite.texture = _dir_textures[key]
+			elif not _actor_textures.is_empty():
+				var idx: int = o.id if is_friendly else _actor_textures.size() - 1
+				sprite.texture = _actor_textures[posmod(idx, _actor_textures.size())]
+			_actor_root.add_child(sprite)
+			_actors[o.id] = sprite
+	var node := _actors[o.id] as Node3D
+	if node == null:
+		return
 	seen[o.id] = true
-	s.global_position = actor_to_world(o)
-	s.visible = o.floor_idx == active_floor and o.is_alive()
-	var rel_deg := wrapf(o.facing_deg - (camera.yaw_deg if camera != null else 0.0) + 22.5, 0.0, 360.0)
-	s.frame = int(floor(rel_deg / 45.0)) % 8
+	node.visible = o.floor_idx == active_floor and o.is_alive()
+	if node is Unit8DirSpriteRig:
+		node.update_from_sim(actor_to_world(o), deg_to_rad(o.facing_deg), camera)
+	elif node is Sprite3D:
+		var s := node as Sprite3D
+		s.global_position = actor_to_world(o)
+		var rel_deg := wrapf(o.facing_deg - (camera.yaw_deg if camera != null else 0.0) + 22.5, 0.0, 360.0)
+		s.frame = int(floor(rel_deg / 45.0)) % 8
