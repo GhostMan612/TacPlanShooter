@@ -73,6 +73,10 @@ func _check_world_view_build() -> void:
 		_check(rubble >= 12, "breach rubble pool spawns >= 12 debris cubes")
 		_check(view.get_child_count() > 0, "builds 3D view for " + path)
 		_check(view.vfx != null and view.fog_overlay != null, "vfx + fog overlay active for " + path)
+		_check(view.ecosystem != null and view.ecosystem.prop_count > 0, "room ecosystem populates themed props for " + path)
+		if view.decals != null:
+			view.decals.stamp_breach(Vector3(2.0, 0.0, 2.0))
+			_check(view.decals.count_stamps() >= 2, "combat decals stamp breach scorch marks for " + path)
 		view.update_routes({&"red": [Vector2i(2, 2), Vector2i(3, 2)]})
 		_check(view.route_overlay.get_child_count() >= 3, "route overlay built for " + path)
 		root.remove_child(view)

@@ -55,4 +55,7 @@ func _advance() -> void:
 	_done = true
 	if _timer != null:
 		_timer.stop()
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--autostart-op="):
+			ScreenRouter.set_param("autostart_quick", true)
 	ScreenRouter.goto_stage(ScreenRouter.Stage.TITLE)

@@ -29,6 +29,9 @@ func _ready() -> void:
 	_add(col, &"settings", "SETTINGS", _on_settings)
 	_add(col, &"credits", "CREDITS", _on_credits)
 	print("[TacPlan] screen=title buttons=%d" % buttons.size())
+	if bool(ScreenRouter.get_param("autostart_quick", false)):
+		ScreenRouter.clear_param("autostart_quick")
+		call_deferred("_on_quick")
 
 
 func _add(col: VBoxContainer, key: StringName, label: String, cb: Callable) -> Button:

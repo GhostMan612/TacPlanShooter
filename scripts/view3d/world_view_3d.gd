@@ -19,6 +19,8 @@ var fog_overlay: Fog3DOverlay = null
 var vfx: Vfx3D = null
 var drone_layer: Drone3DLayer = null
 var vehicle_layer: Vehicle3DLayer = null
+var ecosystem: RoomEcosystem3D = null
+var decals: CombatDecals3D = null
 var _floor_root: Node3D = null
 var _actor_root: Node3D = null
 var _floor_meshes: Dictionary = {}
@@ -57,6 +59,12 @@ func setup(w: SimWorld, m: GreyboxMap, floor: int, viewport: Vector2) -> void:
 	vehicle_layer = Vehicle3DLayer.new()
 	vehicle_layer.name = "Vehicles3D"
 	add_child(vehicle_layer)
+	ecosystem = RoomEcosystem3D.new()
+	ecosystem.name = "RoomEcosystem3D"
+	add_child(ecosystem)
+	decals = CombatDecals3D.new()
+	decals.name = "CombatDecals3D"
+	add_child(decals)
 	var bus := get_node_or_null("/root/EventBus")
 	if bus != null:
 		if not bus.breach_detonated.is_connected(_on_breach_3d):
@@ -148,8 +156,11 @@ static func world_pos_to_3d(p: Vector2, floor: int) -> Vector3:
 
 
 func _on_breach_3d(p: Vector2) -> void:
+	var wp := world_pos_to_3d(p, active_floor)
 	if vfx != null:
-		vfx.breach(world_pos_to_3d(p, active_floor))
+		vfx.breach(wp)
+	if decals != null:
+		decals.stamp_breach(wp)
 	if camera != null:
 		camera.shake(0.45)
 
@@ -246,6 +257,8 @@ func rebuild() -> void:
 		var ao := _build_ao(fm, f)
 		_floor_root.add_child(ao)
 		_build_doors(fm, f)
+		if ecosystem != null:
+			ecosystem.build(fm, f)
 		_floor_meshes[f] = {"floor": plate, "walls": walls, "ao": ao}
 	_door_signature = _signature()
 	_apply_floor_visibility()
