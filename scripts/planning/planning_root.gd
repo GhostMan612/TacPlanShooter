@@ -415,6 +415,10 @@ func _setup_hud() -> void:
 	_reset_button = UiKit.button("RESET", _on_reset_pressed, settings)
 	_execute_button.size_flags_stretch_ratio = 1.6
 	_reset_button.size_flags_stretch_ratio = 1.1
+	var code_colors := [Color(1.0, 0.72, 0.12), Color(0.25, 0.9, 0.45), Color(0.2, 0.75, 1.0), Color(1.0, 0.48, 0.22)]
+	for i in range(4):
+		var cb: Button = [_alpha_button, _bravo_button, _charlie_button, _delta_button][i]
+		cb.add_theme_color_override("font_color", code_colors[i])
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		b.add_theme_font_size_override("font_size", 13 if b == _execute_button or b == _reset_button else 11)
 		b.clip_text = false
@@ -436,6 +440,8 @@ func _setup_hud() -> void:
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
+	if squad_hud._cp_label != null:
+		squad_hud._cp_label.visible = false
 	for c in [_menu_button, _mode_button, _floor_button, _hud, squad_hud, _status_label, _node_menu]:
 		if c != null:
 			(c as Control).theme = _tm.applied_theme
@@ -1294,6 +1300,7 @@ func _set_phase_controls(executing: bool) -> void:
 func _set_status(msg: String) -> void:
 	if _status_label != null:
 		_status_label.text = msg
+		_status_label.visible = tutorial == null or not tutorial.active
 
 
 func _load_mission_targets() -> void:

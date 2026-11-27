@@ -168,7 +168,7 @@ func mount_hud() -> void:
 	_hud_buttons["CW"] = right
 	var rose := CompassRose.new()
 	rose.name = "CompassRose"
-	rose.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	rose.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	rose.position = Vector2(16.0, 84.0)
 	rose.size = Vector2(44.0, 44.0)
 	_hud.add_child(rose)
