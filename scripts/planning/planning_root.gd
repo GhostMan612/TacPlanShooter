@@ -172,6 +172,8 @@ func _ready() -> void:
 	view3d.set_fog(fog)
 	tutorial = TutorialOverlay.new()
 	add_child(tutorial)
+	if tutorial.active and _status_label != null:
+		_status_label.visible = false
 	for i in range(spawn_cells.size()):
 		squads.add_member(_assigned_squad_for(i), i)
 	_setup_hud()
@@ -419,6 +421,7 @@ func _setup_hud() -> void:
 	for i in range(4):
 		var cb: Button = [_alpha_button, _bravo_button, _charlie_button, _delta_button][i]
 		cb.add_theme_color_override("font_color", code_colors[i])
+		cb.add_theme_color_override("font_disabled_color", code_colors[i] * 0.85)
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
 		b.add_theme_font_size_override("font_size", 13 if b == _execute_button or b == _reset_button else 11)
 		b.clip_text = false
