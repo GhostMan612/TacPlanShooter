@@ -3,6 +3,11 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 26 — 2026-11-27 — v1.0.0 final polish
+- Zero HUD overlap: TutorialOverlay strip anchored at y=70 (42 px, x=12..viewport-12); secondary status hidden while tutorial visible and restored on `tutorial_closed`; compass below strip at y=118; scene_smoke layout regression asserts pass.
+- CC0 v0.3.1 artist tilesets live; 27/27 CI green; USER-owned local release keystore signing remains via `tools/build_release.ps1`.
+
+
 ## Session 24 — 2026-11-26 — M9 onboarding / difficulty / beta polish
 - `f12577d`: 5-step interactive `TutorialOverlay` on OP-01 (route -> Go-Code -> camera -> EXECUTE -> Tap-In; SKIP + REPLAY TUTORIAL); difficulty doctrines RECRUIT 1.35x/24, VETERAN 1.0x/12, TIER_ONE 0.8x/8; mobile haptics on Go-Code/Tap-In; `campaign_balance_harness` (25th CI gate).
 - Gates: HYGIENE_COMMENTS=0, VERIFY_ASSETS PASS, parse_all 110 scripts, scene_smoke PASS, balance harness PASS.
