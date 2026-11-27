@@ -157,7 +157,7 @@ func mount_hud() -> void:
 	add_child(_hud)
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	box.position = Vector2(-76.0, 560.0)
+	box.position = Vector2(-62.0, 140.0)
 	_hud.add_child(box)
 	_add_pill(box, "MAP", "MAP", int(Tier.MAP))
 	_add_pill(box, "2.5D", "2.5D", int(Tier.TACTICAL))
@@ -169,8 +169,8 @@ func mount_hud() -> void:
 	var rose := CompassRose.new()
 	rose.name = "CompassRose"
 	rose.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	rose.position = Vector2(-142.0, 980.0)
-	rose.size = Vector2(104.0, 104.0)
+	rose.position = Vector2(16.0, 84.0)
+	rose.size = Vector2(44.0, 44.0)
 	_hud.add_child(rose)
 
 
@@ -178,7 +178,7 @@ func _add_pill(parent: Node, label: String, key: String, value: int) -> Button:
 	var b := Button.new()
 	b.name = "Pill_" + key
 	b.text = label
-	b.custom_minimum_size = Vector2(56.0, 56.0)
+	b.custom_minimum_size = Vector2(52.0, 44.0)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.06, 0.10, 0.15, 0.82)
 	sb.set_corner_radius_all(12)

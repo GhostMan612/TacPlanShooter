@@ -64,6 +64,7 @@ var _reached_checkpoints := {}
 var _result_view: AarScreen = null
 var _pending_go_codes: Array[StringName] = []
 var _status_label: Label = null
+var _cpu_label: Label = null
 var map_source := ""
 var _hud: HBoxContainer = null
 var _menu_button: Button = null
@@ -174,6 +175,8 @@ func _ready() -> void:
 	for i in range(spawn_cells.size()):
 		squads.add_member(_assigned_squad_for(i), i)
 	_setup_hud()
+	if view3d != null and not view3d.is_active() and DisplayServer.get_name() != "headless":
+		_toggle_view3d()
 	_apply_turn_controllability()
 	_set_phase_controls(false)
 	print("[TacPlan] planning map=%s size=%dx%d floors=%d" % [map_source, map.width_cells, map.height_cells, map.floor_count])
@@ -364,14 +367,14 @@ func _on_theme_changed(pal: Dictionary) -> void:
 
 func _configure_tokens(pal: Dictionary) -> void:
 	var sprite_paths: Array[String] = ["res://assets/sprites/op_pointman.png", "res://assets/sprites/op_breacher.png", "res://assets/sprites/op_heavy.png", "res://assets/sprites/op_tech.png"]
+	var ink: Color = pal.get("ink", Color.WHITE) as Color
 	for token in controller.tokens:
 		var squad := squad_hud.squad_of(token.op_id)
-		token.configure(PlanBoard.squad_color(squad), squad_hud.callsign(token.op_id), pal["ink"])
+		token.configure(PlanBoard.squad_color(squad), squad_hud.callsign(token.op_id), ink)
 		var sp: String = sprite_paths[posmod(token.op_id, sprite_paths.size())]
-		if ResourceLoader.exists(sp):
-			var tex := ResourceLoader.load(sp, "Texture2D") as Texture2D
-			if tex != null:
-				token.set_sprite(tex)
+		var tex := ResourceLoader.load(sp, "Texture2D") as Texture2D
+		if tex != null:
+			token.set_sprite(tex)
 
 
 func _setup_hud() -> void:
@@ -398,22 +401,11 @@ func _setup_hud() -> void:
 	_floor_button.add_theme_font_size_override("font_size", 24)
 	_floor_button.visible = map.floor_count > 1
 	_hud_canvas.add_child(_floor_button)
-	_view_bar = VBoxContainer.new()
-	_view_bar.name = "ViewControls"
-	_view_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_view_bar.add_theme_constant_override("separation", 8)
-	_hud_canvas.add_child(_view_bar)
-	_view_button = UiKit.button("2D", _toggle_view3d, settings)
-	_yaw_ccw_button = UiKit.button("↺", _on_yaw_ccw, settings)
-	_yaw_cw_button = UiKit.button("↻", _on_yaw_cw, settings)
-	_pitch_button = UiKit.button("TILT", _on_pitch_cycle, settings)
-	for b in [_view_button, _yaw_ccw_button, _yaw_cw_button, _pitch_button]:
-		b.add_theme_font_size_override("font_size", 20)
-		_view_bar.add_child(b)
+	_view_bar = null
 	_hud = HBoxContainer.new()
 	_hud.name = "ActionBar"
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hud.add_theme_constant_override("separation", 8)
+	_hud.add_theme_constant_override("separation", 6)
 	_hud_canvas.add_child(_hud)
 	_execute_button = UiKit.button("EXECUTE", _on_execute_pressed, settings)
 	_alpha_button = UiKit.button("ALPHA", _on_alpha_pressed, settings)
@@ -421,11 +413,12 @@ func _setup_hud() -> void:
 	_charlie_button = UiKit.button("CHARLIE", _on_charlie_pressed, settings)
 	_delta_button = UiKit.button("DELTA", _on_delta_pressed, settings)
 	_reset_button = UiKit.button("RESET", _on_reset_pressed, settings)
-	_execute_button.size_flags_stretch_ratio = 1.9
+	_execute_button.size_flags_stretch_ratio = 1.6
 	_reset_button.size_flags_stretch_ratio = 1.1
 	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
-		b.add_theme_font_size_override("font_size", 24)
-		b.clip_text = true
+		b.add_theme_font_size_override("font_size", 13 if b == _execute_button or b == _reset_button else 11)
+		b.clip_text = false
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_hud.add_child(b)
 	_status_label = Label.new()
 	_status_label.name = "Status"
@@ -443,8 +436,9 @@ func _setup_hud() -> void:
 	_hud_canvas.add_child(squad_hud)
 	squad_hud.apply_palette(_tm.palette())
 	squad_hud.refresh(world)
-	for c in [_menu_button, _mode_button, _floor_button, _hud, squad_hud, _status_label, _node_menu, _view_bar]:
-		(c as Control).theme = _tm.applied_theme
+	for c in [_menu_button, _mode_button, _floor_button, _hud, squad_hud, _status_label, _node_menu]:
+		if c != null:
+			(c as Control).theme = _tm.applied_theme
 	_configure_tokens(_tm.palette())
 	_place_hud()
 
@@ -453,37 +447,45 @@ func _place_hud() -> void:
 	if _hud == null:
 		return
 	var vp: Vector2 = get_viewport_rect().size
-	var bar_h := float(ThemeManager.touch_min(_tm != null and _tm.accessible_scaling))
-	var margin := 24.0
-	_hud.position = Vector2(margin, vp.y - bar_h - margin)
-	_hud.size = Vector2(vp.x - margin * 2.0, bar_h)
-	var right_col: float = bar_h + 12.0 if _view_bar != null else 0.0
-	var row_w := vp.x - margin * 2.0 - right_col
-	if _view_bar != null:
-		_view_bar.position = Vector2(vp.x - margin - bar_h, 64.0)
-		_view_bar.size = Vector2(bar_h, bar_h * 4.0 + 24.0)
-	var multi := _floor_button != null and _floor_button.visible
-	var btn_w := (row_w - (24.0 if multi else 12.0)) / (3.0 if multi else 2.0)
-	var cur_x := margin
+	var margin := 8.0
+	var top_h := 56.0
+	var dock_h := 176.0
+	var row_w := vp.x - margin * 2.0
+	_hud.position = Vector2(margin, vp.y - dock_h + 8.0)
+	_hud.size = Vector2(row_w, 64.0)
+	_hud.add_theme_constant_override("separation", 6)
+	for b in [_execute_button, _alpha_button, _bravo_button, _charlie_button, _delta_button, _reset_button]:
+		if b != null:
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.clip_text = false
 	if _menu_button != null:
-		_menu_button.position = Vector2(cur_x, 64.0)
-		_menu_button.size = Vector2(btn_w, bar_h)
-		cur_x += btn_w + 12.0
+		_menu_button.position = Vector2(margin, 6.0)
+		_menu_button.size = Vector2(150.0, top_h)
 	if _mode_button != null:
-		_mode_button.position = Vector2(cur_x, 64.0)
-		_mode_button.size = Vector2(btn_w, bar_h)
-		cur_x += btn_w + 12.0
-	if multi:
-		_floor_button.position = Vector2(cur_x, 64.0)
-		_floor_button.size = Vector2(btn_w, bar_h)
-	var status_y := 64.0 + bar_h + 8.0
+		_mode_button.position = Vector2(margin + 158.0, 6.0)
+		_mode_button.size = Vector2(150.0, top_h)
+	if _floor_button != null and _floor_button.visible:
+		_floor_button.position = Vector2(margin + 316.0, 6.0)
+		_floor_button.size = Vector2(130.0, top_h)
+	for b in [_menu_button, _mode_button, _floor_button]:
+		if b != null:
+			b.add_theme_font_size_override("font_size", 15)
+	if _cpu_label == null:
+		_cpu_label = Label.new()
+		_cpu_label.name = "TopBarCP"
+		_cpu_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.6))
+		_cpu_label.add_theme_font_size_override("font_size", 16)
+		_hud_canvas.add_child(_cpu_label)
+	_cpu_label.text = "CP %d/%d" % [world.tapin_points if world != null else 0, SimConstants.TAPIN_COMMAND_POINTS_MAX]
+	_cpu_label.position = Vector2(vp.x - 116.0, 10.0)
 	if _status_label != null:
-		_status_label.position = Vector2(margin, status_y)
-		_status_label.size = Vector2(row_w, 54.0)
+		_status_label.position = Vector2(margin, 70.0)
+		_status_label.size = Vector2(row_w, 32.0)
+		_status_label.visible = tutorial == null or not tutorial.active
 	if squad_hud != null:
-		squad_hud.place(Rect2(Vector2(margin, vp.y - bar_h - margin * 2.0 - SquadHud.HEIGHT_PX), Vector2(row_w, SquadHud.HEIGHT_PX)))
+		squad_hud.place(Rect2(Vector2(margin, vp.y - dock_h - SquadHud.HEIGHT_PX - 4.0), Vector2(row_w, SquadHud.HEIGHT_PX)))
 	if _node_menu != null:
-		_node_menu.position = Vector2(margin, status_y + 58.0)
+		_node_menu.position = Vector2(margin, 108.0)
 		_node_menu.size = Vector2(row_w, 0.0)
 
 

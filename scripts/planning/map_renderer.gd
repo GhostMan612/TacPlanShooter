@@ -132,8 +132,6 @@ func _draw() -> void:
 	for y in range(h):
 		for x in range(w):
 			_draw_plate(Vector2i(x, y), s)
-	if show_overlay and _is_planning_phase():
-		_draw_grid(w, h, s)
 	for y in range(h):
 		for x in range(w):
 			var c := Vector2i(x, y)
@@ -159,20 +157,9 @@ func _draw_plate(c: Vector2i, s: float) -> void:
 		var src := Rect2(float((h & 1) * 16), 16.0, 16.0, 16.0)
 		var tint := Color(0.94, 0.96, 1.0, 1.0) if (h & 2) == 0 else Color(0.86, 0.90, 0.95, 1.0)
 		draw_texture_rect_region(hd_atlas, r, src, hd_modulate * tint)
-	draw_line(r.position, Vector2(r.end.x, r.position.y), BEVEL_HI, 1.0)
-	draw_line(r.position, Vector2(r.position.x, r.end.y), BEVEL_HI, 1.0)
-	draw_line(Vector2(r.position.x, r.end.y), r.end, BEVEL_LO, 1.0)
-	draw_line(Vector2(r.end.x, r.position.y), r.end, BEVEL_LO, 1.0)
 	var h := (c.x * 73856093) ^ (c.y * 19349663)
 	if (h & 15) == 0:
 		draw_rect(r.grow(-4.0), Color(0.30, 0.38, 0.46, 0.35), false, 1.0)
-
-
-func _draw_grid(w: int, h: int, s: float) -> void:
-	for x in range(w + 1):
-		draw_line(Vector2(x * s, 0), Vector2(x * s, h * s), grid_color, 1.0)
-	for y in range(h + 1):
-		draw_line(Vector2(0, y * s), Vector2(w * s, y * s), grid_color, 1.0)
 
 
 func _draw_wall(c: Vector2i, s: float) -> void:

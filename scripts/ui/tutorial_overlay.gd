@@ -63,7 +63,7 @@ func _build() -> void:
 	sb.set_border_width_all(2)
 	_panel.add_theme_stylebox_override("panel", sb)
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_panel.position = Vector2(120.0, 96.0)
+	_panel.position = Vector2(12.0, 76.0)
 	_label = Label.new()
 	_label.name = "TutorialText"
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -75,7 +75,7 @@ func _build() -> void:
 	skip.custom_minimum_size = Vector2(64.0, 44.0)
 	skip.pressed.connect(skip_tutorial)
 	skip.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	skip.position = Vector2(-72.0, 96.0)
+	skip.position = Vector2(-72.0, 76.0)
 	add_child(skip)
 	add_child(_panel)
 
