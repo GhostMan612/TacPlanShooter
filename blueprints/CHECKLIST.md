@@ -98,7 +98,7 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ `ReplayPlayer.replay_into` re-issues inputs at `tick - 1` via `schedule_go_code()` / `apply_override()`; harness proves direct stream injection diverges (CP-104B PASS). `PlanningRoot.scrub_replay_to_tick()` unification deferred to Phase 2.
 - ⬜ `ReplayStore` atomic save/load with `.bak`, size/event/tick caps and sanitized filenames (`scripts/meta/replay_store.gd`, CP-104A/C). Filename/tick/event caps live in `ReplayManifest` today.
 - ⬜ AAR `SAVE REPLAY` + `REPLAYS` screen with watch/import/copy/delete and verified-playback badge (CP-104D USER).
-- ⬜ `tests/replay_manifest_harness.gd` added to Headless CI (27 → 28 steps), all CP-104 gates green.
+- ✅ `tests/replay_manifest_harness.gd` added to Headless CI (27 → 28 steps, run `46172399208` success, replay step green); CP-104A/B/C green, CP-104D USER pending.
 
 ## M10 — Android release track (BP-10) — ACTIVE (Route A default)
 - ✅ Route A clean-checkout preset verified with Godot 4.0.4, ARM64 packaging, signature, and all ten source maps (CP-100).
