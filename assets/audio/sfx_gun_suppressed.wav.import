@@ -2,23 +2,10 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://dqgi62ld613mf"
-path="res://.godot/imported/sfx_gun_suppressed.wav-61343f1b218e7a5d5aaacbd60fd46f70.sample"
+uid="uid://audiosfx_gun_suppressed.wav"
+path="res://.godot/imported/sfx_gun_suppressed.wav.vorb"
+metadata={
+}
 
 [deps]
 
-source_file="res://assets/audio/sfx_gun_suppressed.wav"
-dest_files=["res://.godot/imported/sfx_gun_suppressed.wav-61343f1b218e7a5d5aaacbd60fd46f70.sample"]
-
-[params]
-
-force/8_bit=false
-force/mono=false
-force/max_rate=false
-force/max_rate_hz=44100
-edit/trim=false
-edit/normalize=false
-edit/loop_mode=0
-edit/loop_begin=0
-edit/loop_end=-1
-compress/mode=0

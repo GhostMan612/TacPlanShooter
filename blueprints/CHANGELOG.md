@@ -3,6 +3,14 @@ Newest first. One entry per work session.
 
 ---
 
+## Session 28 — 2026-11-28 — replay portability work order (spec only)
+- Audited `C:\android\apk\doom` (Freedoom/GZDoom v19/v20 static REA): weakest mechanical fit; only transferable idea is the deterministic demo file. v1.0.0 stays frozen — no gameplay code changed.
+- Added `blueprints\WO-REPLAY-MANIFEST-PORTABILITY.md`: versioned replay manifest (tick-0 snapshot + tick-indexed go-code/override stream + final state hash + integrity hash), one shared `ReplayPlayer` for scrub and verification, atomic `.bak`-backed store, AAR/replay-list UI, and CI harness.
+- Registered `CP-104A`–`CP-104D` (PENDING) and `M12` checklist items before implementation, per `CHECKPOINTS.md` gate rule 3. No gates flipped; no binaries built or committed.
+- Phase 1 implemented: `scripts/sim/replay_manifest.gd` + `scripts/sim/replay_player.gd` (pure, autoload-free) and `tests/replay_manifest_harness.gd`; CI step added (`27 → 28`). RNG 64-bit state stored as decimal strings and canonical hashing made int/float-equivalent (D-REPLAY-04/05/06/07).
+- Gates: `[REPLAY] RESULT PASS failures=0`, `[PARSE_ALL] RESULT PASS scripts=117 scenes=15 failures=0`, `[SMOKE] RESULT PASS`, `[HARNESS] RESULT PASS failures=0`, boot clean (only filtered resource-exit line), `HYGIENE_COMMENTS=0`. `CP-104A/B/C` flipped PASSED; `CP-104D` remains USER/Phase 2.
+- Headless CI `46172399208` success, **28/28 steps**, new "Replay manifest harness" step green on `76887b1`.
+
 ## Session 26 — 2026-11-27 — v1.0.0 final polish
 - Zero HUD overlap: TutorialOverlay strip anchored at y=70 (42 px, x=12..viewport-12); secondary status hidden while tutorial visible and restored on `tutorial_closed`; compass below strip at y=118; scene_smoke layout regression asserts pass.
 - CC0 v0.3.1 artist tilesets live; 27/27 CI green; USER-owned local release keystore signing remains via `tools/build_release.ps1`.

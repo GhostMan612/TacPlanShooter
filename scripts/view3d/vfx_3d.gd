@@ -10,6 +10,7 @@ const LIGHT_POOL: int = 4
 const TRACER_POOL: int = 8
 const RING_POOL: int = 4
 const RUBBLE_POOL: int = 24
+const GLOW_POOL: int = 4
 
 
 var _lights: Array[OmniLight3D] = []
@@ -23,6 +24,8 @@ var _ring_mesh: CylinderMesh = null
 var _rubble: Array[MeshInstance3D] = []
 var _rubble_vel: Array[Vector3] = []
 var _rubble_life: Array[float] = []
+var _glows: Array[Sprite3D] = []
+var _glow_life: Array[float] = []
 
 
 func _ready() -> void:
@@ -77,21 +80,62 @@ func _ready() -> void:
 		_rubble.append(r)
 		_rubble_vel.append(Vector3.ZERO)
 		_rubble_life.append(0.0)
+	var glow_paths := [
+		"res://assets/sprites/glow/glow_amber.png",
+		"res://assets/sprites/glow/glow_white.png",
+		"res://assets/sprites/glow/glow_cyan.png",
+		"res://assets/sprites/glow/glow_red.png",
+	]
+	for path in glow_paths:
+		var tex := ResourceLoader.load(path, "Texture2D") as Texture2D
+		if tex == null:
+			continue
+		var s := Sprite3D.new()
+		s.texture = tex
+		s.billboard = 2
+		s.shaded = false
+		s.visible = false
+		var mat := StandardMaterial3D.new()
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		mat.albedo_color = Color(1, 1, 1, 1)
+		s.material_override = mat
+		add_child(s)
+		_glows.append(s)
+		_glow_life.append(0.0)
 
 
 func muzzle(pos: Vector3, col: Color = Color(1.0, 0.72, 0.25)) -> void:
 	_spawn_light(pos, col, 6.0)
+	spawn_glow(pos, 0, 0.5)
 
 
 func flashbang(pos: Vector3) -> void:
 	_spawn_light(pos + Vector3.UP * 1.0, Color(1, 1, 1), 12.0)
 	_spawn_ring(pos, 1.6)
+	spawn_glow(pos + Vector3.UP, 1, 1.8)
+
+
+func spawn_glow(pos: Vector3, tex_idx: int, scale: float) -> void:
+	if _glows.is_empty():
+		return
+	var idx := 0
+	for i in range(_glow_life.size()):
+		if _glow_life[i] < _glow_life[idx]:
+			idx = i
+	var s := _glows[idx]
+	if tex_idx >= 0 and tex_idx < _glows.size():
+		s.texture = _glows[tex_idx].texture
+	s.position = pos
+	s.scale = Vector3.ONE * scale
+	s.visible = true
+	_glow_life[idx] = 0.18
 
 
 func breach(pos: Vector3) -> void:
 	_spawn_light(pos + Vector3.UP * 0.6, Color(1.0, 0.45, 0.1), 14.0)
 	_spawn_ring(pos, 2.4)
 	spawn_breach_rubble(pos)
+	spawn_glow(pos + Vector3.UP * 0.6, 0, 2.2)
 
 
 func spawn_breach_rubble(pos: Vector3) -> void:
@@ -198,3 +242,10 @@ func _process(delta: float) -> void:
 			_rubble_vel[i].z *= 0.7
 		if _rubble_life[i] <= 0.0:
 			_rubble[i].visible = false
+	for i in range(_glow_life.size()):
+		if _glow_life[i] <= 0.0:
+			continue
+		_glow_life[i] -= delta
+		_glows[i].scale *= 1.0 + delta * 2.0
+		if _glow_life[i] <= 0.0:
+			_glows[i].visible = false

@@ -34,10 +34,65 @@ var influence_map: InfluenceMap = ai.influence
 var cpu_commander: CpuCommander = ai.commander
 var fatal_funnel_history: Array = []
 var _funnel_visited: Dictionary = {}
+var gas_map := PackedByteArray()
+var damage_map := PackedByteArray()
+var fog_map := PackedByteArray()
+
+
+static func overlay_index(cell: Vector2i, width: int) -> int:
+	return cell.y * width + cell.x
+
+
+func reset_overlays() -> void:
+	var n := maxi(1, map.width_cells * map.height_cells)
+	gas_map.resize(n)
+	damage_map.resize(n)
+	fog_map.resize(n)
+	gas_map.fill(0)
+	damage_map.fill(0)
+	fog_map.fill(255)
+
+
+func overlay_set(kind: StringName, cell: Vector2i, value: int) -> void:
+	var idx := overlay_index(cell, map.width_cells)
+	if idx < 0 or idx >= gas_map.size():
+		return
+	match kind:
+		&"gas": gas_map[idx] = clampi(value, 0, 255)
+		&"damage": damage_map[idx] = clampi(value, 0, 255)
+		&"fog": fog_map[idx] = clampi(value, 0, 255)
+
+
+func overlay_get(kind: StringName, cell: Vector2i) -> int:
+	var idx := overlay_index(cell, map.width_cells)
+	if idx < 0 or idx >= gas_map.size():
+		return 0
+	match kind:
+		&"gas": return gas_map[idx]
+		&"damage": return damage_map[idx]
+		&"fog": return fog_map[idx]
+	return 0
+
+
+func spread_gas(origin: Vector2i, radius: int, ticks: int) -> void:
+	for y in range(maxi(0, origin.y - radius), mini(map.height_cells, origin.y + radius + 1)):
+		for x in range(maxi(0, origin.x - radius), mini(map.width_cells, origin.x + radius + 1)):
+			var c := Vector2i(x, y)
+			if Vector2(c - origin).length() <= float(radius) and not map.is_solid(c):
+				overlay_set(&"gas", c, clampi(ticks * 16, 0, 255))
+
+
+func tick_overlays() -> void:
+	for i in range(gas_map.size()):
+		if gas_map[i] > 0:
+			gas_map[i] = maxi(0, gas_map[i] - 16)
+		if damage_map[i] > 0:
+			damage_map[i] = maxi(0, damage_map[i] - 8)
 
 
 func setup(p_map: GreyboxMap, seed_value: int) -> void:
 	map = GreyboxMap.from_dict(p_map.to_dict())
+	reset_overlays()
 	floor_maps.clear()
 	floor_maps.append(map)
 	for fl in range(1, map.floor_count):
@@ -248,6 +303,7 @@ func record_funnel_encounter(cell: Vector2i, op_id: int) -> void:
 
 func step() -> void:
 	tick += 1
+	tick_overlays()
 	_process_go_code_stream()
 	if tapin_player_cooldown > 0:
 		tapin_player_cooldown -= 1
