@@ -41,6 +41,11 @@ Statuses: ⬜ pending · ✅ PASSED (date) · ❌ FAILED (reason, reopen)
 
 | CP-103 | 5-ft 2.5D engine & themes | 32x24 OP-01, subtle planning grid, TilesetTheme contract (5 themes), MapRenderer wiring, and a `scripts/view3d/` layer that reads `SimWorld` without mutating it; yaw snaps to cardinals and pitch tiers are 88/52/20 | `map_validation_harness`, `tileset_theme_harness`, `scene_smoke::_inspect_view3d` | ✅ PASSED 2026-11-26 (map solids=250, 5/5 themes valid, 100 scripts/15 scenes parse-clean, smoke `failures=0`, state hash unchanged across toggle) |
 
+| CP-104A | Replay manifest schema & integrity | Canonical JSON round-trip; `integrity_ok()` passes; tampered hash / bad schema rejected | `tests/replay_manifest_harness.gd` (WO-REPLAY-MANIFEST-PORTABILITY) | ⬜ PENDING |
+| CP-104B | Replay fidelity | `verify().ok` for normal, Tap-In override and multi-floor manifests; scrub parity at sampled ticks | `tests/replay_manifest_harness.gd` | ⬜ PENDING |
+| CP-104C | Hostile-input safety | Truncated JSON, future schema, unknown event kind, duplicate seq, oversized event count and path traversal all rejected without crash or partial apply | `tests/replay_manifest_harness.gd` | ⬜ PENDING |
+| CP-104D | Device replay QA | Save/import/watch a manifest and scrub to a recorded tick on BLU `B160V` and Moto G 2025 with `godot:E` = 0 | `adb` screenshots + logcat (**USER**) | ⬜ PENDING |
+
 ## Gate rules
 1. Evidence before status flip (paste output into CHANGELOG entry)
 2. A failed gate reopens every checklist item it gated
