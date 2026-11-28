@@ -88,6 +88,11 @@ jobs:
         run: |
           timeout 120 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/determinism_harness.gd 2>&1 | tee determinism.log || true
           bash tools/ci_gate.sh determinism.log "PASS"
+      - name: Replay manifest harness
+        if: ${{ !cancelled() }}
+        run: |
+          timeout 180 stdbuf -oL -eL ./bin/godot --headless --path . --script res://tests/replay_manifest_harness.gd 2>&1 | tee replay_manifest.log || true
+          bash tools/ci_gate.sh replay_manifest.log "[REPLAY] RESULT PASS"
       - name: AAA AI harness
         if: ${{ !cancelled() }}
         run: |

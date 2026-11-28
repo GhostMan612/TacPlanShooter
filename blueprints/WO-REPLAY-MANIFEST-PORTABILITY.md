@@ -116,5 +116,13 @@ static func replay_into(world: SimWorld, snapshot_data: Dictionary, events: Arra
 | CP-104D | Device replay QA (**USER**) | On BLU `B160V` + Moto G 2025: save from AAR, list, import/paste, `WATCH` shows `REPLAY ✓`, scrub reproduces timeline, `godot:E` = 0 | screenshots + logcat, recorded verbatim |
 | CI | Headless suite | 28/28 steps green, `HYGIENE_COMMENTS=0`, `VERIFY_ASSETS PASS failures=0`, `parse_all` PASS | Actions run + local gate log |
 
+## 8.5 Phase 1 implementation notes (2026-11-28)
+- Shipped `scripts/sim/replay_manifest.gd`, `scripts/sim/replay_player.gd`, `tests/replay_manifest_harness.gd` and the CI harness step. AAR/replay-list UI, `ReplayStore`, and `PlanningRoot` scrub unification remain Phase 2.
+- **D-REPLAY-04:** `ReplayManifest.canonical()` is a deterministic hand-rolled serializer (sorted keys, integral floats emitted as integers) instead of a single `JSON.stringify` call. Godot's `JSON.parse_string` returns every number as `float`, so whole-number fields would otherwise render as `1.0` after a file round-trip and break `integrity_hash`.
+- **D-REPLAY-05:** `rng_seed` and `rng_state` are stored as decimal strings inside `initial_snapshot`. `rng_state` is a signed 64-bit value and loses precision above 2^53 when parsed as a float; `restore_from_data()` already casts both through `int()`, so replay fidelity is preserved.
+- **D-REPLAY-06:** `ReplayPlayer.replay_into()` returns `bool` rather than `void` so invalid event ordering is reported instead of silently producing a divergent world.
+- **D-REPLAY-07:** the harness verifies size caps and schema/hash/event validation but does not intentionally feed truncated JSON to `JSON.parse_string`, because Godot logs `ERROR: Parse JSON failed` to stderr and the CI gate rejects any `ERROR:` line. Truncated-file handling belongs to `ReplayStore` (Phase 2), which pre-validates text before parsing.
+- Godot 4.0 cannot bind private static methods as `Callable`s from a class reference inside static functions; sort comparators are inline lambdas.
+
 ## 9. Completion protocol
 Update `blueprints/CHANGELOG.md` (top, dated), tick `blueprints/CHECKLIST.md` with an `M12 - Replay portability` section, flip CP-104A…D in `CHECKPOINTS.md`, refresh `CURRENT_STATE.md` and `SESSION_HANDOFF.md`, then auto-commit by explicit path (RULES §5.2). Never commit `builds/`, `*.apk`, `*.aab`, `*.keystore`. Do not claim build success in a commit message — gate status only.

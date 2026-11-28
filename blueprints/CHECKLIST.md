@@ -94,9 +94,9 @@ Legend: ⬜ todo · 🔄 doing · ✅ done (gate passed) · ⏸️ blocked
 - ✅ Headless evidence: `parse_all` 100/15, `scene_smoke`, `map_validation`, `tileset_theme`, determinism, AAA, meta, audio, fog gates green.
 
 ## M12 — Replay portability (WO-REPLAY-MANIFEST-PORTABILITY, CP-104) — SPEC'D, PENDING IMPLEMENTATION
-- ⬜ `ReplayManifest` schema v1: tick-0 snapshot + tick-indexed go-code/override stream + `final_state_hash` + `journal_digest` + `integrity_hash` (`scripts/sim/replay_manifest.gd`).
-- ⬜ `ReplayPlayer.replay_into` re-issues inputs at `tick - 1` via `schedule_go_code()` / `apply_override()`; unify `PlanningRoot.scrub_replay_to_tick()` (CP-104B).
-- ⬜ `ReplayStore` atomic save/load with `.bak`, size/event/tick caps and sanitized filenames (`scripts/meta/replay_store.gd`, CP-104A/C).
+- ✅ `ReplayManifest` schema v1: tick-0 snapshot + tick-indexed go-code/override stream + `final_state_hash` + `journal_digest` + `integrity_hash` (`scripts/sim/replay_manifest.gd`) — CP-104A PASS.
+- ✅ `ReplayPlayer.replay_into` re-issues inputs at `tick - 1` via `schedule_go_code()` / `apply_override()`; harness proves direct stream injection diverges (CP-104B PASS). `PlanningRoot.scrub_replay_to_tick()` unification deferred to Phase 2.
+- ⬜ `ReplayStore` atomic save/load with `.bak`, size/event/tick caps and sanitized filenames (`scripts/meta/replay_store.gd`, CP-104A/C). Filename/tick/event caps live in `ReplayManifest` today.
 - ⬜ AAR `SAVE REPLAY` + `REPLAYS` screen with watch/import/copy/delete and verified-playback badge (CP-104D USER).
 - ⬜ `tests/replay_manifest_harness.gd` added to Headless CI (27 → 28 steps), all CP-104 gates green.
 
