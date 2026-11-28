@@ -13,6 +13,7 @@ const DUCK_SECONDS: float = 3.0
 const ADAPTIVE_BGM_SCRIPT := preload("res://scripts/audio/adaptive_bgm.gd")
 const BUS_GRAPH_SCRIPT := preload("res://scripts/audio/bus_graph.gd")
 const HEARTBEAT_INTERVAL_SEC: float = 1.2
+const SFX_POOL_SLOTS: int = 3
 var _duck_until: int = -1
 var _duck_factor: float = 1.0
 var _ambient_bus_idx: int = -1
@@ -21,6 +22,8 @@ var _heartbeat_time_left: float = 0.0
 var _heartbeat_pulse_cd: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var bgm: Node = null
+var _sfx_pool: Dictionary = {}
+var _sfx_cursor: Dictionary = {}
 
 
 func _ready() -> void:
@@ -152,10 +155,18 @@ func _play_path(path: String, bus_name: StringName) -> void:
 	var stream := ResourceLoader.load(path, "AudioStream") as AudioStream
 	if stream == null:
 		return
-	var pl := AudioStreamPlayer.new()
+	if not _sfx_pool.has(bus_name):
+		var arr: Array[AudioStreamPlayer] = []
+		for i in range(SFX_POOL_SLOTS):
+			var p := AudioStreamPlayer.new()
+			p.bus = String(bus_name)
+			add_child(p)
+			arr.append(p)
+		_sfx_pool[bus_name] = arr
+		_sfx_cursor[bus_name] = 0
+	var pool: Array[AudioStreamPlayer] = _sfx_pool[bus_name]
+	var idx: int = int(_sfx_cursor[bus_name]) % SFX_POOL_SLOTS
+	var pl := pool[idx]
+	_sfx_cursor[bus_name] = idx + 1
 	pl.stream = stream
-	if AudioServer.get_bus_index(bus_name) >= 0:
-		pl.bus = String(bus_name)
-	add_child(pl)
-	pl.finished.connect(pl.queue_free)
 	pl.play()
