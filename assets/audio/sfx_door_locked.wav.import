@@ -1,0 +1,11 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://audiosfx_door_locked.wav"
+path="res://.godot/imported/sfx_door_locked.wav.vorb"
+metadata={
+}
+
+[deps]
+

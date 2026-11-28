@@ -2,23 +2,10 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://dnijpgthm3omd"
-path="res://.godot/imported/sfx_ui_blip.wav-49e760c1d10f804545da1db6dcf2d056.sample"
+uid="uid://audiosfx_ui_blip.wav"
+path="res://.godot/imported/sfx_ui_blip.wav.vorb"
+metadata={
+}
 
 [deps]
 
-source_file="res://assets/audio/sfx_ui_blip.wav"
-dest_files=["res://.godot/imported/sfx_ui_blip.wav-49e760c1d10f804545da1db6dcf2d056.sample"]
-
-[params]
-
-force/8_bit=false
-force/mono=false
-force/max_rate=false
-force/max_rate_hz=44100
-edit/trim=false
-edit/normalize=false
-edit/loop_mode=0
-edit/loop_begin=0
-edit/loop_end=-1
-compress/mode=0

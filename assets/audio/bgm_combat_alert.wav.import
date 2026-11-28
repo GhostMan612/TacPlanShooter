@@ -2,23 +2,10 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://cv44lppx4smeg"
-path="res://.godot/imported/bgm_combat_alert.wav-79fb3c4300be88d52cf2e2de27764790.sample"
+uid="uid://audiobgm_combat_alert.wav"
+path="res://.godot/imported/bgm_combat_alert.wav.vorb"
+metadata={
+}
 
 [deps]
 
-source_file="res://assets/audio/bgm_combat_alert.wav"
-dest_files=["res://.godot/imported/bgm_combat_alert.wav-79fb3c4300be88d52cf2e2de27764790.sample"]
-
-[params]
-
-force/8_bit=false
-force/mono=false
-force/max_rate=false
-force/max_rate_hz=44100
-edit/trim=false
-edit/normalize=false
-edit/loop_mode=0
-edit/loop_begin=0
-edit/loop_end=-1
-compress/mode=0

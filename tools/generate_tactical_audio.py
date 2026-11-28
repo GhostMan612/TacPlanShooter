@@ -24,6 +24,8 @@ def write(name: str, seconds: float, gen) -> None:
             v = max(-1.0, min(1.0, gen(i / RATE, i)))
             buff.extend(struct.pack("<h", int(v * 26000)))
         w.writeframes(bytes(buff))
+    imp = f'[remap]\n\nimporter="wav"\ntype="AudioStreamWAV"\nuid="uid://audio{name}"\npath="res://.godot/imported/{name}.vorb"\nmetadata={{\n}}\n\n[deps]\n\n'
+    Path(str(out) + ".import").write_text(imp, encoding="utf-8")
     print(f"{name}: {frames} frames")
 
 
@@ -84,6 +86,20 @@ def heartbeat(t: float, i: int) -> float:
     return math.sin(2 * math.pi * 90 * t) * 0.32 * beat
 
 
+def locked(t: float, i: int) -> float:
+    return math.sin(2 * math.pi * 210 * t) * 0.3 * math.exp(-t * 18)
+
+
+def debris(t: float, i: int) -> float:
+    n = math.sin(i * 41.7) * 7781.3
+    noise = n - math.floor(n) - 0.5
+    return noise * 0.45 * math.exp(-t * 7)
+
+
+def glass(t: float, i: int) -> float:
+    return (math.sin(2 * math.pi * 2600 * t) + math.sin(2 * math.pi * 3900 * t) * 0.5) * 0.22 * math.exp(-t * 14)
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     write("bgm_stealth_pad.wav", 8.0, stealth)
@@ -98,3 +114,6 @@ if __name__ == "__main__":
     write("sfx_ui_blip.wav", 0.2, blip)
     write("sfx_gocode_chime.wav", 0.7, chime)
     write("sfx_heartbeat.wav", 3.0, heartbeat)
+    write("sfx_door_locked.wav", 0.3, locked)
+    write("sfx_dirt_debris.wav", 0.8, debris)
+    write("sfx_glass_break.wav", 0.6, glass)

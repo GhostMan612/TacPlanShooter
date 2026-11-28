@@ -74,6 +74,17 @@ func play_alert() -> void:
 		bgm.on_alert()
 
 
+func play_context(kind: StringName) -> void:
+	var names := {
+		&"door_locked": "sfx_door_locked",
+		&"debris": "sfx_dirt_debris",
+		&"glass": "sfx_glass_break",
+		&"barrel": "sfx_breach_c4",
+	}
+	if names.has(kind):
+		_play_path("res://assets/audio/" + String(names[kind]) + ".wav", &"TacticalSFX")
+
+
 func _duck_ambient(factor: float) -> void:
 	_duck_factor = clampf(factor, 0.05, 1.0)
 	_duck_until = Time.get_ticks_msec() + int(DUCK_SECONDS * 1000.0)

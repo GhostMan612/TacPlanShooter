@@ -2,23 +2,10 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://bb0ud8msb7t1c"
-path="res://.godot/imported/sfx_breach_c4.wav-95d005635bbb4e7bcda04f18ad57305c.sample"
+uid="uid://audiosfx_breach_c4.wav"
+path="res://.godot/imported/sfx_breach_c4.wav.vorb"
+metadata={
+}
 
 [deps]
 
-source_file="res://assets/audio/sfx_breach_c4.wav"
-dest_files=["res://.godot/imported/sfx_breach_c4.wav-95d005635bbb4e7bcda04f18ad57305c.sample"]
-
-[params]
-
-force/8_bit=false
-force/mono=false
-force/max_rate=false
-force/max_rate_hz=44100
-edit/trim=false
-edit/normalize=false
-edit/loop_mode=0
-edit/loop_begin=0
-edit/loop_end=-1
-compress/mode=0
